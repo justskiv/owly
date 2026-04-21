@@ -1,0 +1,380 @@
+# Фаза 6: AI Integration
+
+> **Цель:** очередь команд для AI-агента, file watcher, протокол взаимодействия.
+>
+> **Результат:** AI-агент (Claude Code / Cowork) может создавать команды в `commands/pending/`, приложение подхватывает и исполняет их. Есть документация протокола для агента.
+>
+> **Предусловие:** Фазы 1-5 завершены, приложение полностью функционально для ручного использования.
+
+## Контекст
+
+Прочитай `01-data-schema.md` (раздел 6 — Commands), `02-architecture.md` (watcher.rs).
+
+---
+
+## Очередь команд
+
+### Структура папок
+
+```
+commands/
+├── pending/      # агент кладёт команды сюда
+├── done/         # приложение перемещает после выполнения
+└── failed/       # приложение перемещает при ошибке
+```
+
+Создаются при инициализации приложения (ensure_dir).
+
+### File Watcher (Rust)
+
+В `src-tauri/src/watcher.rs`:
+
+При старте приложения запустить `notify` file watcher на `commands/pending/`:
+
+```rust
+// Зависимость: notify = "6"
+use notify::{Watcher, RecursiveMode, Event, EventKind};
+
+fn start_command_watcher(app_handle: AppHandle, pending_dir: PathBuf) {
+    let mut watcher = notify::recommended_watcher(move |event: Result<Event, _>| {
+        if let Ok(event) = event {
+            if matches!(event.kind, EventKind::Create(_)) {
+                for path in event.paths {
+                    if path.extension().map(|e| e == "json").unwrap_or(false) {
+                        app_handle.emit("command-received", path.to_string_lossy().to_string()).ok();
+                    }
+                }
+            }
+        }
+    }).unwrap();
+
+    watcher.watch(&pending_dir, RecursiveMode::NonRecursive).unwrap();
+
+    // Keep watcher alive — store in app state
+    std::mem::forget(watcher); // или сохранить в state
+}
+```
+
+Вызвать `start_command_watcher` в `main.rs` после setup.
+
+### Command Processor (Frontend)
+
+**src/services/command-processor.ts:**
+
+```typescript
+import { listen } from '@tauri-apps/api/event';
+
+export function startCommandProcessor(stores: AppStores) {
+  // Слушать события от file watcher
+  listen<string>('command-received', async (event) => {
+    const filePath = event.payload;
+    await processCommand(filePath, stores);
+  });
+
+  // При старте — обработать все pending (если приложение было закрыто)
+  processAllPending(stores);
+}
+
+async function processCommand(filePath: string, stores: AppStores) {
+  try {
+    // 1. Прочитать файл
+    const content = await invoke<string>('read_file', { path: filePath });
+    const rawCommand = JSON.parse(content);
+
+    // 2. Валидировать через Zod
+    const command = CommandFileSchema.parse(rawCommand);
+
+    // 3. Выполнить
+    await executeCommand(command, stores);
+
+    // 4. Переместить в done/
+    const donePath = filePath.replace('/pending/', '/done/');
+    await invoke('move_file', { from: filePath, to: donePath });
+
+    // 5. Показать toast: "Команда выполнена: create_block"
+    stores.ui.showToast(`✓ ${command.action}`, 'success');
+
+  } catch (error) {
+    // Переместить в failed/ с ошибкой
+    const failedPath = filePath.replace('/pending/', '/failed/');
+    const content = await invoke<string>('read_file', { path: filePath });
+    const failedContent = {
+      ...JSON.parse(content),
+      error: error.message,
+      failed_at: new Date().toISOString()
+    };
+    await invoke('write_file', {
+      path: failedPath,
+      content: JSON.stringify(failedContent, null, 2)
+    });
+    await invoke('delete_file', { path: filePath });
+
+    stores.ui.showToast(`✗ Ошибка: ${error.message}`, 'error');
+  }
+}
+
+async function processAllPending(stores: AppStores) {
+  const dataDir = await invoke<string>('get_data_dir');
+  const pendingDir = `${dataDir}/../commands/pending`;
+  const files = await invoke<string[]>('list_files', { dir: pendingDir });
+
+  // Сортировать по имени (timestamp в имени обеспечивает порядок)
+  files.sort();
+
+  for (const file of files) {
+    await processCommand(`${pendingDir}/${file}`, stores);
+  }
+}
+```
+
+### Исполнение команд
+
+**executeCommand:**
+
+```typescript
+async function executeCommand(command: Command, stores: AppStores) {
+  switch (command.action) {
+    case 'create_block': {
+      const block: Block = {
+        id: generateId('blk'),
+        title: command.data.title,
+        date: command.data.date,
+        start: command.data.start,
+        duration: command.data.duration,
+        category: command.data.category || 'work',
+        source_entity_id: command.data.source_entity_id || null,
+        status: 'planned',
+        notes: command.data.notes || ''
+      };
+      stores.schedule.addBlock(block);
+      break;
+    }
+
+    case 'update_block': {
+      stores.schedule.updateBlock(command.data.block_id, command.data);
+      break;
+    }
+
+    case 'move_block': {
+      stores.schedule.moveBlock(
+        command.data.block_id,
+        command.data.new_date,
+        command.data.new_start
+      );
+      break;
+    }
+
+    case 'resize_block': {
+      stores.schedule.resizeBlock(command.data.block_id, command.data.new_duration);
+      break;
+    }
+
+    case 'delete_block': {
+      stores.schedule.deleteBlock(command.data.block_id);
+      break;
+    }
+
+    case 'set_block_status': {
+      stores.schedule.setBlockStatus(command.data.block_id, command.data.status);
+      break;
+    }
+
+    case 'create_entity': {
+      stores.entities.addEntity(command.data);
+      break;
+    }
+
+    case 'update_entity': {
+      const { entity_id, ...updates } = command.data;
+      stores.entities.updateEntity(entity_id, updates);
+      break;
+    }
+
+    case 'delete_entity': {
+      stores.entities.deleteEntity(command.data.entity_id);
+      break;
+    }
+
+    case 'create_week': {
+      await stores.schedule.createWeek(command.data.week, command.data.apply_template);
+      break;
+    }
+
+    case 'batch': {
+      for (const subCommand of command.data.commands) {
+        await executeCommand(subCommand, stores);
+      }
+      break;
+    }
+
+    default:
+      throw new Error(`Unknown action: ${command.action}`);
+  }
+}
+```
+
+---
+
+## UI индикация
+
+### Status Bar
+
+В нижней части Shell:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ ✓ Сохранено 14:25  │  📥 2 команды выполнены  │  ⚠ 1 ошибка │
+└──────────────────────────────────────────────────────────────┘
+```
+
+- Статус последнего сохранения (timestamp)
+- Счётчик выполненных команд за сессию
+- Счётчик ошибок (клик → показать список failed)
+
+### Toast-уведомления
+
+При выполнении каждой команды — toast в правом верхнем углу:
+- Зелёный: "✓ create_block: Монтаж GC Deep Dive"
+- Красный: "✗ move_block: Block blk-xxx not found"
+- Исчезает через 3 секунды
+
+### Failed Commands Panel
+
+Доступ: клик на "⚠ N ошибок" в status bar.
+
+Список failed-команд:
+- Action + data (кратко)
+- Текст ошибки
+- Timestamp
+- Кнопка "Retry" (перемещает обратно в pending)
+- Кнопка "Dismiss" (удаляет из failed)
+
+---
+
+## Протокол агента
+
+Создать файл `AGENT_PROTOCOL.md` в корне проекта — инструкция для AI-агента как работать с приложением.
+
+### Содержание AGENT_PROTOCOL.md
+
+```markdown
+# TuzovOS — Протокол для AI-агента
+
+## Чтение данных
+
+Читай файлы напрямую:
+- `data/entities.json` — все сущности
+- `data/schedule/2026-wNN.json` — расписание недели
+- `data/config.json` — настройки, области, preferences
+- `data/templates/default.json` — шаблон недели
+
+## Запись данных
+
+НЕ ПИШИ в data/ напрямую. Создавай команды в `commands/pending/`.
+
+### Формат имени файла
+
+`commands/pending/{timestamp}-{action}.json`
+
+Пример: `commands/pending/1713012345-create-block.json`
+
+### Формат команды
+
+{json}
+{
+  "id": "cmd-{timestamp}-{action}",
+  "action": "create_block",
+  "timestamp": "2026-04-13T14:25:45",
+  "data": { ... }
+}
+{/json}
+
+### Доступные действия
+
+[Полный список из 01-data-schema.md, раздел 6]
+
+### Примеры
+
+#### Создать блок в расписании
+{json}
+{
+  "id": "cmd-1713012345-create-block",
+  "action": "create_block",
+  "timestamp": "2026-04-13T14:25:45",
+  "data": {
+    "title": "Монтаж GC Deep Dive",
+    "date": "2026-04-14",
+    "start": "09:00",
+    "duration": 120,
+    "category": "work",
+    "source_entity_id": "ent-a1b2c3d4"
+  }
+}
+{/json}
+
+#### Раскидать всю неделю (batch)
+{json}
+{
+  "id": "cmd-1713012400-batch",
+  "action": "batch",
+  "timestamp": "2026-04-13T14:26:40",
+  "data": {
+    "commands": [
+      { "action": "create_block", "data": { ... } },
+      { "action": "create_block", "data": { ... } },
+      { "action": "create_block", "data": { ... } }
+    ]
+  }
+}
+{/json}
+
+#### Создать дашборд
+
+Просто создай .jsx файл в `data/dashboards/` и обнови `_registry.json`.
+Приложение подхватит автоматически (hot reload).
+
+## Scheduling Preferences
+
+Читай `data/config.json` → `scheduling_preferences` перед планированием.
+Там правила: deep work утром, буферы после подкастов, и т.д.
+
+## ID-формат
+
+- Сущности: `ent-{uuid}`
+- Блоки: `blk-{uuid}`
+- Команды: `cmd-{timestamp}-{action}`
+```
+
+---
+
+## Scheduling Preferences UI
+
+Добавить в Settings (Фаза 4) секцию "AI-планирование":
+
+Визуальный редактор preferences из config.json:
+- Deep work hours: два time picker (start, end)
+- No calls before: time picker
+- Min block durations: таблица (тип работы → минимум минут)
+- Buffers: таблица (после чего → сколько минут)
+- Hobby hours: два time picker
+- Max busy evenings: number input
+- Meeting preference: select (weekdays / weekends / any)
+
+Изменения сохраняются в `config.json` → агент читает при планировании.
+
+---
+
+## Критерии готовности
+
+- [ ] File watcher на commands/pending/ работает
+- [ ] Приложение обрабатывает новые .json файлы в pending/
+- [ ] Все actions из протокола работают (create/update/move/resize/delete block, CRUD entity, create week, batch)
+- [ ] Валидация через Zod — невалидные команды попадают в failed/
+- [ ] Выполненные команды перемещаются в done/
+- [ ] Status bar показывает статус
+- [ ] Toast-уведомления при выполнении/ошибке
+- [ ] Failed commands panel с retry
+- [ ] При старте — обработка всех pending (очередь не теряется)
+- [ ] AGENT_PROTOCOL.md создан и полон
+- [ ] Scheduling preferences редактируются в UI
+- [ ] Hot reload дашбордов при изменении файлов (из Фазы 5, если не было)
