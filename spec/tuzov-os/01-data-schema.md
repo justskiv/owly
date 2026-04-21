@@ -129,6 +129,14 @@ work, people, life, growth, health
     "important_dates": [
       { "label": "День рождения", "date": "03-15" }  // MM-DD
     ],
+    "topics": [                          // чеклист тем для следующего разговора
+      { "text": "Спросить про шторы на кухню", "done": false },
+      { "text": "Рецепт пирога с вишней", "done": true }
+    ],
+    "contact_history": [                 // лог встреч/звонков (UI показывает таймлайн)
+      { "date": "2026-04-06", "note": "Звонок, 25 мин" },
+      { "date": "2026-03-28", "note": "Звонок, 40 мин" }
+    ],
     "notes": "Любит когда звоню, а не пишу"
   }
 }
@@ -140,7 +148,8 @@ work, people, life, growth, health
   "fields": {
     "target": "55K подписчиков YouTube",
     "current_value": "33K",
-    "target_date": "2026-12-31" | null
+    "target_date": "2026-12-31" | null,
+    "linked_metric_ids": ["ent-yt-subs"]  // метрики, по которым цель оценивается
   }
 }
 ```
@@ -160,6 +169,7 @@ work, people, life, growth, health
   "fields": {
     "unit": "subscribers",
     "current_value": 33000,
+    "linked_goal_id": "ent-yt-55k" | null,  // цель, к которой привязана метрика (UI показывает «Связанная цель» в stat-footer)
     "history": [
       { "date": "2026-03-01", "value": 31500 },
       { "date": "2026-04-01", "value": 33000 }
@@ -167,6 +177,28 @@ work, people, life, growth, health
   }
 }
 ```
+
+### Вычисляемые поля (derived)
+
+Не все показатели, которые видны в UI, хранятся в JSON. Часть из них —
+это производные величины, которые считаются на лету сервисами в
+`src/services/`. Это сокращает дублирование и гарантирует, что цифры
+всегда согласованы с источником.
+
+| Где видно в UI | Источник | Как считается |
+|---|---|---|
+| `routine.streak` (текущая серия дней) | блоки в `data/schedule/*.json` с `source_entity_id === routine.id` | длина непрерывной цепочки `status === "done"` до сегодня |
+| `routine.rate` (% выполнения) | те же блоки | отношение `done / (done + skipped + planned просроченных)` за выбранный период |
+| `routine.week_done[7]` (streak-неделя) | блоки текущей недели | массив 7 bool для Пн–Вс: есть ли done-блок этой рутины |
+| `routine.heatmap` (26 недель) | блоки всех доступных недель | сетка интенсивности по `done`-блокам |
+| `metric.change`, `change_pct` | `metric.history` | `last - prev` и `(last - prev) / prev * 100` |
+| `metric.avg_growth` | `metric.history` | линейная регрессия или простое среднее за период |
+| `metric.trend` (↑/↓/→) | `metric.history` | знак `change` |
+| `contact.overdue_days` / `next_in_days` | `contact.last_contact` + `desired_cadence_days` | `today - last_contact - cadence` |
+
+Сервисы: `src/services/routine-stats.ts`, `src/services/metric-stats.ts`,
+`src/services/contact-stats.ts`. Они появляются по мере реализации
+соответствующих экранов (фаза 4 — сущности).
 
 ---
 
@@ -197,7 +229,7 @@ work, people, life, growth, health
   "title": string,           // "Монтаж GC Deep Dive"
   "date": string,            // "2026-04-14" (ISO date)
   "start": string,           // "09:00" (HH:MM, шаг 30 мин для snap, но хранится точное)
-  "duration": number,        // минуты (минимум 15)
+  "duration": number,        // минуты (минимум 30, snap по 30-мин сетке)
   "category": string,        // тег области для цвета: "work", "health" и т.д.
   "source_entity_id": string|null,  // ссылка на сущность из entities.json
   "status": BlockStatus,     // "planned" | "done" | "skipped" | "moved"
@@ -218,8 +250,9 @@ work, people, life, growth, health
 
 ### Правила
 
-- Блоки могут пересекаться (overlap) — приложение подсвечивает конфликт, но не запрещает
-- `start` snap к 15-минутным границам при drag-and-drop, но в JSON хранится точное значение
+- Блоки могут пересекаться (overlap) — приложение подсвечивает конфликт (dashed red border + ⚠), но не запрещает
+- `start` snap к 30-минутным границам при drag-and-drop и inline-создании
+- Минимальная длительность — 30 минут
 - Нет ограничения на количество блоков в дне
 - Блоки без `source_entity_id` — допустимы (ручной блок, буфер, отдых)
 
@@ -273,11 +306,11 @@ work, people, life, growth, health
   "version": 1,
 
   "areas": [
-    { "id": "work", "label": "Работа", "color": "#3B82F6", "icon": "briefcase" },
-    { "id": "people", "label": "Люди", "color": "#EC4899", "icon": "users" },
-    { "id": "life", "label": "Быт", "color": "#F59E0B", "icon": "home" },
-    { "id": "growth", "label": "Развитие", "color": "#8B5CF6", "icon": "book" },
-    { "id": "health", "label": "Здоровье", "color": "#10B981", "icon": "heart" }
+    { "id": "work", "label": "Работа", "color": "#FF7A3D", "icon": "briefcase" },
+    { "id": "people", "label": "Люди", "color": "#FF5CA8", "icon": "users" },
+    { "id": "life", "label": "Быт", "color": "#B8D84A", "icon": "home" },
+    { "id": "growth", "label": "Развитие", "color": "#9B6CFF", "icon": "book" },
+    { "id": "health", "label": "Здоровье", "color": "#30D888", "icon": "heart" }
   ],
 
   "scheduling_preferences": {
@@ -303,9 +336,9 @@ work, people, life, growth, health
   ],
 
   "priorities": {
-    "high": { "label": "Высокий", "color": "#EF4444" },
-    "medium": { "label": "Средний", "color": "#F59E0B" },
-    "low": { "label": "Низкий", "color": "#6B7280" }
+    "high": { "label": "Высокий", "color": "#E06878" },
+    "medium": { "label": "Средний", "color": "#C78A3A" },
+    "low": { "label": "Низкий", "color": "#707070" }
   }
 }
 ```

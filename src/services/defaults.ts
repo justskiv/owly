@@ -8,11 +8,11 @@ import type {
 export const DEFAULT_CONFIG: ConfigFile = {
   version: 1,
   areas: [
-    { id: "work", label: "Работа", color: "#3B82F6", icon: "briefcase" },
-    { id: "people", label: "Люди", color: "#EC4899", icon: "users" },
-    { id: "life", label: "Быт", color: "#F59E0B", icon: "home" },
-    { id: "growth", label: "Развитие", color: "#8B5CF6", icon: "book" },
-    { id: "health", label: "Здоровье", color: "#10B981", icon: "heart" },
+    { id: "work", label: "Работа", color: "#FF7A3D", icon: "briefcase" },
+    { id: "people", label: "Люди", color: "#FF5CA8", icon: "users" },
+    { id: "life", label: "Быт", color: "#B8D84A", icon: "home" },
+    { id: "growth", label: "Развитие", color: "#9B6CFF", icon: "book" },
+    { id: "health", label: "Здоровье", color: "#30D888", icon: "heart" },
   ],
   scheduling_preferences: {
     deep_work_hours: { start: "08:00", end: "13:00" },
@@ -34,9 +34,9 @@ export const DEFAULT_CONFIG: ConfigFile = {
     "done",
   ],
   priorities: {
-    high: { label: "Высокий", color: "#EF4444" },
-    medium: { label: "Средний", color: "#F59E0B" },
-    low: { label: "Низкий", color: "#6B7280" },
+    high: { label: "Высокий", color: "#E06878" },
+    medium: { label: "Средний", color: "#C78A3A" },
+    low: { label: "Низкий", color: "#707070" },
   },
 };
 

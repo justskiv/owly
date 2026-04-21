@@ -8,7 +8,14 @@
 
 ## Контекст
 
-Прочитай `01-data-schema.md` (раздел 6 — Commands), `02-architecture.md` (watcher.rs).
+Прочитай `01-data-schema.md` (раздел 6 — Commands),
+`02-architecture.md` (watcher.rs).
+
+**Референс:**
+- `design/tuzov-os-design-spec.md`, разделы «Status bar»,
+  «Toast-уведомления»
+- `design/tuzov-os-design-mock.html`, селекторы `.sbar`, `.toast-
+  c`, `.toast`, `.toast.success`, `@keyframes tIn`
 
 ---
 
@@ -219,24 +226,52 @@ async function executeCommand(command: Command, stores: AppStores) {
 
 ### Status Bar
 
-В нижней части Shell:
+Status bar существует с **фазы 1** (отрисовка) и **фазы 2** (счётчик
+«Сохранено» + «N сущностей»). Здесь — расширяем его новыми
+счётчиками.
+
+Разметка `.sbar` — 26px, background `var(--bg-surface)`, `--fs-2xs`,
+`var(--mono)`, `color: var(--text-tertiary)`:
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│ ✓ Сохранено 14:25  │  📥 2 команды выполнены  │  ⚠ 1 ошибка │
-└──────────────────────────────────────────────────────────────┘
+● Сохранено 14:25 │ 18 сущностей │ 📥 2 выполнено │ ⚠ 1 ошибка     [hints →]
 ```
 
-- Статус последнего сохранения (timestamp)
-- Счётчик выполненных команд за сессию
-- Счётчик ошибок (клик → показать список failed)
+Состав:
+- `● Сохранено HH:MM` — из `save-status.ts` (с фазы 2)
+- `N сущностей` — из entity store (с фазы 1)
+- **Новое**: `📥 N выполнено` — счётчик команд выполненных за
+  сессию. Увеличивается при успешном `move_file → done/`
+- **Новое**: `⚠ N ошибок` — счётчик failed-команд за сессию.
+  Кликабельный → открывает панель `FailedCommandsPanel`
+- Справа (`.hints`) — подсказки-хоткеи, подтягиваются по активной
+  странице
+
+Разделители — `.sep` (1px × 10px, `var(--border)`).
 
 ### Toast-уведомления
 
-При выполнении каждой команды — toast в правом верхнем углу:
-- Зелёный: "✓ create_block: Монтаж GC Deep Dive"
-- Красный: "✗ move_block: Block blk-xxx not found"
-- Исчезает через 3 секунды
+Контейнер `.toast-c` — `position: fixed`, `top: 12px`, `right:
+12px`, вертикальный flex с gap 8px.
+
+`.toast` — одна плашка:
+- Background `var(--bg-elevated)`, `border: 1px solid var(--border-
+  default)`, `border-radius: var(--radius-lg)`, padding 8×16
+- `--fs-xs`, flex-row + gap 8px, `box-shadow: var(--shadow-sm)`
+- Анимация появления — `@keyframes tIn { from { opacity:0;
+  transform: translateX(16px) } }`, длительность `var(--duration-
+  slow)` с `var(--ease-out)`
+- Автоисчезает через 2500ms
+
+Варианты:
+- `.toast.success` — `border-left: 2px solid var(--success)`;
+  текст `✓ ${command.action}` (или короче для ежедневных действий
+  типа «Перемещён», «Создан: Монтаж GC»)
+- `.toast.error` — `border-left: 2px solid var(--error)`; текст
+  `✗ ${command.action}: ${error.message}`
+
+Toast уже используется с фазы 2 (на любое изменение блока). В
+фазе 6 добавляется реакция на успех/ошибку команды.
 
 ### Failed Commands Panel
 

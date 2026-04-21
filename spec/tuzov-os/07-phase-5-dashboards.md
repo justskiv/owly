@@ -8,7 +8,14 @@
 
 ## Контекст
 
-Прочитай `01-data-schema.md` (раздел 5 — дашборды, реестр), `02-architecture.md` (раздел "Дашборды: динамический рендеринг").
+Прочитай `01-data-schema.md` (раздел 5 — дашборды, реестр),
+`02-architecture.md` (раздел «Дашборды: динамический рендеринг»).
+
+**Референс:**
+- `design/tuzov-os-design-spec.md`, раздел «Экран 3 — Дашборды»
+- `design/tuzov-os-design-mock.html`, селекторы `.dash-grid`,
+  `.dcard`, `.dcard-icon`, `.dcard-title`, `.dcard-desc` —
+  референс разметки страницы дашбордов
 
 ## Установить
 
@@ -100,28 +107,49 @@ class DashboardErrorBoundary extends React.Component {
 
 ### DashboardsPage.tsx
 
+Разметка из мока (селекторы `.dash-grid`, `.dcard`):
+
 ```
-┌──────────────────────────────────────────────────────┐
-│ Дашборды                                [+ Добавить] │
-├──────────────────────────────────────────────────────┤
-│                                                      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐          │
-│  │ 📊 KPI   │  │ 📅 Планы │  │ 🔄 Пайп- │          │
-│  │ 2026     │  │ по меся- │  │ лайн     │          │
-│  │          │  │ цам      │  │          │          │
-│  └──────────┘  └──────────┘  └──────────┘          │
-│                                                      │
-└──────────────────────────────────────────────────────┘
+┌───────── hdr (48px) ───────────────────────────┐
+│ Дашборды                        [+ Добавить]   │
+├─────────── .dash-grid (padding 20) ─────────────┤
+│                                                 │
+│  ┌────── .dcard ──────┐ ┌──────┐ ┌──────┐ ┌─+─┐ │
+│  │ 📊 (.dcard-icon)   │ │ 📅   │ │ 🔄   │ │   │ │
+│  │                    │ │      │ │      │ │   │ │
+│  │ KPI 2026           │ │ Пла- │ │ Пайп-│ │Доб│ │
+│  │ Подписчики, доход  │ │ ны   │ │ лайн │ │   │ │
+│  └────────────────────┘ └──────┘ └──────┘ └───┘ │
+│    200×130                                      │
+└─────────────────────────────────────────────────┘
 ```
 
-- Grid карточек дашбордов из реестра
+**Карточка `.dcard`:**
+- Размер 200×130px, `padding: 16px`, `background: var(--bg-tint-1)`,
+  `border: 1px solid var(--border)`, `border-radius: var(--radius-lg)`
+- `.dcard-icon` — эмодзи или Lucide-иконка, `--fs-xl`, `margin-
+  bottom: 12px`, `opacity: .7`
+- `.dcard-title` — название, `--fs-md` 500
+- `.dcard-desc` — описание, `--fs-xs`, `--text-tertiary`, margin-top 3
+- Hover: `border-color: var(--border-default)`, `transform:
+  translateY(-1px)`
+- Карточка `«+ Добавить»` — `border-style: dashed`, `opacity: .5`,
+  внутри иконка `+` + подпись
+
+**Grid:**
+- `display: flex`, `flex-wrap: wrap`, `gap: 12px`, `padding: 20px`
+- `align-content: flex-start` — карточки прижаты наверх
+- `flex: 1`, `overflow-y: auto`
+
+**Навигация:**
 - Клик на карточку → рендерить дашборд в full screen (заменяет grid)
-- Кнопка "Назад к списку" в header
-- Кнопка "+ Добавить" → формочка: title, описание, загрузить .jsx или создать пустой
+- Кнопка «Назад к списку» в header
+- Кнопка «+ Добавить» → формочка: title, описание, загрузить .jsx
+  или создать пустой
 
 ### DashboardNav.tsx
 
-Tabs или breadcrumbs для навигации между дашбордами:
+Breadcrumbs для навигации внутри:
 ```
 Дашборды > KPI 2026
 ```
@@ -209,20 +237,47 @@ export default function NewDashboard({ entities, schedule, config }) {
 
 **Вариант 1 (рекомендуемый):** inline styles. Дашборды используют `style={{ ... }}`. Это то, что AI-агент генерирует по умолчанию — он привык к inline styles в артефактах.
 
-**Вариант 2:** предоставить CSS-переменные для тёмной темы:
+**Вариант 2:** использовать CSS-переменные из дизайн-системы,
+которые уже объявлены в `globals.css` (см. фазу 1):
+
+Доступные из любого дашборда:
+
 ```css
-:root {
-  --bg-primary: #0F172A;
-  --bg-card: #1E293B;
-  --text-primary: #E2E8F0;
-  --text-secondary: #94A3B8;
-  --accent: #3B82F6;
-}
+/* Поверхности */
+var(--bg-deep) var(--bg-base) var(--bg-surface)
+var(--bg-elevated) var(--bg-hover) var(--bg-active)
+var(--bg-tint-1) var(--bg-tint-2)
+
+/* Текст */
+var(--text-primary) var(--text-secondary) var(--text-tertiary)
+var(--text-disabled) var(--text-inverse)
+
+/* Акцент + семантика */
+var(--accent)     /* #E0B860 */
+var(--success)    /* #30D888 */
+var(--error)      /* #E06878 */
+
+/* Категории */
+var(--work) var(--people) var(--life) var(--growth) var(--health)
+
+/* Границы и радиусы */
+var(--border) var(--border-default) var(--border-strong)
+var(--radius-sm) var(--radius-md) var(--radius-lg) var(--radius-xl)
+
+/* Типографика */
+var(--fs-2xs) var(--fs-xs) var(--fs-sm) var(--fs-md)
+var(--fs-lg) var(--fs-xl) var(--fs-2xl)
+var(--font) var(--mono)
 ```
 
-Дашборды могут использовать `var(--bg-card)` в своих стилях. Это обеспечит консистентный вид.
+Дашборд может использовать `style={{ background: 'var(--bg-surface)',
+color: 'var(--text-primary)' }}` — и выглядеть консистентно с
+остальным приложением.
 
-**Решение:** оба. CSS-переменные объявляются в globals.css, дашборды могут их использовать или игнорировать.
+**Решение:** оба. AI-агент генерирует inline styles (вариант 1), но
+может использовать CSS-переменные из дизайн-системы для визуальной
+согласованности (вариант 2). Полный список переменных — в
+`design/tuzov-os-design-spec.md`.
 
 ---
 
