@@ -12,6 +12,13 @@ import { trackSave } from "../services/save-status";
 
 type EntityDraft = Omit<Entity, "id" | "created_at" | "updated_at">;
 
+// Persist-first: see schedule.ts for the same rationale.
+async function persistEntities(entities: Entity[]) {
+  const path = await getDataPath("entities.json");
+  const file: EntitiesFile = { version: 1, entities };
+  await writeJsonFile(path, file);
+}
+
 interface EntityStore {
   entities: Entity[];
   loading: boolean;
@@ -52,11 +59,7 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
   },
 
   saveEntities: async () => {
-    await trackSave(async () => {
-      const path = await getDataPath("entities.json");
-      const file: EntitiesFile = { version: 1, entities: get().entities };
-      await writeJsonFile(path, file);
-    });
+    await trackSave(() => persistEntities(get().entities));
   },
 
   addEntity: async (draft) => {
@@ -67,25 +70,26 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
       created_at: now,
       updated_at: now,
     } as Entity;
-    set({ entities: [...get().entities, entity] });
-    await get().saveEntities();
+    const next = [...get().entities, entity];
+    await trackSave(() => persistEntities(next));
+    set({ entities: next });
     return entity;
   },
 
   updateEntity: async (id, updates) => {
-    set({
-      entities: get().entities.map((e) =>
-        e.id === id
-          ? ({ ...e, ...updates, updated_at: nowISO() } as Entity)
-          : e,
-      ),
-    });
-    await get().saveEntities();
+    const next = get().entities.map((e) =>
+      e.id === id
+        ? ({ ...e, ...updates, updated_at: nowISO() } as Entity)
+        : e,
+    );
+    await trackSave(() => persistEntities(next));
+    set({ entities: next });
   },
 
   deleteEntity: async (id) => {
-    set({ entities: get().entities.filter((e) => e.id !== id) });
-    await get().saveEntities();
+    const next = get().entities.filter((e) => e.id !== id);
+    await trackSave(() => persistEntities(next));
+    set({ entities: next });
   },
 
   getByType: (type) => get().entities.filter((e) => e.type === type),

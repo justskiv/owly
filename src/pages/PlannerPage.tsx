@@ -158,7 +158,7 @@ export function PlannerPage() {
 
       const noModifier = !e.metaKey && !e.ctrlKey && !e.altKey;
 
-      if (noModifier && (e.key === "n" || e.key === "N")) {
+      if (noModifier && e.code === "KeyN") {
         e.preventDefault();
         setEditor({
           mode: "new",
@@ -166,7 +166,7 @@ export function PlannerPage() {
         });
         return;
       }
-      if (noModifier && (e.key === "t" || e.key === "T")) {
+      if (noModifier && e.code === "KeyT") {
         // фаза 3 — пул задач
         return;
       }
@@ -183,9 +183,9 @@ export function PlannerPage() {
         }
       };
 
-      if (noModifier && (e.key === "d" || e.key === "D")) {
+      if (noModifier && e.code === "KeyD") {
         void runStatus("done", "Done ✓");
-      } else if (noModifier && (e.key === "s" || e.key === "S")) {
+      } else if (noModifier && e.code === "KeyS") {
         void runStatus("skipped", "Skipped");
       } else if (
         noModifier &&

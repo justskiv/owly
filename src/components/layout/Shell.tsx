@@ -9,9 +9,9 @@ import { DashboardsPage } from "../../pages/DashboardsPage";
 import { useUIStore, type Page } from "../../store/ui";
 
 const KEY_PAGE: Record<string, Page> = {
-  "1": "planner",
-  "2": "entities",
-  "3": "dashboards",
+  Digit1: "planner",
+  Digit2: "entities",
+  Digit3: "dashboards",
 };
 
 export function Shell() {
@@ -27,7 +27,7 @@ export function Shell() {
       ) {
         return;
       }
-      const next = KEY_PAGE[e.key];
+      const next = KEY_PAGE[e.code];
       if (next) setPage(next);
     };
     window.addEventListener("keydown", handler);

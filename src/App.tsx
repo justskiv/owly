@@ -6,7 +6,7 @@ import { Shell } from "./components/layout/Shell";
 import { useConfigStore } from "./store/config";
 import { useEntityStore } from "./store/entities";
 import { useScheduleStore } from "./store/schedule";
-import { ensureDataDir } from "./services/file-io";
+import { ensureDataDir, JsonReadError } from "./services/file-io";
 import { getCurrentWeekId } from "./services/time-utils";
 
 function App() {
@@ -45,10 +45,14 @@ function App() {
       } catch (e) {
         if (cancelled) return;
         window.clearTimeout(safety);
-        await message(
-          `Не удалось запустить TuzovOS:\n\n${(e as Error).message}`,
-          { title: "TuzovOS", kind: "error" },
-        );
+        const msg =
+          e instanceof JsonReadError
+            ? `Файл ${e.path}\n\n${e.message}`
+            : (e as Error).message;
+        await message(`Не удалось запустить TuzovOS:\n\n${msg}`, {
+          title: "TuzovOS",
+          kind: "error",
+        });
         await exit(1);
       }
     })();

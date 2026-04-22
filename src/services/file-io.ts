@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
+import { toast } from "../components/shared/Toast";
 
 let cachedDataDir: string | null = null;
 
@@ -107,7 +108,29 @@ export async function readJsonFileOrCreate<T>(
     await writeJsonFile(path, defaultData);
     return defaultData;
   }
-  return readJsonFile(path, schema);
+  try {
+    return await readJsonFile(path, schema);
+  } catch (e) {
+    if (e instanceof JsonReadError) {
+      // Snapshot the corrupted file so the user can recover it later,
+      // then create a fresh default and continue boot. Without this
+      // a single bad file aborts the whole app.
+      const ts = new Date().toISOString().replace(/[:.]/g, "-");
+      const corrupted = `${path}.corrupted-${ts}.json`;
+      try {
+        await moveFile(path, corrupted);
+      } catch {
+        // If the rename fails, the writeJsonFile below will just
+        // overwrite the broken file. We lose the snapshot but recover.
+      }
+      console.error(`[recovery] ${path} → ${corrupted}: ${e.message}`);
+      const name = corrupted.split("/").pop() ?? corrupted;
+      toast.error(`Файл повреждён, восстановлен пустой. Бэкап: ${name}`);
+      await writeJsonFile(path, defaultData);
+      return defaultData;
+    }
+    throw e;
+  }
 }
 
 export async function ensureDataDir(): Promise<string> {

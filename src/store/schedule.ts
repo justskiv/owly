@@ -46,6 +46,28 @@ const initialWeek = getCurrentWeekId();
 // after week N+2's set({currentWeek}), and writes go to the wrong file.
 let loadToken = 0;
 
+// Persist-first: write the file before mutating store. If the write
+// throws, in-memory state still matches disk and the toast surfaces
+// the failure; otherwise a silent state/disk drift bites on next reload.
+async function persistWeek(
+  snapshot: {
+    currentWeek: string;
+    startDate: string;
+    templateApplied: string | null;
+  },
+  blocks: Block[],
+) {
+  const path = await getDataPath("schedule", `${snapshot.currentWeek}.json`);
+  const file: WeekFile = {
+    version: 1,
+    week: snapshot.currentWeek,
+    start_date: snapshot.startDate,
+    template_applied: snapshot.templateApplied,
+    blocks,
+  };
+  await writeJsonFile(path, file);
+}
+
 export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   currentWeek: initialWeek,
   startDate: getWeekStartDate(initialWeek),
@@ -80,34 +102,26 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   },
 
   saveWeek: async () => {
-    await trackSave(async () => {
-      const { currentWeek, startDate, templateApplied, blocks } = get();
-      const path = await getDataPath("schedule", `${currentWeek}.json`);
-      const file: WeekFile = {
-        version: 1,
-        week: currentWeek,
-        start_date: startDate,
-        template_applied: templateApplied,
-        blocks,
-      };
-      await writeJsonFile(path, file);
-    });
+    const snap = get();
+    await trackSave(() => persistWeek(snap, snap.blocks));
   },
 
   addBlock: async (draft) => {
     const block: Block = { ...draft, id: generateId("blk") };
-    set({ blocks: [...get().blocks, block] });
-    await get().saveWeek();
+    const snap = get();
+    const next = [...snap.blocks, block];
+    await trackSave(() => persistWeek(snap, next));
+    set({ blocks: next });
     return block;
   },
 
   updateBlock: async (id, updates) => {
-    set({
-      blocks: get().blocks.map((b) =>
-        b.id === id ? { ...b, ...updates } : b,
-      ),
-    });
-    await get().saveWeek();
+    const snap = get();
+    const next = snap.blocks.map((b) =>
+      b.id === id ? { ...b, ...updates } : b,
+    );
+    await trackSave(() => persistWeek(snap, next));
+    set({ blocks: next });
   },
 
   moveBlock: async (id, date, start) => {
@@ -119,8 +133,10 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   },
 
   deleteBlock: async (id) => {
-    set({ blocks: get().blocks.filter((b) => b.id !== id) });
-    await get().saveWeek();
+    const snap = get();
+    const next = snap.blocks.filter((b) => b.id !== id);
+    await trackSave(() => persistWeek(snap, next));
+    set({ blocks: next });
   },
 
   setBlockStatus: async (id, status) => {
