@@ -45,7 +45,15 @@ export function InlineCreate({
             }
           }
           if (e.key === "Escape") {
+            // Hand focus off to body BEFORE React unmounts the node.
+            // Otherwise WebKit's scroll-anchoring algorithm picks a
+            // new anchor (the now-line or next block) when the focused
+            // absolute-positioned input vanishes from the scroller,
+            // and re-aligns scrollTop to keep that anchor stable —
+            // which presents as a sudden jump.
             e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.blur();
             onCancel();
           }
         }}
