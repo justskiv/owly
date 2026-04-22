@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { BlockContextMenu } from "../components/planner/BlockContextMenu";
 import {
   BlockEditor,
@@ -23,9 +22,7 @@ import {
   START_HOUR,
   clampBlockToGrid,
   formatDate,
-  formatWeekRange,
   getWeekDates,
-  getWeekNumber,
   minutesToTime,
   timeToMinutes,
 } from "../services/time-utils";
@@ -85,9 +82,6 @@ export function PlannerPage() {
   const week = useScheduleStore((s) => s.currentWeek);
   const weekStart = useScheduleStore((s) => s.startDate);
   const blocks = useScheduleStore((s) => s.blocks);
-  const goToPrev = useScheduleStore((s) => s.goToPrevWeek);
-  const goToNext = useScheduleStore((s) => s.goToNextWeek);
-  const goToCurrent = useScheduleStore((s) => s.goToCurrentWeek);
 
   const selectedId = useUIStore((s) => s.selectedBlockId);
   const setSelectedBlock = useUIStore((s) => s.setSelectedBlock);
@@ -130,12 +124,6 @@ export function PlannerPage() {
     setEditor(null);
     setCtx(null);
     setInline(null);
-  };
-
-  const navWeek = (fn: () => Promise<void> | void) => () => {
-    closeAllOverlays();
-    setSelectedBlock(null);
-    void fn();
   };
 
   const editorBlock =
@@ -306,45 +294,6 @@ export function PlannerPage() {
 
   return (
     <div className={`page${active ? " active" : ""}`}>
-      <div className="hdr">
-        <button
-          type="button"
-          className="nav-btn"
-          onClick={navWeek(goToPrev)}
-          aria-label="Предыдущая неделя"
-        >
-          <ChevronLeft />
-        </button>
-        <span className="hdr-week">
-          Неделя {getWeekNumber(week)}
-          <span className="hdr-week-sub">{formatWeekRange(week)}</span>
-        </span>
-        <button
-          type="button"
-          className="nav-btn"
-          onClick={navWeek(goToNext)}
-          aria-label="Следующая неделя"
-        >
-          <ChevronRight />
-        </button>
-        <button
-          type="button"
-          className="hdr-today"
-          onClick={navWeek(goToCurrent)}
-        >
-          Сегодня
-        </button>
-        <div className="hdr-spacer" />
-        <button
-          type="button"
-          className="hdr-btn hdr-btn-ghost"
-          onClick={() => {
-            /* фаза 3: пул задач */
-          }}
-        >
-          Пул<span className="hkbd">T</span>
-        </button>
-      </div>
       <WeekSummary balance={weekBal} freeMinutes={freeWk} />
       <WeekGrid
         weekKey={week}

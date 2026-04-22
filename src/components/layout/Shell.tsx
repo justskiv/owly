@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { StatusBar } from "./StatusBar";
 import { Toast } from "../shared/Toast";
@@ -13,7 +14,7 @@ const KEY_PAGE: Record<string, Page> = {
   "3": "dashboards",
 };
 
-export function Shell({ booting }: { booting: boolean }) {
+export function Shell() {
   const setPage = useUIStore((s) => s.setPage);
 
   useEffect(() => {
@@ -34,11 +35,9 @@ export function Shell({ booting }: { booting: boolean }) {
   }, [setPage]);
 
   return (
-    <div
-      className={`app${booting ? " booting" : ""}`}
-      onContextMenu={(e) => e.preventDefault()}
-    >
+    <div className="app" onContextMenu={(e) => e.preventDefault()}>
       <Sidebar />
+      <Header />
       <main className="main">
         <PlannerPage />
         <EntitiesPage />

@@ -6,14 +6,6 @@ export function EntitiesPage() {
   const entities = useEntityStore((s) => s.entities);
   return (
     <div className={`page${active ? " active" : ""}`}>
-      <div className="hdr">
-        <div className="hdr-title">Сущности</div>
-        <input className="search-input" placeholder="Поиск..." />
-        <div className="hdr-spacer" />
-        <button type="button" className="hdr-btn" disabled>
-          + Создать
-        </button>
-      </div>
       <div style={{ padding: 24 }}>
         <h1
           style={{

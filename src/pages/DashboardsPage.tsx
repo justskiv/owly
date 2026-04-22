@@ -4,13 +4,6 @@ export function DashboardsPage() {
   const active = useUIStore((s) => s.currentPage === "dashboards");
   return (
     <div className={`page${active ? " active" : ""}`}>
-      <div className="hdr">
-        <div className="hdr-title">Дашборды</div>
-        <div className="hdr-spacer" />
-        <button type="button" className="hdr-btn" disabled>
-          + Добавить
-        </button>
-      </div>
       <div style={{ padding: 24 }}>
         <h1
           style={{

@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { message } from "@tauri-apps/plugin-dialog";
+import { exit } from "@tauri-apps/plugin-process";
 import { Shell } from "./components/layout/Shell";
 import { useConfigStore } from "./store/config";
 import { useEntityStore } from "./store/entities";
@@ -6,41 +9,31 @@ import { useScheduleStore } from "./store/schedule";
 import { ensureDataDir } from "./services/file-io";
 import { getCurrentWeekId } from "./services/time-utils";
 
-function BootErrorBanner({ message }: { message: string }) {
-  return (
-    <div
-      role="alert"
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        padding: "8px 16px",
-        background: "var(--error)",
-        color: "var(--text-inverse)",
-        fontSize: "var(--fs-sm)",
-        fontFamily: "var(--font)",
-        zIndex: 3000,
-        display: "flex",
-        gap: 12,
-        alignItems: "baseline",
-      }}
-    >
-      <strong>Не удалось загрузить данные.</strong>
-      <span style={{ opacity: 0.85 }}>{message}</span>
-      <span style={{ marginLeft: "auto", opacity: 0.7 }}>
-        Перезапустите приложение, чтобы повторить попытку.
-      </span>
-    </div>
-  );
-}
-
 function App() {
-  const [error, setError] = useState<string | null>(null);
-  const [booting, setBooting] = useState(true);
-
   useEffect(() => {
     let cancelled = false;
+    // Safety: show window no matter what within 5s, so a hung boot
+    // never leaves the user staring at a dock icon forever.
+    const safety = window.setTimeout(() => {
+      void getCurrentWindow().show();
+    }, 5000);
+
+    // 1. Initial show sequence
+    void (async () => {
+      try {
+        await document.fonts.ready;
+        if (cancelled) return;
+        // Yield for initial shell paint (one frame-ish)
+        await new Promise((r) => setTimeout(r, 16));
+        if (cancelled) return;
+        window.clearTimeout(safety);
+        void getCurrentWindow().show();
+      } catch (e) {
+        // Ignore and let safety timer handle it
+      }
+    })();
+
+    // 2. Data loading
     void (async () => {
       try {
         await ensureDataDir();
@@ -50,22 +43,23 @@ function App() {
           useScheduleStore.getState().loadWeek(getCurrentWeekId()),
         ]);
       } catch (e) {
-        if (!cancelled) setError((e as Error).message);
-      } finally {
-        if (!cancelled) setBooting(false);
+        if (cancelled) return;
+        window.clearTimeout(safety);
+        await message(
+          `Не удалось запустить TuzovOS:\n\n${(e as Error).message}`,
+          { title: "TuzovOS", kind: "error" },
+        );
+        await exit(1);
       }
     })();
+
     return () => {
       cancelled = true;
+      window.clearTimeout(safety);
     };
   }, []);
 
-  return (
-    <>
-      <Shell booting={booting} />
-      {error && <BootErrorBanner message={error} />}
-    </>
-  );
+  return <Shell />;
 }
 
 export default App;
