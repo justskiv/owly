@@ -6,26 +6,53 @@ import { useScheduleStore } from "./store/schedule";
 import { ensureDataDir } from "./services/file-io";
 import { getCurrentWeekId } from "./services/time-utils";
 
-type BootState = "loading" | "ready" | "error";
+function BootErrorBanner({ message }: { message: string }) {
+  return (
+    <div
+      role="alert"
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        padding: "8px 16px",
+        background: "var(--error)",
+        color: "var(--text-inverse)",
+        fontSize: "var(--fs-sm)",
+        fontFamily: "var(--font)",
+        zIndex: 3000,
+        display: "flex",
+        gap: 12,
+        alignItems: "baseline",
+      }}
+    >
+      <strong>Не удалось загрузить данные.</strong>
+      <span style={{ opacity: 0.85 }}>{message}</span>
+      <span style={{ marginLeft: "auto", opacity: 0.7 }}>
+        Перезапустите приложение, чтобы повторить попытку.
+      </span>
+    </div>
+  );
+}
 
 function App() {
-  const [bootState, setBootState] = useState<BootState>("loading");
-  const [bootError, setBootError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [booting, setBooting] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         await ensureDataDir();
-        await useConfigStore.getState().loadConfig();
-        await useEntityStore.getState().loadEntities();
-        await useScheduleStore.getState().loadWeek(getCurrentWeekId());
-        if (!cancelled) setBootState("ready");
+        await Promise.all([
+          useConfigStore.getState().loadConfig(),
+          useEntityStore.getState().loadEntities(),
+          useScheduleStore.getState().loadWeek(getCurrentWeekId()),
+        ]);
       } catch (e) {
-        if (!cancelled) {
-          setBootError((e as Error).message);
-          setBootState("error");
-        }
+        if (!cancelled) setError((e as Error).message);
+      } finally {
+        if (!cancelled) setBooting(false);
       }
     })();
     return () => {
@@ -33,70 +60,12 @@ function App() {
     };
   }, []);
 
-  if (bootState === "loading") {
-    return (
-      <div
-        style={{
-          display: "flex",
-          height: "100vh",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--text-tertiary)",
-          fontSize: "var(--fs-sm)",
-        }}
-      >
-        Загрузка…
-      </div>
-    );
-  }
-
-  if (bootState === "error") {
-    return (
-      <div
-        style={{
-          display: "flex",
-          height: "100vh",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 32,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 640,
-            padding: 24,
-            border: "1px solid var(--error)",
-            borderRadius: "var(--radius-lg)",
-            background: "var(--bg-surface)",
-            color: "var(--text-primary)",
-          }}
-        >
-          <h1
-            style={{
-              fontSize: "var(--fs-lg)",
-              marginBottom: 8,
-              fontWeight: 500,
-            }}
-          >
-            Не удалось загрузить данные
-          </h1>
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              fontFamily: "var(--mono)",
-              fontSize: "var(--fs-sm)",
-              color: "var(--text-secondary)",
-            }}
-          >
-            {bootError}
-          </pre>
-        </div>
-      </div>
-    );
-  }
-
-  return <Shell />;
+  return (
+    <>
+      <Shell booting={booting} />
+      {error && <BootErrorBanner message={error} />}
+    </>
+  );
 }
 
 export default App;

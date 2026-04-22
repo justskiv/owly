@@ -43,6 +43,7 @@ type CtxState = null | { x: number; y: number; blockId: string };
 type InlineState = null | { date: string; minute: number };
 
 const NOW_TICK_MS = 60_000;
+const EMPTY_AREAS: never[] = [];
 
 function buildNewDefaults(
   weekDates: string[],
@@ -91,7 +92,7 @@ export function PlannerPage() {
   const selectedId = useUIStore((s) => s.selectedBlockId);
   const setSelectedBlock = useUIStore((s) => s.setSelectedBlock);
 
-  const areas = useConfigStore((s) => s.config?.areas ?? []);
+  const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
   const areaIds = useMemo(() => areas.map((a) => a.id), [areas]);
 
   const weekDates = useMemo(() => getWeekDates(week), [week]);
@@ -270,7 +271,10 @@ export function PlannerPage() {
       if (ui.selectedBlockId !== null) {
         setSelectedBlock(null);
       }
-      setInline((cur) => (cur ? null : cur));
+      // Click on .gr opens a new inline-create itself; don't kill it here.
+      if (!target.closest(".gr")) {
+        setInline((cur) => (cur ? null : cur));
+      }
     };
     document.addEventListener("mousedown", onDocMouseDown);
     return () => document.removeEventListener("mousedown", onDocMouseDown);

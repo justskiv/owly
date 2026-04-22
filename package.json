@@ -11,6 +11,8 @@
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/outfit": "^5.2.8",
     "@tauri-apps/api": "^2",
     "lucide-react": "^1.8.0",
     "react": "^19.1.0",

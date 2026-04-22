@@ -13,7 +13,7 @@ const KEY_PAGE: Record<string, Page> = {
   "3": "dashboards",
 };
 
-export function Shell() {
+export function Shell({ booting }: { booting: boolean }) {
   const setPage = useUIStore((s) => s.setPage);
 
   useEffect(() => {
@@ -34,7 +34,10 @@ export function Shell() {
   }, [setPage]);
 
   return (
-    <div className="app" onContextMenu={(e) => e.preventDefault()}>
+    <div
+      className={`app${booting ? " booting" : ""}`}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <Sidebar />
       <main className="main">
         <PlannerPage />
