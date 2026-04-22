@@ -40,6 +40,12 @@ interface ScheduleStore {
 
 const initialWeek = getCurrentWeekId();
 
+// Monotonically increasing token; each loadWeek() snapshots the current
+// value and bails on commit if a newer load has started since. Without
+// this, two quick clicks on next-week can let week N's read finish
+// after week N+2's set({currentWeek}), and writes go to the wrong file.
+let loadToken = 0;
+
 export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   currentWeek: initialWeek,
   startDate: getWeekStartDate(initialWeek),
@@ -49,6 +55,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   error: null,
 
   loadWeek: async (week) => {
+    const myToken = ++loadToken;
     set({ loading: true, error: null, currentWeek: week });
     try {
       const path = await getDataPath("schedule", `${week}.json`);
@@ -58,6 +65,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         WeekFileSchema,
         emptyWeekFile(week, startDate),
       );
+      if (myToken !== loadToken) return;
       set({
         startDate: data.start_date,
         templateApplied: data.template_applied,
@@ -65,6 +73,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         loading: false,
       });
     } catch (e) {
+      if (myToken !== loadToken) return;
       set({ error: (e as Error).message, loading: false });
       throw e;
     }
