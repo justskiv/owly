@@ -10,11 +10,15 @@ interface UIStore {
   saveStatus: SaveStatus;
   saveError: string | null;
   savedAt: Date | null;
+  // Monotonic counter incremented when an external trigger (menu bar)
+  // requests a new block. PlannerPage subscribes and opens the editor.
+  newBlockTrigger: number;
 
   setPage: (page: Page) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
   setSaveStatus: (status: SaveStatus, error?: string | null) => void;
+  requestNewBlock: () => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -24,6 +28,7 @@ export const useUIStore = create<UIStore>((set) => ({
   saveStatus: "idle",
   saveError: null,
   savedAt: null,
+  newBlockTrigger: 0,
 
   setPage: (currentPage) => set({ currentPage }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
@@ -34,4 +39,6 @@ export const useUIStore = create<UIStore>((set) => ({
       saveError,
       savedAt: saveStatus === "saved" ? new Date() : prev.savedAt,
     })),
+  requestNewBlock: () =>
+    set((prev) => ({ newBlockTrigger: prev.newBlockTrigger + 1 })),
 }));

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message } from "@tauri-apps/plugin-dialog";
 import { exit } from "@tauri-apps/plugin-process";
@@ -6,6 +7,7 @@ import { Shell } from "./components/layout/Shell";
 import { useConfigStore } from "./store/config";
 import { useEntityStore } from "./store/entities";
 import { useScheduleStore } from "./store/schedule";
+import { useUIStore } from "./store/ui";
 import { ensureDataDir, JsonReadError } from "./services/file-io";
 import { getCurrentWeekId } from "./services/time-utils";
 
@@ -60,6 +62,34 @@ function App() {
     return () => {
       cancelled = true;
       window.clearTimeout(safety);
+    };
+  }, []);
+
+  // Native menu bar dispatches actions to the frontend over a single
+  // "menu" event, payload is the menu item id.
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    void listen<string>("menu", (e) => {
+      switch (e.payload) {
+        case "new-block":
+          useUIStore.getState().setPage("planner");
+          useUIStore.getState().requestNewBlock();
+          break;
+        case "today":
+          void useScheduleStore.getState().goToCurrentWeek();
+          break;
+        case "prev-week":
+          void useScheduleStore.getState().goToPrevWeek();
+          break;
+        case "next-week":
+          void useScheduleStore.getState().goToNextWeek();
+          break;
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
     };
   }, []);
 

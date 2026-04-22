@@ -85,6 +85,7 @@ export function PlannerPage() {
 
   const selectedId = useUIStore((s) => s.selectedBlockId);
   const setSelectedBlock = useUIStore((s) => s.setSelectedBlock);
+  const newBlockTrigger = useUIStore((s) => s.newBlockTrigger);
 
   const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
   const areaIds = useMemo(() => areas.map((a) => a.id), [areas]);
@@ -130,6 +131,17 @@ export function PlannerPage() {
   const [editor, setEditor] = useState<EditorState>(null);
   const [ctx, setCtx] = useState<CtxState>(null);
   const [inline, setInline] = useState<InlineState>(null);
+
+  // External (menu bar) request to open the new-block editor.
+  // Counter-based so the same trigger value re-fires on each menu click.
+  useEffect(() => {
+    if (newBlockTrigger === 0) return;
+    setEditor({
+      mode: "new",
+      prefill: buildNewDefaults(weekDates, weekStart, todayIdx),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newBlockTrigger]);
 
   const closeAllOverlays = () => {
     setEditor(null);
