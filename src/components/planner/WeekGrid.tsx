@@ -13,9 +13,9 @@ const HOURS = Array.from(
 
 function TimeColumn() {
   return (
-    <div className="time-col">
+    <div className="time-col" data-tauri-drag-region>
       {HOURS.map((h) => (
-        <div key={h} className="time-lbl">
+        <div key={h} className="time-lbl" data-tauri-drag-region>
           {String(h).padStart(2, "0")}
         </div>
       ))}

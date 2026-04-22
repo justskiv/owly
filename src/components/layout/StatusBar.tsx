@@ -28,21 +28,32 @@ export function StatusBar() {
           : "Сохранено";
 
   return (
-    <div className="sbar">
-      <span className="dot" style={{ background: DOT_COLOR[status] }} />
-      <span role="status" aria-live="polite" aria-label="Статус сохранения">
+    <div className="sbar" data-tauri-drag-region>
+      <span
+        className="dot"
+        style={{ background: DOT_COLOR[status] }}
+        data-tauri-drag-region
+      />
+      <span
+        role="status"
+        aria-live="polite"
+        aria-label="Статус сохранения"
+        data-tauri-drag-region
+      >
         {label}
       </span>
-      <span className="sep" />
-      {count} {pluralRu(count, "сущность", "сущности", "сущностей")}
-      <div className="hints">
-        <span>
-          <kbd>1</kbd>
-          <kbd>2</kbd>
-          <kbd>3</kbd> страницы
+      <span className="sep" data-tauri-drag-region />
+      <span data-tauri-drag-region>
+        {count} {pluralRu(count, "сущность", "сущности", "сущностей")}
+      </span>
+      <div className="hints" data-tauri-drag-region>
+        <span data-tauri-drag-region>
+          <kbd data-tauri-drag-region>1</kbd>
+          <kbd data-tauri-drag-region>2</kbd>
+          <kbd data-tauri-drag-region>3</kbd> страницы
         </span>
-        <span>
-          <kbd>N</kbd> блок
+        <span data-tauri-drag-region>
+          <kbd data-tauri-drag-region>N</kbd> блок
         </span>
       </div>
     </div>

@@ -40,9 +40,11 @@ function PlannerHeader() {
       >
         <ChevronLeft />
       </button>
-      <span className="hdr-week">
+      <span className="hdr-week" data-tauri-drag-region>
         Неделя {getWeekNumber(week)}
-        <span className="hdr-week-sub">{formatWeekRange(week)}</span>
+        <span className="hdr-week-sub" data-tauri-drag-region>
+          {formatWeekRange(week)}
+        </span>
       </span>
       <button
         type="button"
@@ -59,7 +61,7 @@ function PlannerHeader() {
       >
         Сегодня
       </button>
-      <div className="hdr-spacer" />
+      <div className="hdr-spacer" data-tauri-drag-region />
       <button
         type="button"
         className="hdr-btn hdr-btn-ghost"
@@ -76,9 +78,11 @@ function PlannerHeader() {
 function EntitiesHeader() {
   return (
     <>
-      <div className="hdr-title">Сущности</div>
+      <div className="hdr-title" data-tauri-drag-region>
+        Сущности
+      </div>
       <input className="search-input" placeholder="Поиск..." />
-      <div className="hdr-spacer" />
+      <div className="hdr-spacer" data-tauri-drag-region />
       <button type="button" className="hdr-btn" disabled>
         + Создать
       </button>
@@ -89,8 +93,10 @@ function EntitiesHeader() {
 function DashboardsHeader() {
   return (
     <>
-      <div className="hdr-title">Дашборды</div>
-      <div className="hdr-spacer" />
+      <div className="hdr-title" data-tauri-drag-region>
+        Дашборды
+      </div>
+      <div className="hdr-spacer" data-tauri-drag-region />
       <button type="button" className="hdr-btn" disabled>
         + Добавить
       </button>

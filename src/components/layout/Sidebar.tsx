@@ -19,9 +19,15 @@ export function Sidebar() {
   const setPage = useUIStore((s) => s.setPage);
 
   return (
-    <nav className="sidebar" aria-label="Главная навигация">
-      <div className="s-logo">OS</div>
-      <div className="s-top">
+    <nav
+      className="sidebar"
+      aria-label="Главная навигация"
+      data-tauri-drag-region
+    >
+      <div className="s-logo" data-tauri-drag-region>
+        OS
+      </div>
+      <div className="s-top" data-tauri-drag-region>
         {NAV.map(({ id, icon: Icon, label }) => {
           const active = currentPage === id;
           return (
@@ -39,7 +45,7 @@ export function Sidebar() {
           );
         })}
       </div>
-      <div className="s-bot">
+      <div className="s-bot" data-tauri-drag-region>
         <button
           type="button"
           className="si"
