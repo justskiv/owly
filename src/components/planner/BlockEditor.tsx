@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { Area, Block, BlockStatus } from "../../schemas";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { useRestoreFocus } from "../../hooks/useRestoreFocus";
 import { useScheduleStore } from "../../store/schedule";
 import { useUIStore } from "../../store/ui";
 import { toast } from "../shared/Toast";
@@ -71,10 +73,13 @@ export function BlockEditor({
   );
 
   const titleRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     titleRef.current?.focus();
     titleRef.current?.select();
   }, []);
+  useFocusTrap(dialogRef, true);
+  useRestoreFocus(true);
 
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -154,9 +159,16 @@ export function BlockEditor({
 
   return (
     <div className="modal-bg visible" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="be-dialog-title"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="m-head">
-          <span className="m-title">
+          <span id="be-dialog-title" className="m-title">
             {isEdit ? "Редактировать" : "Новый блок"}
           </span>
           <button

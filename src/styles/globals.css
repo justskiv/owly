@@ -34,7 +34,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--focus-ring
 .sidebar{grid-row:2;grid-column:1;background:var(--bg-surface);display:flex;flex-direction:column;align-items:center;padding:8px 0 12px;z-index:100;border-right:1px solid var(--border)}
 .s-top{display:flex;flex-direction:column;gap:2px;flex:1}.s-bot{display:flex;flex-direction:column;gap:2px}
 .s-logo{width:28px;height:28px;margin-bottom:20px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:500;font-size:var(--fs-2xs);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-md)}
-.si{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);color:var(--text-tertiary);cursor:pointer;transition:all var(--duration-base);position:relative}
+.si{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);color:var(--text-tertiary);cursor:pointer;transition:all var(--duration-base);position:relative;background:transparent;border:0;padding:0;font:inherit;-webkit-appearance:none;appearance:none}
+.si:disabled{cursor:default;opacity:.5}
 .si:hover{color:var(--text-secondary);background:var(--bg-tint-2)}
 .si.active{color:var(--accent)}
 .si.active::before{content:'';position:absolute;left:-6px;top:50%;transform:translateY(-50%);width:2px;height:16px;background:var(--accent);border-radius:0 1px 1px 0}

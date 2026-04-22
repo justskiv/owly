@@ -1,7 +1,6 @@
 import { BarChart3, Calendar, Database, Settings } from "lucide-react";
 import type { ComponentType } from "react";
 import { useUIStore, type Page } from "../../store/ui";
-import { clickableProps } from "../shared/makeClickable";
 
 interface NavItem {
   id: Page;
@@ -20,33 +19,36 @@ export function Sidebar() {
   const setPage = useUIStore((s) => s.setPage);
 
   return (
-    <nav className="sidebar">
+    <nav className="sidebar" aria-label="Главная навигация">
       <div className="s-logo">OS</div>
       <div className="s-top">
         {NAV.map(({ id, icon: Icon, label }) => {
           const active = currentPage === id;
           return (
-            <div
+            <button
               key={id}
+              type="button"
               className={`si${active ? " active" : ""}`}
+              aria-label={label}
+              aria-current={active ? "page" : undefined}
               title={label}
-              {...clickableProps(() => setPage(id))}
+              onClick={() => setPage(id)}
             >
               <Icon size={18} strokeWidth={1.5} />
-            </div>
+            </button>
           );
         })}
       </div>
       <div className="s-bot">
-        <div
+        <button
+          type="button"
           className="si"
           title="Настройки (скоро)"
-          aria-disabled="true"
-          tabIndex={-1}
-          style={{ cursor: "default" }}
+          aria-label="Настройки"
+          disabled
         >
           <Settings size={18} strokeWidth={1.5} />
-        </div>
+        </button>
       </div>
     </nav>
   );

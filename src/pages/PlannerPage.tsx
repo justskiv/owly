@@ -108,11 +108,22 @@ export function PlannerPage() {
 
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
-    const id = window.setInterval(
-      () => setNowTick((t) => t + 1),
-      NOW_TICK_MS,
-    );
-    return () => window.clearInterval(id);
+    let interval: number | null = null;
+    // Align first tick to the next :00 minute boundary so the now-line
+    // jumps right when the wall clock changes minutes; otherwise it
+    // would lag by up to NOW_TICK_MS depending on launch time.
+    const msToNextMinute = NOW_TICK_MS - (Date.now() % NOW_TICK_MS);
+    const start = window.setTimeout(() => {
+      setNowTick((t) => t + 1);
+      interval = window.setInterval(
+        () => setNowTick((t) => t + 1),
+        NOW_TICK_MS,
+      );
+    }, msToNextMinute);
+    return () => {
+      window.clearTimeout(start);
+      if (interval !== null) window.clearInterval(interval);
+    };
   }, []);
   const { todayIdx, nowMinutes } = useNowInWeek(weekDates, nowTick);
 

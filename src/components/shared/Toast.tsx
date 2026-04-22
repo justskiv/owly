@@ -39,18 +39,38 @@ export const toast = {
 export function Toast() {
   const toasts = useToastStore((s) => s.toasts);
   if (toasts.length === 0) return null;
+  const success = toasts.filter((t) => t.type === "success");
+  const errors = toasts.filter((t) => t.type === "error");
   return (
-    <div
-      className="toast-c"
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
-      {toasts.map((t) => (
-        <div key={t.id} className={`toast ${t.type}`}>
-          {t.text}
+    <>
+      {success.length > 0 && (
+        <div
+          className="toast-c"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {success.map((t) => (
+            <div key={t.id} className={`toast ${t.type}`}>
+              {t.text}
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+      {errors.length > 0 && (
+        <div
+          className="toast-c"
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+        >
+          {errors.map((t) => (
+            <div key={t.id} className={`toast ${t.type}`}>
+              {t.text}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
