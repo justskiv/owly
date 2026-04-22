@@ -1,44 +1,51 @@
-import { useEffect, useState } from "react";
+import { create } from "zustand";
 
-type Variant = "success" | "error";
-interface ToastState {
-  message: string;
-  variant: Variant;
+type ToastType = "success" | "error";
+
+interface ToastItem {
+  id: string;
+  type: ToastType;
+  text: string;
 }
 
-let externalSetter: ((toast: ToastState | null) => void) | null = null;
-
-export function showToast(message: string, variant: Variant = "success") {
-  externalSetter?.({ message, variant });
+interface ToastStore {
+  toasts: ToastItem[];
+  push: (type: ToastType, text: string) => void;
+  remove: (id: string) => void;
 }
+
+const DISMISS_MS = 2500;
+
+function genId(): string {
+  return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+const useToastStore = create<ToastStore>((set, get) => ({
+  toasts: [],
+  push: (type, text) => {
+    const id = genId();
+    set((s) => ({ toasts: [...s.toasts, { id, type, text }] }));
+    window.setTimeout(() => get().remove(id), DISMISS_MS);
+  },
+  remove: (id) =>
+    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+}));
+
+export const toast = {
+  success: (text: string) => useToastStore.getState().push("success", text),
+  error: (text: string) => useToastStore.getState().push("error", text),
+};
 
 export function Toast() {
-  const [toast, setToast] = useState<ToastState | null>(null);
-
-  useEffect(() => {
-    externalSetter = setToast;
-    return () => {
-      externalSetter = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!toast) return;
-    const id = window.setTimeout(() => setToast(null), 3500);
-    return () => window.clearTimeout(id);
-  }, [toast]);
-
-  if (!toast) return null;
-
+  const toasts = useToastStore((s) => s.toasts);
+  if (toasts.length === 0) return null;
   return (
-    <div
-      className={`fixed bottom-4 right-4 z-50 max-w-sm rounded-lg px-4 py-3 text-sm shadow-xl ${
-        toast.variant === "success"
-          ? "bg-green-600 text-white"
-          : "bg-red-600 text-white"
-      }`}
-    >
-      {toast.message}
+    <div className="toast-c">
+      {toasts.map((t) => (
+        <div key={t.id} className={`toast ${t.type}`}>
+          {t.text}
+        </div>
+      ))}
     </div>
   );
 }

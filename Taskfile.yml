@@ -1,0 +1,76 @@
+version: "3"
+
+# Taskfile for TuzovOS.
+# Run: `task <name>` or `task` (prints the list).
+# Install go-task: `brew install go-task/tap/go-task`.
+
+silent: true
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  install:
+    desc: Install npm dependencies
+    cmds:
+      - npm install
+
+  dev:
+    desc: Run Tauri + Vite in dev mode (opens the app window)
+    cmds:
+      - npm run tauri dev
+
+  web:
+    desc: Run Vite dev server only (no Tauri), frontend on :1420
+    cmds:
+      - npm run dev
+
+  typecheck:
+    desc: TypeScript type-check without emit
+    cmds:
+      - npx tsc --noEmit
+
+  fe:build:
+    desc: Build frontend only (tsc + vite build → dist/)
+    cmds:
+      - npm run build
+
+  build:
+    desc: Build installer bundle (Tauri → src-tauri/target/)
+    cmds:
+      - npm run tauri build
+
+  preview:
+    desc: Serve the built frontend from dist/
+    cmds:
+      - npm run preview
+
+  seed:
+    desc: Generate sample data into data/
+    cmds:
+      - npm run seed
+
+  tauri:info:
+    desc: Tauri environment diagnostics (Rust, system deps)
+    cmds:
+      - npm run tauri info
+
+  clean:
+    desc: Remove build artifacts (dist/, src-tauri/target/)
+    cmds:
+      - rm -rf dist
+      - rm -rf src-tauri/target
+
+  clean:all:
+    desc: Full clean — build artifacts + node_modules
+    deps: [clean]
+    cmds:
+      - rm -rf node_modules
+
+  check:
+    desc: Pre-commit sanity check (typecheck + fe:build)
+    cmds:
+      - task: typecheck
+      - task: fe:build

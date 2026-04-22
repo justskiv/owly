@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
 import { Shell } from "./components/layout/Shell";
-import { PlannerPage } from "./pages/PlannerPage";
-import { EntitiesPage } from "./pages/EntitiesPage";
-import { DashboardsPage } from "./pages/DashboardsPage";
-import { useUIStore } from "./store/ui";
 import { useConfigStore } from "./store/config";
 import { useEntityStore } from "./store/entities";
 import { useScheduleStore } from "./store/schedule";
@@ -13,7 +9,6 @@ import { getCurrentWeekId } from "./services/time-utils";
 type BootState = "loading" | "ready" | "error";
 
 function App() {
-  const page = useUIStore((s) => s.currentPage);
   const [bootState, setBootState] = useState<BootState>("loading");
   const [bootError, setBootError] = useState<string | null>(null);
 
@@ -40,20 +35,60 @@ function App() {
 
   if (bootState === "loading") {
     return (
-      <div className="flex h-full items-center justify-center text-slate-400">
-        <p>Загрузка…</p>
+      <div
+        style={{
+          display: "flex",
+          height: "100vh",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--text-tertiary)",
+          fontSize: "var(--fs-sm)",
+        }}
+      >
+        Загрузка…
       </div>
     );
   }
 
   if (bootState === "error") {
     return (
-      <div className="flex h-full items-center justify-center p-8">
-        <div className="max-w-2xl rounded-lg border border-red-900 bg-red-950/50 p-6 text-red-200">
-          <h1 className="mb-2 text-lg font-medium">
+      <div
+        style={{
+          display: "flex",
+          height: "100vh",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 32,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 640,
+            padding: 24,
+            border: "1px solid var(--error)",
+            borderRadius: "var(--radius-lg)",
+            background: "var(--bg-surface)",
+            color: "var(--text-primary)",
+          }}
+        >
+          <h1
+            style={{
+              fontSize: "var(--fs-lg)",
+              marginBottom: 8,
+              fontWeight: 500,
+            }}
+          >
             Не удалось загрузить данные
           </h1>
-          <pre className="whitespace-pre-wrap break-words text-sm text-red-100">
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              fontFamily: "var(--mono)",
+              fontSize: "var(--fs-sm)",
+              color: "var(--text-secondary)",
+            }}
+          >
             {bootError}
           </pre>
         </div>
@@ -61,13 +96,7 @@ function App() {
     );
   }
 
-  return (
-    <Shell>
-      {page === "planner" && <PlannerPage />}
-      {page === "entities" && <EntitiesPage />}
-      {page === "dashboards" && <DashboardsPage />}
-    </Shell>
-  );
+  return <Shell />;
 }
 
 export default App;

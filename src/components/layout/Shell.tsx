@@ -1,16 +1,47 @@
-import type { ReactNode } from "react";
-import { Header } from "./Header";
+import { useEffect } from "react";
 import { Sidebar } from "./Sidebar";
+import { StatusBar } from "./StatusBar";
 import { Toast } from "../shared/Toast";
+import { PlannerPage } from "../../pages/PlannerPage";
+import { EntitiesPage } from "../../pages/EntitiesPage";
+import { DashboardsPage } from "../../pages/DashboardsPage";
+import { useUIStore, type Page } from "../../store/ui";
 
-export function Shell({ children }: { children: ReactNode }) {
+const KEY_PAGE: Record<string, Page> = {
+  "1": "planner",
+  "2": "entities",
+  "3": "dashboards",
+};
+
+export function Shell() {
+  const setPage = useUIStore((s) => s.setPage);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as Element | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target as HTMLElement | null)?.isContentEditable
+      ) {
+        return;
+      }
+      const next = KEY_PAGE[e.key];
+      if (next) setPage(next);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [setPage]);
+
   return (
-    <div className="flex h-full">
+    <div className="app">
       <Sidebar />
-      <div className="flex flex-1 flex-col">
-        <Header />
-        <main className="flex-1 overflow-auto">{children}</main>
-      </div>
+      <main className="main">
+        <PlannerPage />
+        <EntitiesPage />
+        <DashboardsPage />
+      </main>
+      <StatusBar />
       <Toast />
     </div>
   );

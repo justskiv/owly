@@ -1,67 +1,52 @@
 import { BarChart3, Calendar, Database, Settings } from "lucide-react";
 import type { ComponentType } from "react";
 import { useUIStore, type Page } from "../../store/ui";
+import { clickableProps } from "../shared/makeClickable";
 
-const NAV: { id: Page; icon: ComponentType<{ size?: number }>; label: string }[] =
-  [
-    { id: "planner", icon: Calendar, label: "Планировщик" },
-    { id: "entities", icon: Database, label: "Данные" },
-    { id: "dashboards", icon: BarChart3, label: "Дашборды" },
-  ];
+interface NavItem {
+  id: Page;
+  icon: ComponentType<{ size?: number; strokeWidth?: number }>;
+  label: string;
+}
 
-const STATUS_DOT: Record<string, string> = {
-  idle: "bg-slate-700",
-  saving: "bg-blue-400",
-  saved: "bg-green-400",
-  error: "bg-red-500",
-};
+const NAV: NavItem[] = [
+  { id: "planner", icon: Calendar, label: "Планировщик" },
+  { id: "entities", icon: Database, label: "Данные" },
+  { id: "dashboards", icon: BarChart3, label: "Дашборды" },
+];
 
 export function Sidebar() {
   const currentPage = useUIStore((s) => s.currentPage);
   const setPage = useUIStore((s) => s.setPage);
-  const saveStatus = useUIStore((s) => s.saveStatus);
-  const saveError = useUIStore((s) => s.saveError);
 
   return (
-    <nav className="flex w-[60px] flex-col items-center justify-between bg-slate-950 py-4">
-      <div className="flex flex-col gap-2">
+    <nav className="sidebar">
+      <div className="s-logo">OS</div>
+      <div className="s-top">
         {NAV.map(({ id, icon: Icon, label }) => {
           const active = currentPage === id;
           return (
-            <button
+            <div
               key={id}
-              type="button"
+              className={`si${active ? " active" : ""}`}
               title={label}
-              onClick={() => setPage(id)}
-              className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${
-                active
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-              }`}
+              {...clickableProps(() => setPage(id))}
             >
-              <Icon size={20} />
-            </button>
+              <Icon size={18} strokeWidth={1.5} />
+            </div>
           );
         })}
       </div>
-
-      <div className="flex flex-col items-center gap-3">
+      <div className="s-bot">
         <div
-          className={`h-2 w-2 rounded-full ${STATUS_DOT[saveStatus]}`}
-          title={
-            saveStatus === "error" && saveError
-              ? `Ошибка: ${saveError}`
-              : `Статус: ${saveStatus}`
-          }
-        />
-        <button
-          type="button"
-          disabled
+          className="si"
           title="Настройки (скоро)"
-          className="flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-lg text-slate-600"
+          aria-disabled="true"
+          tabIndex={-1}
+          style={{ cursor: "default" }}
         >
-          <Settings size={20} />
-        </button>
+          <Settings size={18} strokeWidth={1.5} />
+        </div>
       </div>
     </nav>
   );
