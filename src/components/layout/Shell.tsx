@@ -34,7 +34,7 @@ export function Shell() {
   }, [setPage]);
 
   return (
-    <div className="app">
+    <div className="app" onContextMenu={(e) => e.preventDefault()}>
       <Sidebar />
       <main className="main">
         <PlannerPage />

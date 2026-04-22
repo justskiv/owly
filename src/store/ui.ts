@@ -9,6 +9,7 @@ interface UIStore {
   selectedBlockId: string | null;
   saveStatus: SaveStatus;
   saveError: string | null;
+  savedAt: Date | null;
 
   setPage: (page: Page) => void;
   setSelectedEntity: (id: string | null) => void;
@@ -22,10 +23,15 @@ export const useUIStore = create<UIStore>((set) => ({
   selectedBlockId: null,
   saveStatus: "idle",
   saveError: null,
+  savedAt: null,
 
   setPage: (currentPage) => set({ currentPage }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
   setSelectedBlock: (selectedBlockId) => set({ selectedBlockId }),
   setSaveStatus: (saveStatus, saveError = null) =>
-    set({ saveStatus, saveError }),
+    set((prev) => ({
+      saveStatus,
+      saveError,
+      savedAt: saveStatus === "saved" ? new Date() : prev.savedAt,
+    })),
 }));

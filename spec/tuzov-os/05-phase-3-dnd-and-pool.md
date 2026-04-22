@@ -277,6 +277,56 @@ visible { outline: 2px solid var(--focus-ring); outline-offset:
 </DndContext>
 ```
 
+## Технический долг от фазы 2 (сделать **до** DnD)
+
+Из ревью фазы 2 остались архитектурные/UX-задачи, которые имеет смысл
+закрыть **в начале** этой фазы — пока не добавили ещё одно состояние
+(resize/drag preview) и ещё одну модалку. Иначе расходятся быстрее.
+
+- **Refactor PlannerPage.** Вынести из страницы:
+  - `usePlannerCommands(weekDates, weekStart, todayIdx)` — все
+    мутации (`completeBlock` / `skipBlock` / `deleteSelected` /
+    `nudgeBlock` / `openNew` / `openEdit` / `duplicateBlock` /
+    `setBlockCategory`) с единой обработкой `await + try/catch +
+    toast.error` (см. CODESTYLE п.5).
+  - `usePlannerHotkeys(commands, selectedId, active, overlayOpen)`
+    — единственный keydown listener; внутри 3 guard'а из CODESTYLE
+    п.7.
+  - `usePlannerOverlay()` — единый discriminated state
+    `Overlay = null | { kind: 'editor-new'; defaults } |
+    { kind: 'editor-edit'; blockId } | { kind: 'context'; x, y,
+    blockId } | { kind: 'inline-create'; date, minute }` вместо
+    трёх независимых `editor / ctx / inline` (см. CODESTYLE п.2).
+    Это упростит «Esc закрывает один открытый» и взаимоисключение,
+    которое сейчас держится на shotgun-сбросе.
+- **WeekGrid: weekModel.** Заменить 12-prop pass-through на
+  единую модель `weekModel: { dates: { date, isToday, balance,
+  free, blocks }[] }` + `actions`. Перед DnD это критично — ещё
+  больше колбэков пройдёт через grid.
+- **`BlockEditor` discriminated `mode`.**
+  `mode: { kind: 'new'; prefill } | { kind: 'edit'; block }` —
+  убирает `isEdit && block` танцы и `findBlock(id)` в PlannerPage
+  (CODESTYLE п.2).
+- **Focus trap + restore-focus в модалке.** Реализовать
+  `useFocusTrap(ref)` и `useRestoreFocus()`; применить к
+  `BlockEditor` сейчас и к Pool/EntityEditor в фазе 4 (CODESTYLE
+  п.10). Tab сейчас уходит из модалки на грид за ней.
+- **Ctx-menu клавиатура.** В фазе 2 поставлен `role="menu"`, но
+  items без `role="menuitem"`/`tabIndex`/Esc/arrow-nav. С DnD
+  ctx-меню становится главным каналом не-drag действий, его пора
+  довести до клавиатурной полноты (Shift+F10, Up/Down/Enter, Esc
+  закрывает + restore-focus на блок).
+- **Cyrillic / Dvorak — `e.code` для letters.** Хоткей `T`
+  получает функцию в этой фазе (toggle pool); заодно перевести
+  `D/S/N/T` с `e.key` на `e.code` (`KeyD`/`KeyS`/`KeyN`/`KeyT`),
+  не-letters (`Enter`/`Escape`/`Delete`/стрелки) оставить на
+  `e.key`. Реальные пользователи — на ЙЦУКЕН (CODESTYLE п.7).
+- **`fmtDur` форматирование.** Resize даст много блоков с не-
+  кратными часу длительностями (1h15m, 2h45m). Сейчас формат
+  лоссивный: 75 → "1.3h", 105 → "1.8h". Вернуться к мок-формату
+  «1h 15m» / «1.5h» на ровных значениях. UX-решение, обсудить
+  перед стартом фазы.
+
 ## Критерии готовности
 
 - [ ] Блоки перетаскиваются между днями и временами, snap 30 мин

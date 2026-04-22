@@ -40,7 +40,12 @@ export function Toast() {
   const toasts = useToastStore((s) => s.toasts);
   if (toasts.length === 0) return null;
   return (
-    <div className="toast-c">
+    <div
+      className="toast-c"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       {toasts.map((t) => (
         <div key={t.id} className={`toast ${t.type}`}>
           {t.text}

@@ -14,6 +14,18 @@ const MONTHS_RU = [
   "дек",
 ];
 
+export const ROW_H = 40;
+export const START_HOUR = 6;
+export const END_HOUR = 23;
+export const SNAP_MIN = 30;
+export const MIN_BLOCK_MIN = 30;
+export const VISIBLE_ROWS = (END_HOUR - START_HOUR) * 2;
+export const DAY_CAPACITY_MIN = (END_HOUR - START_HOUR) * 60;
+export const WEEK_CAPACITY_MIN = DAY_CAPACITY_MIN * 7;
+export const WEEKDAYS_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"] as const;
+export const DEFAULT_BLOCK_DURATION_MIN = 60;
+export const DEFAULT_BLOCK_CATEGORY = "work";
+
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
@@ -36,7 +48,7 @@ function isoWeekParts(input: Date): { year: number; week: number } {
   return { year, week };
 }
 
-function formatDate(d: Date): string {
+export function formatDate(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
@@ -121,4 +133,71 @@ export function generateId(prefix: string): string {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
   return `${prefix}-${hex}`;
+}
+
+export function timeToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map((p) => parseInt(p, 10));
+  return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+}
+
+const HHMM_RE = /^(\d{1,2}):(\d{2})$/;
+
+export function parseHHMMStrict(s: string): number | null {
+  const m = HHMM_RE.exec(s.trim());
+  if (!m) return null;
+  const h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return h * 60 + min;
+}
+
+export function minutesToTime(min: number): string {
+  const total = ((min % (24 * 60)) + 24 * 60) % (24 * 60);
+  return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
+}
+
+export const fmtTime = minutesToTime;
+
+export function clampBlockToGrid(
+  startMin: number,
+  durationMin: number,
+): { start: number; duration: number } {
+  const minStart = START_HOUR * 60;
+  const maxEnd = END_HOUR * 60;
+  let dur = Math.round(durationMin / SNAP_MIN) * SNAP_MIN;
+  if (dur < MIN_BLOCK_MIN) dur = MIN_BLOCK_MIN;
+  if (dur > maxEnd - minStart) dur = maxEnd - minStart;
+  let start = Math.round(startMin / SNAP_MIN) * SNAP_MIN;
+  if (start < minStart) start = minStart;
+  if (start + dur > maxEnd) start = maxEnd - dur;
+  return { start, duration: dur };
+}
+
+export function minToY(min: number): number {
+  return ((min - START_HOUR * 60) / 30) * ROW_H;
+}
+
+export function yToMin(y: number, snap: number = SNAP_MIN): number {
+  const raw = (y / ROW_H) * 30 + START_HOUR * 60;
+  return Math.round(raw / snap) * snap;
+}
+
+export function fmtDur(min: number): string {
+  if (min >= 60) {
+    const h = Math.round((min / 60) * 10) / 10;
+    return `${h}h`;
+  }
+  return `${min}m`;
+}
+
+export function dayIndexOfDate(date: string, weekStart: string): number {
+  const a = parseDate(date).getTime();
+  const b = parseDate(weekStart).getTime();
+  return Math.round((a - b) / MS_PER_DAY);
+}
+
+export function dateForDayIndex(weekStart: string, dayIdx: number): string {
+  const d = parseDate(weekStart);
+  d.setDate(d.getDate() + dayIdx);
+  return formatDate(d);
 }

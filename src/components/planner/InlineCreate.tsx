@@ -1,0 +1,55 @@
+import { useEffect, useRef } from "react";
+import {
+  DEFAULT_BLOCK_DURATION_MIN,
+  ROW_H,
+  minToY,
+} from "../../services/time-utils";
+
+interface InlineCreateProps {
+  minute: number;
+  onCancel: () => void;
+  onSubmit: (title: string) => void;
+}
+
+export function InlineCreate({
+  minute,
+  onCancel,
+  onSubmit,
+}: InlineCreateProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return (
+    <div
+      className="inline-block"
+      style={{
+        top: minToY(minute),
+        height: (DEFAULT_BLOCK_DURATION_MIN / 30) * ROW_H,
+      }}
+    >
+      <input
+        ref={inputRef}
+        className="inline-input"
+        placeholder="Название..."
+        aria-label="Название нового блока"
+        onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            const value = e.currentTarget.value.trim();
+            if (value) {
+              e.preventDefault();
+              onSubmit(value);
+            }
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            onCancel();
+          }
+        }}
+      />
+    </div>
+  );
+}
