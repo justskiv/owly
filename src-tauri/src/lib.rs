@@ -16,7 +16,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(
             tauri_plugin_window_state::Builder::default()
-                .with_state_flags(StateFlags::all() - StateFlags::VISIBLE)
+                .with_state_flags(
+                    StateFlags::all() - StateFlags::VISIBLE - StateFlags::SIZE,
+                )
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
