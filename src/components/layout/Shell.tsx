@@ -20,13 +20,26 @@ export function Shell() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as Element | null;
-      if (
+      const isEditable =
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
-        (target as HTMLElement | null)?.isContentEditable
-      ) {
-        return;
+        (target as HTMLElement | null)?.isContentEditable;
+
+      // Tab over controls is browser behavior; native macOS apps
+      // don't focus buttons via Tab by default. All in-app
+      // navigation goes through hotkeys. Tab still works inside
+      // form fields and inside modals (focus-trap handles it).
+      if (e.key === "Tab" && !isEditable) {
+        const insideDialog = (target as HTMLElement | null)?.closest(
+          '[role="dialog"]',
+        );
+        if (!insideDialog) {
+          e.preventDefault();
+          return;
+        }
       }
+
+      if (isEditable) return;
       const next = KEY_PAGE[e.code];
       if (next) setPage(next);
     };

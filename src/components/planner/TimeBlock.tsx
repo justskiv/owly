@@ -58,7 +58,7 @@ export function TimeBlock({
         top: minToY(startMin),
         height: (block.duration / 30) * ROW_H,
       }}
-      tabIndex={0}
+      tabIndex={-1}
       role="button"
       aria-label={ariaLabel}
       aria-pressed={selected}
@@ -75,18 +75,6 @@ export function TimeBlock({
         e.preventDefault();
         e.stopPropagation();
         onContext(e);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.stopPropagation();
-          onDblClick();
-        }
-        if (e.key === " ") {
-          e.preventDefault();
-          e.stopPropagation();
-          onClick();
-        }
       }}
     >
       <div className="bt">{block.title}</div>

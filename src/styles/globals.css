@@ -20,8 +20,7 @@
 body{font-family:var(--font);background:var(--bg-base);color:var(--text-primary);font-size:var(--fs-md);line-height:1.5;overflow:hidden;height:100vh;-webkit-font-smoothing:antialiased;user-select:none}
 .edp-title,.edp-desc,.edp-val,.edp-cl li,.ct-item,.stat-num,.er-title,.bt,.bm,.bn,.pi-t,.note-body,.search-input,.fi{user-select:text}
 ::selection{background:rgba(224,184,96,.25)}
-button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px;border-radius:inherit}
-.btn-save:focus-visible,.hdr-btn:focus-visible{outline-color:var(--text-inverse)}
+button:focus,button:focus-visible,[tabindex]:focus,[tabindex]:focus-visible{outline:none}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 /* Drag region: kill text selection / drag ghosts / I-beam cursor.
    Native macOS title bars suppress all of these automatically; our
@@ -102,10 +101,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--focus-ring
 .dh-bar{flex:1;height:4px;border-radius:var(--radius-xs);background:var(--bg-tint-2);display:flex;overflow:hidden}
 .bseg{height:100%;min-width:2px}
 .bfree{font-family:var(--mono);font-size:var(--fs-xs);font-weight:300;color:var(--text-disabled);white-space:nowrap;flex-shrink:0}
-.grid-scroll{flex:1;overflow-y:auto;position:relative;overflow-anchor:none}
-.grid-scroll::-webkit-scrollbar{width:5px}
-.grid-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:var(--radius-xs)}
-.grid-scroll::-webkit-scrollbar-thumb:hover{background:var(--border-default)}
+.grid-scroll{flex:1;overflow-y:auto;position:relative;overflow-anchor:none;overscroll-behavior:none}
 .grid-body{display:grid;grid-template-columns:var(--time-w) repeat(7,1fr);position:relative}
 .time-col{position:sticky;left:0;z-index:10;background:var(--bg-base)}
 .time-lbl{height:calc(var(--row-h)*2);display:flex;align-items:flex-start;justify-content:flex-end;padding-right:8px;font-family:var(--mono);font-size:var(--fs-2xs);font-weight:300;color:var(--text-tertiary);transform:translateY(-5px)}

@@ -49,6 +49,9 @@ pub fn run() {
                     .set_background_color(Some(Color(0x1a, 0x1a, 0x1a, 0xff)));
                 let _ = window.set_theme(Some(tauri::Theme::Dark));
 
+                #[cfg(target_os = "macos")]
+                hide_inspector_in_release(&window);
+
                 // Close button hides the window instead of quitting.
                 // Cmd+Q goes through PredefinedMenuItem::quit which calls
                 // app.exit() and bypasses CloseRequested entirely.
@@ -94,6 +97,35 @@ pub fn run() {
                     let _ = w.set_focus();
                 }
             }
+        }
+    });
+}
+
+// WebKit 16.4 made WKWebView.inspectable opt-in. Tauri keeps it
+// enabled so Web Inspector works in `tauri dev`; we need it off in
+// release so a shipped .app doesn't expose internals to right-click
+// → Inspect Element. Gated by respondsToSelector so pre-13.3
+// systems don't hit an unrecognized selector.
+#[cfg(target_os = "macos")]
+fn hide_inspector_in_release(window: &tauri::WebviewWindow) {
+    use objc2::msg_send;
+    use objc2::runtime::Bool;
+    use objc2_web_kit::WKWebView;
+
+    let _ = window.with_webview(|webview| unsafe {
+        let wv_ptr = webview.inner() as *mut WKWebView;
+        if wv_ptr.is_null() {
+            return;
+        }
+        let wv: &WKWebView = &*wv_ptr;
+
+        let inspectable = cfg!(debug_assertions);
+        let responds: Bool = msg_send![
+            wv,
+            respondsToSelector: objc2::sel!(setInspectable:)
+        ];
+        if responds.as_bool() {
+            wv.setInspectable(inspectable);
         }
     });
 }
