@@ -127,12 +127,7 @@ export function nowISO(): string {
 }
 
 export function generateId(prefix: string): string {
-  const buf = new Uint8Array(4);
-  crypto.getRandomValues(buf);
-  const hex = Array.from(buf)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return `${prefix}-${hex}`;
+  return `${prefix}-${crypto.randomUUID()}`;
 }
 
 export function timeToMinutes(hhmm: string): number {
