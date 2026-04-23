@@ -1,14 +1,8 @@
-import type { MouseEvent } from "react";
-import type { Block } from "../../schemas";
-import {
-  END_HOUR,
-  SNAP_MIN,
-  START_HOUR,
-  timeToMinutes,
-} from "../../services/time-utils";
+import { SNAP_MIN, START_HOUR, END_HOUR, timeToMinutes } from "../../services/time-utils";
 import { InlineCreate } from "./InlineCreate";
 import { NowLine } from "./NowLine";
 import { TimeBlock } from "./TimeBlock";
+import type { WeekActions, WeekDayModel } from "./WeekGrid";
 
 interface GridRow {
   hour: number;
@@ -32,43 +26,24 @@ const ROWS: GridRow[] = (() => {
   return out;
 })();
 
-interface InlineState {
-  minute: number;
-}
-
 interface DayColumnProps {
+  day: WeekDayModel;
   dayIdx: number;
-  blocks: Block[];
-  overlapping: Set<string>;
   selectedId: string | null;
-  isToday: boolean;
-  nowMinutes: number | null;
-  inline: InlineState | null;
-  onEmptyClick: (minute: number) => void;
-  onBlockClick: (id: string) => void;
-  onBlockDblClick: (id: string) => void;
-  onBlockContext: (e: MouseEvent, id: string) => void;
-  onInlineCancel: () => void;
-  onInlineSubmit: (title: string) => void;
+  overlapping: Set<string>;
+  actions: WeekActions;
 }
 
 export function DayColumn({
+  day,
   dayIdx,
-  blocks,
-  overlapping,
   selectedId,
-  isToday,
-  nowMinutes,
-  inline,
-  onEmptyClick,
-  onBlockClick,
-  onBlockDblClick,
-  onBlockContext,
-  onInlineCancel,
-  onInlineSubmit,
+  overlapping,
+  actions,
 }: DayColumnProps) {
+  const inline = day.inline;
   return (
-    <div className="day-col" data-day={dayIdx}>
+    <div className="day-col" data-day={dayIdx} data-date={day.date}>
       {ROWS.map(({ hour, halfHour, minute, isHm }) => (
         <div
           key={`${hour}-${halfHour}`}
@@ -80,17 +55,16 @@ export function DayColumn({
             if (e.target !== e.currentTarget) return;
             e.preventDefault();
             const snapped = Math.round(minute / SNAP_MIN) * SNAP_MIN;
-            onEmptyClick(snapped);
+            actions.onEmptyClick(day.date, snapped);
           }}
         />
       ))}
-      {blocks.map((b) => {
+      {day.blocks.map((b) => {
         const startMin = timeToMinutes(b.start);
         const isNow =
-          isToday &&
-          nowMinutes != null &&
-          startMin <= nowMinutes &&
-          nowMinutes < startMin + b.duration;
+          day.nowMinutes != null &&
+          startMin <= day.nowMinutes &&
+          day.nowMinutes < startMin + b.duration;
         return (
           <TimeBlock
             key={b.id}
@@ -98,18 +72,22 @@ export function DayColumn({
             selected={selectedId === b.id}
             isNow={isNow}
             overlap={overlapping.has(b.id)}
-            onClick={() => onBlockClick(b.id)}
-            onDblClick={() => onBlockDblClick(b.id)}
-            onContext={(e) => onBlockContext(e, b.id)}
+            onClick={() => actions.onBlockClick(b.id)}
+            onDblClick={() => actions.onBlockDblClick(b.id)}
+            onContext={(e) => actions.onBlockContext(e, b.id)}
           />
         );
       })}
-      {isToday && nowMinutes != null && <NowLine minutes={nowMinutes} />}
+      {day.isToday && day.nowMinutes != null && (
+        <NowLine minutes={day.nowMinutes} />
+      )}
       {inline && (
         <InlineCreate
           minute={inline.minute}
-          onCancel={onInlineCancel}
-          onSubmit={onInlineSubmit}
+          onCancel={actions.onInlineCancel}
+          onSubmit={(title) =>
+            actions.onInlineSubmit(day.date, inline.minute, title)
+          }
         />
       )}
     </div>

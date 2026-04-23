@@ -1,0 +1,116 @@
+import { useEffect } from "react";
+import type { Block } from "../schemas";
+
+interface HotkeysArgs {
+  active: boolean;
+  overlayOpen: boolean;
+  selectedBlock: Block | null;
+  onCloseOverlay: () => void;
+  onClearSelection: () => void;
+  onOpenNew: () => void;
+  onTogglePool: () => void;
+  onOpenEdit: (block: Block) => void;
+  onComplete: (block: Block) => void;
+  onSkip: (block: Block) => void;
+  onDelete: (block: Block) => void;
+  onNudge: (block: Block, deltaMin: number) => void;
+}
+
+export function usePlannerHotkeys(args: HotkeysArgs) {
+  const {
+    active,
+    overlayOpen,
+    selectedBlock,
+    onCloseOverlay,
+    onClearSelection,
+    onOpenNew,
+    onTogglePool,
+    onOpenEdit,
+    onComplete,
+    onSkip,
+    onDelete,
+    onNudge,
+  } = args;
+
+  useEffect(() => {
+    if (!active) return;
+    const handler = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const isInputTarget =
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        (t != null && t.isContentEditable);
+
+      // Guard 1: input target — let the field handle it (Esc blurs).
+      if (isInputTarget) {
+        if (e.key === "Escape") (t as HTMLElement).blur();
+        return;
+      }
+
+      // Esc always closes overlay + drops selection (even when an
+      // overlay is open — that's the only way out of overlays).
+      if (e.key === "Escape") {
+        onCloseOverlay();
+        onClearSelection();
+        return;
+      }
+
+      // Guard 2: overlay open — swallow other shortcuts.
+      if (overlayOpen) return;
+
+      // Guard 3: letters require !meta && !ctrl && !alt to avoid
+      // shadowing system shortcuts (Cmd+D etc).
+      const noMod = !e.metaKey && !e.ctrlKey && !e.altKey;
+
+      if (noMod && e.code === "KeyN") {
+        e.preventDefault();
+        onOpenNew();
+        return;
+      }
+      if (noMod && e.code === "KeyT") {
+        e.preventDefault();
+        onTogglePool();
+        return;
+      }
+
+      if (!selectedBlock) return;
+
+      if (noMod && e.code === "KeyD") {
+        void onComplete(selectedBlock);
+      } else if (noMod && e.code === "KeyS") {
+        void onSkip(selectedBlock);
+      } else if (
+        noMod &&
+        (e.key === "Delete" || e.key === "Backspace")
+      ) {
+        void onDelete(selectedBlock);
+      } else if (noMod && e.key === "Enter") {
+        e.preventDefault();
+        onOpenEdit(selectedBlock);
+      } else if (
+        e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        (e.key === "ArrowUp" || e.key === "ArrowDown")
+      ) {
+        e.preventDefault();
+        void onNudge(selectedBlock, e.key === "ArrowUp" ? -30 : 30);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    active,
+    overlayOpen,
+    selectedBlock,
+    onCloseOverlay,
+    onClearSelection,
+    onOpenNew,
+    onTogglePool,
+    onOpenEdit,
+    onComplete,
+    onSkip,
+    onDelete,
+    onNudge,
+  ]);
+}

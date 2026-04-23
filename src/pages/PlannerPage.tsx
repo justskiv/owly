@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import type { MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Block } from "../schemas";
 import { BlockContextMenu } from "../components/planner/BlockContextMenu";
+import { BlockEditor } from "../components/planner/BlockEditor";
 import {
-  BlockEditor,
-  type EditorPrefill,
-} from "../components/planner/BlockEditor";
-import { WeekGrid } from "../components/planner/WeekGrid";
+  WeekGrid,
+  type WeekActions,
+  type WeekModel,
+} from "../components/planner/WeekGrid";
 import { WeekSummary } from "../components/planner/WeekSummary";
 import {
   dayBalance,
@@ -15,53 +16,20 @@ import {
   weekFreeMinutes,
 } from "../services/balance";
 import {
-  DEFAULT_BLOCK_CATEGORY,
-  DEFAULT_BLOCK_DURATION_MIN,
-  END_HOUR,
-  SNAP_MIN,
   START_HOUR,
-  clampBlockToGrid,
+  END_HOUR,
   formatDate,
   getWeekDates,
-  minutesToTime,
-  timeToMinutes,
 } from "../services/time-utils";
-import { toast } from "../components/shared/Toast";
+import { usePlannerCommands } from "../hooks/usePlannerCommands";
+import { usePlannerHotkeys } from "../hooks/usePlannerHotkeys";
+import { usePlannerOverlay } from "../hooks/usePlannerOverlay";
 import { useConfigStore } from "../store/config";
 import { useScheduleStore } from "../store/schedule";
 import { useUIStore } from "../store/ui";
 
-type EditorState =
-  | null
-  | { mode: "new"; prefill: EditorPrefill }
-  | { mode: "edit"; id: string };
-
-type CtxState = null | { x: number; y: number; blockId: string };
-type InlineState = null | { date: string; minute: number };
-
 const NOW_TICK_MS = 60_000;
 const EMPTY_AREAS: never[] = [];
-
-function buildNewDefaults(
-  weekDates: string[],
-  weekStart: string,
-  todayIdx: number,
-): EditorPrefill {
-  const date = todayIdx >= 0 ? weekDates[todayIdx] : weekStart;
-  const now = new Date();
-  const snapped =
-    Math.round((now.getHours() * 60 + now.getMinutes()) / SNAP_MIN) * SNAP_MIN;
-  const clamped = Math.max(
-    START_HOUR * 60,
-    Math.min((END_HOUR - 1) * 60, snapped),
-  );
-  return {
-    date,
-    start: minutesToTime(clamped),
-    duration: DEFAULT_BLOCK_DURATION_MIN,
-    category: DEFAULT_BLOCK_CATEGORY,
-  };
-}
 
 function useNowInWeek(weekDates: string[], tick: number) {
   return useMemo(() => {
@@ -84,28 +52,12 @@ export function PlannerPage() {
   const blocks = useScheduleStore((s) => s.blocks);
 
   const selectedId = useUIStore((s) => s.selectedBlockId);
-  const setSelectedBlock = useUIStore((s) => s.setSelectedBlock);
+  const setSelected = useUIStore((s) => s.setSelectedBlock);
   const newBlockTrigger = useUIStore((s) => s.newBlockTrigger);
 
   const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
   const areaIds = useMemo(() => areas.map((a) => a.id), [areas]);
-
   const weekDates = useMemo(() => getWeekDates(week), [week]);
-  const overlapping = useMemo(() => overlappingIds(blocks), [blocks]);
-  const dayBalances = useMemo(
-    () =>
-      weekDates.map((d) => ({
-        date: d,
-        balance: dayBalance(blocks, d, areaIds),
-        free: dayFreeMinutes(blocks, d),
-      })),
-    [blocks, weekDates, areaIds],
-  );
-  const weekBal = useMemo(
-    () => weekBalance(blocks, areaIds),
-    [blocks, areaIds],
-  );
-  const freeWk = useMemo(() => weekFreeMinutes(blocks), [blocks]);
 
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
@@ -128,143 +80,53 @@ export function PlannerPage() {
   }, []);
   const { todayIdx, nowMinutes } = useNowInWeek(weekDates, nowTick);
 
-  const [editor, setEditor] = useState<EditorState>(null);
-  const [ctx, setCtx] = useState<CtxState>(null);
-  const [inline, setInline] = useState<InlineState>(null);
+  const overlay = usePlannerOverlay();
+  const commands = usePlannerCommands({ weekDates, weekStart, todayIdx });
 
   // External (menu bar) request to open the new-block editor.
-  // Counter-based so the same trigger value re-fires on each menu click.
   useEffect(() => {
     if (newBlockTrigger === 0) return;
-    setEditor({
-      mode: "new",
-      prefill: buildNewDefaults(weekDates, weekStart, todayIdx),
-    });
+    overlay.openEditorNew(commands.buildNewDefaults());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newBlockTrigger]);
 
-  const closeAllOverlays = () => {
-    setEditor(null);
-    setCtx(null);
-    setInline(null);
-  };
+  const selectedBlock = useMemo(
+    () => blocks.find((b) => b.id === selectedId) ?? null,
+    [blocks, selectedId],
+  );
 
-  const editorBlock =
-    editor?.mode === "edit"
-      ? (blocks.find((b) => b.id === editor.id) ?? null)
-      : null;
-  const ctxBlock = ctx ? (blocks.find((b) => b.id === ctx.blockId) ?? null) : null;
+  const onClearSelection = useCallback(
+    () => setSelected(null),
+    [setSelected],
+  );
+  const onOpenNew = useCallback(
+    () => overlay.openEditorNew(commands.buildNewDefaults()),
+    [overlay, commands],
+  );
+  const onOpenEdit = useCallback(
+    (b: Block) => overlay.openEditorEdit(b.id),
+    [overlay],
+  );
+  const onTogglePool = useCallback(() => {
+    // Появится в Commit 6.
+  }, []);
 
-  useEffect(() => {
-    if (!active) return;
-    const handler = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      const isInputTarget =
-        t instanceof HTMLInputElement ||
-        t instanceof HTMLTextAreaElement ||
-        (t && t.isContentEditable);
-
-      if (isInputTarget) {
-        if (e.key === "Escape") (t as HTMLElement).blur();
-        return;
-      }
-
-      if (e.key === "Escape") {
-        closeAllOverlays();
-        setSelectedBlock(null);
-        return;
-      }
-
-      if (editor || ctx || inline) {
-        return;
-      }
-
-      const noModifier = !e.metaKey && !e.ctrlKey && !e.altKey;
-
-      if (noModifier && e.code === "KeyN") {
-        e.preventDefault();
-        setEditor({
-          mode: "new",
-          prefill: buildNewDefaults(weekDates, weekStart, todayIdx),
-        });
-        return;
-      }
-      if (noModifier && e.code === "KeyT") {
-        // фаза 3 — пул задач
-        return;
-      }
-
-      const sel = blocks.find((b) => b.id === selectedId);
-      if (!sel) return;
-
-      const runStatus = async (status: "done" | "skipped", label: string) => {
-        try {
-          await useScheduleStore.getState().setBlockStatus(sel.id, status);
-          toast.success(label);
-        } catch (err) {
-          toast.error(`Не удалось сохранить: ${(err as Error).message}`);
-        }
-      };
-
-      if (noModifier && e.code === "KeyD") {
-        void runStatus("done", "Done ✓");
-      } else if (noModifier && e.code === "KeyS") {
-        void runStatus("skipped", "Skipped");
-      } else if (
-        noModifier &&
-        (e.key === "Delete" || e.key === "Backspace")
-      ) {
-        void (async () => {
-          try {
-            await useScheduleStore.getState().deleteBlock(sel.id);
-            setSelectedBlock(null);
-            toast.success(`✕ Удалён: ${sel.title}`);
-          } catch (err) {
-            toast.error(`Не удалось удалить: ${(err as Error).message}`);
-          }
-        })();
-      } else if (noModifier && e.key === "Enter") {
-        e.preventDefault();
-        setEditor({ mode: "edit", id: sel.id });
-      } else if (
-        e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey &&
-        (e.key === "ArrowUp" || e.key === "ArrowDown")
-      ) {
-        e.preventDefault();
-        const delta = e.key === "ArrowUp" ? -30 : 30;
-        const cur = timeToMinutes(sel.start);
-        const { start: next } = clampBlockToGrid(cur + delta, sel.duration);
-        if (next !== cur) {
-          void (async () => {
-            try {
-              await useScheduleStore
-                .getState()
-                .updateBlock(sel.id, { start: minutesToTime(next) });
-              toast.success(minutesToTime(next));
-            } catch (err) {
-              toast.error(`Не удалось сохранить: ${(err as Error).message}`);
-            }
-          })();
-        }
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [
+  usePlannerHotkeys({
     active,
-    selectedId,
-    blocks,
-    weekDates,
-    weekStart,
-    todayIdx,
-    editor,
-    ctx,
-    inline,
-    setSelectedBlock,
-  ]);
+    overlayOpen: overlay.overlay !== null,
+    selectedBlock,
+    onCloseOverlay: overlay.close,
+    onClearSelection,
+    onOpenNew,
+    onTogglePool,
+    onOpenEdit,
+    onComplete: commands.completeBlock,
+    onSkip: commands.skipBlock,
+    onDelete: commands.deleteBlock,
+    onNudge: commands.nudgeBlock,
+  });
 
+  // Outside-click drops selection + closes inline-create.
   useEffect(() => {
     if (!active) return;
     const onDocMouseDown = (e: globalThis.MouseEvent) => {
@@ -280,86 +142,121 @@ export function PlannerPage() {
       }
       const ui = useUIStore.getState();
       if (ui.selectedBlockId !== null) {
-        setSelectedBlock(null);
+        setSelected(null);
       }
       // Click on .gr opens a new inline-create itself; don't kill it here.
-      if (!target.closest(".gr")) {
-        setInline((cur) => (cur ? null : cur));
+      if (!target.closest(".gr") && overlay.overlay?.kind === "inline-create") {
+        overlay.close();
       }
     };
     document.addEventListener("mousedown", onDocMouseDown);
     return () => document.removeEventListener("mousedown", onDocMouseDown);
-  }, [active, setSelectedBlock]);
+  }, [active, setSelected, overlay]);
 
-  const onInlineSubmit = async (
-    date: string,
-    minute: number,
-    title: string,
-  ) => {
-    try {
-      const created = await useScheduleStore.getState().addBlock({
-        title,
-        date,
-        start: minutesToTime(minute),
-        duration: DEFAULT_BLOCK_DURATION_MIN,
-        category: DEFAULT_BLOCK_CATEGORY,
-        status: "planned",
-        notes: "",
-        source_entity_id: null,
-      });
-      setSelectedBlock(created.id);
-      setInline(null);
-      toast.success(`✓ Создан: ${title}`);
-    } catch (err) {
-      toast.error(`Не удалось создать: ${(err as Error).message}`);
+  const ov = overlay.overlay;
+  const inlineForGrid =
+    ov?.kind === "inline-create"
+      ? { date: ov.date, minute: ov.minute }
+      : null;
+
+  const weekModel = useMemo<WeekModel>(() => {
+    const blocksByDate = new Map<string, typeof blocks>();
+    for (const b of blocks) {
+      const list = blocksByDate.get(b.date);
+      if (list) list.push(b);
+      else blocksByDate.set(b.date, [b]);
     }
-  };
+    return {
+      weekKey: week,
+      days: weekDates.map((date, idx) => ({
+        date,
+        isToday: todayIdx === idx,
+        blocks: blocksByDate.get(date) ?? [],
+        balance: dayBalance(blocks, date, areaIds),
+        free: dayFreeMinutes(blocks, date),
+        inline:
+          inlineForGrid?.date === date
+            ? { minute: inlineForGrid.minute }
+            : null,
+        nowMinutes: todayIdx === idx ? nowMinutes : null,
+      })),
+      selectedId,
+      overlapping: overlappingIds(blocks),
+      todayIdx,
+    };
+  }, [
+    blocks,
+    week,
+    weekDates,
+    todayIdx,
+    nowMinutes,
+    selectedId,
+    areaIds,
+    inlineForGrid,
+  ]);
+
+  const weekBal = useMemo(
+    () => weekBalance(blocks, areaIds),
+    [blocks, areaIds],
+  );
+  const freeWk = useMemo(() => weekFreeMinutes(blocks), [blocks]);
+
+  const actions = useMemo<WeekActions>(
+    () => ({
+      onEmptyClick: (date, minute) => overlay.openInline(date, minute),
+      onBlockClick: (id) => setSelected(id),
+      onBlockDblClick: (id) => overlay.openEditorEdit(id),
+      onBlockContext: (e, id) => {
+        setSelected(id);
+        overlay.openContext(e.clientX, e.clientY, id);
+      },
+      onInlineCancel: () => overlay.close(),
+      onInlineSubmit: async (date, minute, title) => {
+        const created = await commands.createInline(date, minute, title);
+        if (created) overlay.close();
+      },
+    }),
+    [overlay, setSelected, commands],
+  );
+
+  const editBlock =
+    ov?.kind === "editor-edit"
+      ? (blocks.find((b) => b.id === ov.blockId) ?? null)
+      : null;
+  const ctxBlock =
+    ov?.kind === "context"
+      ? (blocks.find((b) => b.id === ov.blockId) ?? null)
+      : null;
 
   return (
     <div className={`page${active ? " active" : ""}`}>
       <WeekSummary balance={weekBal} freeMinutes={freeWk} />
-      <WeekGrid
-        weekKey={week}
-        weekDates={weekDates}
-        blocks={blocks}
-        dayBalances={dayBalances}
-        overlapping={overlapping}
-        selectedId={selectedId}
-        todayIdx={todayIdx}
-        nowMinutes={nowMinutes}
-        inline={inline}
-        onEmptyClick={(date, minute) => setInline({ date, minute })}
-        onBlockClick={(id) => setSelectedBlock(id)}
-        onBlockDblClick={(id) => setEditor({ mode: "edit", id })}
-        onBlockContext={(e: MouseEvent, id) => {
-          setSelectedBlock(id);
-          setCtx({ x: e.clientX, y: e.clientY, blockId: id });
-        }}
-        onInlineCancel={() => setInline(null)}
-        onInlineSubmit={onInlineSubmit}
-      />
-      {editor && (
+      <WeekGrid model={weekModel} actions={actions} />
+      {ov?.kind === "editor-new" && (
         <BlockEditor
-          key={editor.mode === "edit" ? `edit:${editor.id}` : "new"}
-          mode={editor.mode}
-          block={editorBlock}
-          prefill={editor.mode === "new" ? editor.prefill : {}}
+          mode={{ kind: "new", defaults: ov.defaults }}
           weekStart={weekStart}
           areas={areas}
-          onClose={() => setEditor(null)}
+          onClose={overlay.close}
         />
       )}
-      {ctx && ctxBlock && (
+      {ov?.kind === "editor-edit" && editBlock && (
+        <BlockEditor
+          key={`edit:${editBlock.id}`}
+          mode={{ kind: "edit", block: editBlock }}
+          weekStart={weekStart}
+          areas={areas}
+          onClose={overlay.close}
+        />
+      )}
+      {ov?.kind === "context" && ctxBlock && (
         <BlockContextMenu
-          x={ctx.x}
-          y={ctx.y}
+          x={ov.x}
+          y={ov.y}
           block={ctxBlock}
           areas={areas}
-          onEdit={() => {
-            setEditor({ mode: "edit", id: ctx.blockId });
-            setCtx(null);
-          }}
-          onClose={() => setCtx(null)}
+          onEdit={() => overlay.openEditorEdit(ov.blockId)}
+          onClose={overlay.close}
         />
       )}
     </div>

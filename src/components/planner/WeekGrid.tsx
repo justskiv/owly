@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { MouseEvent } from "react";
 import type { Block } from "../../schemas";
 import { END_HOUR, ROW_H, START_HOUR } from "../../services/time-utils";
@@ -23,27 +23,25 @@ function TimeColumn() {
   );
 }
 
-interface DayBalance {
+export interface WeekDayModel {
   date: string;
+  isToday: boolean;
+  blocks: Block[];
   balance: CategoryBalance[];
   free: number;
-}
-
-interface InlineState {
-  date: string;
-  minute: number;
-}
-
-interface WeekGridProps {
-  weekKey: string;
-  weekDates: string[];
-  blocks: Block[];
-  dayBalances: DayBalance[];
-  overlapping: Set<string>;
-  selectedId: string | null;
-  todayIdx: number;
+  inline: { minute: number } | null;
   nowMinutes: number | null;
-  inline: InlineState | null;
+}
+
+export interface WeekModel {
+  weekKey: string;
+  days: WeekDayModel[];
+  selectedId: string | null;
+  overlapping: Set<string>;
+  todayIdx: number;
+}
+
+export interface WeekActions {
   onEmptyClick: (date: string, minute: number) => void;
   onBlockClick: (id: string) => void;
   onBlockDblClick: (id: string) => void;
@@ -52,86 +50,49 @@ interface WeekGridProps {
   onInlineSubmit: (date: string, minute: number, title: string) => void;
 }
 
-export function WeekGrid({
-  weekKey,
-  weekDates,
-  blocks,
-  dayBalances,
-  overlapping,
-  selectedId,
-  todayIdx,
-  nowMinutes,
-  inline,
-  onEmptyClick,
-  onBlockClick,
-  onBlockDblClick,
-  onBlockContext,
-  onInlineCancel,
-  onInlineSubmit,
-}: WeekGridProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+interface WeekGridProps {
+  model: WeekModel;
+  actions: WeekActions;
+}
 
-  const blocksByDate = useMemo(() => {
-    const map = new Map<string, Block[]>();
-    for (const b of blocks) {
-      const list = map.get(b.date);
-      if (list) list.push(b);
-      else map.set(b.date, [b]);
-    }
-    return map;
-  }, [blocks]);
+export function WeekGrid({ model, actions }: WeekGridProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = ROW_H * 2;
     }
-  }, [weekKey]);
+  }, [model.weekKey]);
 
   return (
     <div className="planner-body">
       <div className="grid-area">
         <div className="day-headers">
           <div style={{ width: "var(--time-w)" }} />
-          {weekDates.map((date, idx) => (
+          {model.days.map((day, idx) => (
             <DayHeader
-              key={date}
-              date={date}
+              key={day.date}
+              date={day.date}
               dayIdx={idx}
-              isToday={todayIdx === idx}
-              balance={dayBalances[idx].balance}
-              freeMinutes={dayBalances[idx].free}
+              isToday={day.isToday}
+              balance={day.balance}
+              freeMinutes={day.free}
             />
           ))}
         </div>
         <div className="grid-scroll" ref={scrollRef}>
           <div className="grid-body">
             <TimeColumn />
-            {weekDates.map((date, idx) => {
-              const inlineForDay =
-                inline?.date === date ? { minute: inline.minute } : null;
-              return (
-                <DayColumn
-                  key={date}
-                  dayIdx={idx}
-                  blocks={blocksByDate.get(date) ?? []}
-                  overlapping={overlapping}
-                  selectedId={selectedId}
-                  isToday={todayIdx === idx}
-                  nowMinutes={todayIdx === idx ? nowMinutes : null}
-                  inline={inlineForDay}
-                  onEmptyClick={(min) => onEmptyClick(date, min)}
-                  onBlockClick={onBlockClick}
-                  onBlockDblClick={onBlockDblClick}
-                  onBlockContext={onBlockContext}
-                  onInlineCancel={onInlineCancel}
-                  onInlineSubmit={(title) => {
-                    if (inlineForDay) {
-                      onInlineSubmit(date, inlineForDay.minute, title);
-                    }
-                  }}
-                />
-              );
-            })}
+            {model.days.map((day, idx) => (
+              <DayColumn
+                key={day.date}
+                day={day}
+                dayIdx={idx}
+                selectedId={model.selectedId}
+                overlapping={model.overlapping}
+                actions={actions}
+              />
+            ))}
           </div>
         </div>
       </div>

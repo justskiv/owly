@@ -17,8 +17,6 @@ import {
   parseHHMMStrict,
 } from "../../services/time-utils";
 
-type EditorMode = "new" | "edit";
-
 export interface EditorPrefill {
   date?: string;
   start?: string;
@@ -28,10 +26,12 @@ export interface EditorPrefill {
   notes?: string;
 }
 
+export type EditorMode =
+  | { kind: "new"; defaults: EditorPrefill }
+  | { kind: "edit"; block: Block };
+
 interface BlockEditorProps {
   mode: EditorMode;
-  block: Block | null;
-  prefill: EditorPrefill;
   weekStart: string;
   areas: Area[];
   onClose: () => void;
@@ -39,37 +39,37 @@ interface BlockEditorProps {
 
 export function BlockEditor({
   mode,
-  block,
-  prefill,
   weekStart,
   areas,
   onClose,
 }: BlockEditorProps) {
-  const isEdit = mode === "edit" && block !== null;
+  const isEdit = mode.kind === "edit";
 
   const initialDayIdx = isEdit
-    ? Math.max(0, dayIndexOfDate(block.date, weekStart))
-    : prefill.date
-      ? Math.max(0, dayIndexOfDate(prefill.date, weekStart))
+    ? Math.max(0, dayIndexOfDate(mode.block.date, weekStart))
+    : mode.defaults.date
+      ? Math.max(0, dayIndexOfDate(mode.defaults.date, weekStart))
       : 0;
 
   const [title, setTitle] = useState(
-    isEdit ? block.title : (prefill.title ?? ""),
+    isEdit ? mode.block.title : (mode.defaults.title ?? ""),
   );
   const [start, setStart] = useState(
-    isEdit ? block.start : (prefill.start ?? "09:00"),
+    isEdit ? mode.block.start : (mode.defaults.start ?? "09:00"),
   );
   const [duration, setDuration] = useState(
     String(
-      isEdit ? block.duration : (prefill.duration ?? DEFAULT_BLOCK_DURATION_MIN),
+      isEdit
+        ? mode.block.duration
+        : (mode.defaults.duration ?? DEFAULT_BLOCK_DURATION_MIN),
     ),
   );
   const [dayIdx, setDayIdx] = useState(String(initialDayIdx));
   const [category, setCategory] = useState(
-    isEdit ? block.category : (prefill.category ?? DEFAULT_BLOCK_CATEGORY),
+    isEdit ? mode.block.category : (mode.defaults.category ?? DEFAULT_BLOCK_CATEGORY),
   );
   const [notes, setNotes] = useState(
-    isEdit ? block.notes : (prefill.notes ?? ""),
+    isEdit ? mode.block.notes : (mode.defaults.notes ?? ""),
   );
 
   const titleRef = useRef<HTMLInputElement>(null);
@@ -111,20 +111,22 @@ export function BlockEditor({
       startMin,
       durRaw,
     );
+    const status: BlockStatus = isEdit ? mode.block.status : "planned";
+    const sourceEntityId = isEdit ? mode.block.source_entity_id : null;
     const draft = {
       title: trimmedTitle,
       date,
       start: minutesToTime(snappedStart),
       duration: snappedDur,
       category,
-      status: (block?.status ?? "planned") as BlockStatus,
+      status,
       notes,
-      source_entity_id: block?.source_entity_id ?? null,
+      source_entity_id: sourceEntityId,
     };
 
     try {
-      if (isEdit && block) {
-        await useScheduleStore.getState().updateBlock(block.id, draft);
+      if (isEdit) {
+        await useScheduleStore.getState().updateBlock(mode.block.id, draft);
         toast.success(`✓ Обновлён: ${trimmedTitle}`);
       } else {
         const created = await useScheduleStore.getState().addBlock(draft);
@@ -138,10 +140,10 @@ export function BlockEditor({
   };
 
   const remove = async () => {
-    if (!isEdit || !block) return;
-    const t = block.title;
+    if (!isEdit) return;
+    const t = mode.block.title;
     try {
-      await useScheduleStore.getState().deleteBlock(block.id);
+      await useScheduleStore.getState().deleteBlock(mode.block.id);
       useUIStore.getState().setSelectedBlock(null);
       toast.success(`✕ Удалён: ${t}`);
       onClose();

@@ -59,41 +59,46 @@ export function BlockContextMenu({
   }, [onClose]);
 
   const act = async (kind: "done" | "skip" | "edit" | "dup" | "del") => {
-    const store = useScheduleStore.getState();
-    if (kind === "done") {
-      await store.setBlockStatus(block.id, "done");
-      toast.success("Done ✓");
-    } else if (kind === "skip") {
-      await store.setBlockStatus(block.id, "skipped");
-      toast.success("Skipped");
-    } else if (kind === "del") {
-      const t = block.title;
-      await store.deleteBlock(block.id);
-      useUIStore.getState().setSelectedBlock(null);
-      toast.success(`✕ Удалён: ${t}`);
-    } else if (kind === "dup") {
-      const newStartMin = timeToMinutes(block.start) + block.duration;
-      const { start: clampedStart, duration: clampedDur } = clampBlockToGrid(
-        newStartMin,
-        block.duration,
-      );
-      const created = await store.addBlock({
-        title: block.title,
-        date: block.date,
-        start: minutesToTime(clampedStart),
-        duration: clampedDur,
-        category: block.category,
-        status: "planned",
-        notes: block.notes,
-        source_entity_id: block.source_entity_id,
-      });
-      useUIStore.getState().setSelectedBlock(created.id);
-      toast.success(`⧉ Дублирован: ${block.title}`);
-    } else if (kind === "edit") {
+    if (kind === "edit") {
       onEdit();
       return;
     }
-    onClose();
+    const store = useScheduleStore.getState();
+    try {
+      if (kind === "done") {
+        await store.setBlockStatus(block.id, "done");
+        toast.success("Done ✓");
+      } else if (kind === "skip") {
+        await store.setBlockStatus(block.id, "skipped");
+        toast.success("Skipped");
+      } else if (kind === "del") {
+        const t = block.title;
+        await store.deleteBlock(block.id);
+        useUIStore.getState().setSelectedBlock(null);
+        toast.success(`✕ Удалён: ${t}`);
+      } else if (kind === "dup") {
+        const newStartMin = timeToMinutes(block.start) + block.duration;
+        const { start: clampedStart, duration: clampedDur } = clampBlockToGrid(
+          newStartMin,
+          block.duration,
+        );
+        const created = await store.addBlock({
+          title: block.title,
+          date: block.date,
+          start: minutesToTime(clampedStart),
+          duration: clampedDur,
+          category: block.category,
+          status: "planned",
+          notes: block.notes,
+          source_entity_id: block.source_entity_id,
+        });
+        useUIStore.getState().setSelectedBlock(created.id);
+        toast.success(`⧉ Дублирован: ${block.title}`);
+      }
+      onClose();
+    } catch (e) {
+      toast.error(`Не удалось: ${(e as Error).message}`);
+    }
   };
 
   const setCat = async (catId: string) => {
@@ -101,11 +106,15 @@ export function BlockContextMenu({
       onClose();
       return;
     }
-    await useScheduleStore.getState().updateBlock(block.id, {
-      category: catId,
-    });
-    toast.success(`Категория: ${catId}`);
-    onClose();
+    try {
+      await useScheduleStore.getState().updateBlock(block.id, {
+        category: catId,
+      });
+      toast.success(`Категория: ${catId}`);
+      onClose();
+    } catch (e) {
+      toast.error(`Не удалось: ${(e as Error).message}`);
+    }
   };
 
   return (
