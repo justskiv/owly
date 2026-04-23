@@ -107,6 +107,17 @@ export function PlannerPage() {
     (b: Block) => overlay.openEditorEdit(b.id),
     [overlay],
   );
+  const onOpenContext = useCallback(
+    (b: Block) => {
+      const el = document.querySelector<HTMLElement>(
+        `.tb[data-block-id="${CSS.escape(b.id)}"]`,
+      );
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      overlay.openContext(r.left + r.width / 2, r.top + r.height / 2, b.id);
+    },
+    [overlay],
+  );
   const onTogglePool = useCallback(() => {
     // Появится в Commit 6.
   }, []);
@@ -120,6 +131,7 @@ export function PlannerPage() {
     onOpenNew,
     onTogglePool,
     onOpenEdit,
+    onOpenContext,
     onComplete: commands.completeBlock,
     onSkip: commands.skipBlock,
     onDelete: commands.deleteBlock,

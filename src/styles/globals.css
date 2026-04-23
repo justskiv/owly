@@ -152,13 +152,13 @@ button:focus,button:focus-visible,[tabindex]:focus,[tabindex]:focus-visible{outl
 /* context menu */
 .ctx{position:fixed;background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:var(--radius-lg);padding:3px;min-width:190px;box-shadow:var(--shadow-md);z-index:1000;display:none}
 .ctx.visible{display:block}
-.ctx-i{padding:4px 8px;border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text-primary);transition:background var(--duration-instant)}
-.ctx-i:hover{background:var(--bg-tint-2)}
+.ctx-i{padding:4px 8px;border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text-primary);transition:background var(--duration-instant);background:none;border:0;width:100%;text-align:left;font-family:inherit}
+.ctx-i:hover,.ctx-i.focused{background:var(--bg-tint-2)}
 .ctx-sc{margin-left:auto;font-family:var(--mono);font-size:var(--fs-xs);color:var(--text-tertiary)}
 .ctx-sep{height:1px;background:var(--border);margin:3px 0}
 .ctx-i.danger{color:var(--error)}
 .ctx-cols{padding:4px 8px;display:flex;gap:4px}
-.ctx-c{width:14px;height:14px;border-radius:50%;cursor:pointer;border:2px solid transparent;opacity:.7;transition:all var(--duration-instant)}
+.ctx-c{width:14px;height:14px;border-radius:50%;cursor:pointer;border:2px solid transparent;opacity:.7;transition:all var(--duration-instant);padding:0;background:transparent}
 .ctx-c:hover{opacity:1;transform:scale(1.15)}
 .ctx-c.active{border-color:var(--border-strong);opacity:1}
 

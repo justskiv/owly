@@ -62,6 +62,7 @@ export function TimeBlock({
       role="button"
       aria-label={ariaLabel}
       aria-pressed={selected}
+      data-block-id={block.id}
       onClick={(e) => {
         e.stopPropagation();
         onClick();

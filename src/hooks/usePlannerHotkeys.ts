@@ -10,6 +10,7 @@ interface HotkeysArgs {
   onOpenNew: () => void;
   onTogglePool: () => void;
   onOpenEdit: (block: Block) => void;
+  onOpenContext: (block: Block) => void;
   onComplete: (block: Block) => void;
   onSkip: (block: Block) => void;
   onDelete: (block: Block) => void;
@@ -26,6 +27,7 @@ export function usePlannerHotkeys(args: HotkeysArgs) {
     onOpenNew,
     onTogglePool,
     onOpenEdit,
+    onOpenContext,
     onComplete,
     onSkip,
     onDelete,
@@ -88,6 +90,13 @@ export function usePlannerHotkeys(args: HotkeysArgs) {
         e.preventDefault();
         onOpenEdit(selectedBlock);
       } else if (
+        (e.shiftKey && e.key === "F10" && !e.metaKey && !e.ctrlKey &&
+          !e.altKey) ||
+        e.key === "ContextMenu"
+      ) {
+        e.preventDefault();
+        onOpenContext(selectedBlock);
+      } else if (
         e.ctrlKey &&
         !e.metaKey &&
         !e.altKey &&
@@ -108,6 +117,7 @@ export function usePlannerHotkeys(args: HotkeysArgs) {
     onOpenNew,
     onTogglePool,
     onOpenEdit,
+    onOpenContext,
     onComplete,
     onSkip,
     onDelete,
