@@ -1,3 +1,11 @@
+import {
+  addWeeks as dfAddWeeks,
+  format,
+  getISOWeek,
+  getISOWeekYear,
+  startOfISOWeek,
+} from "date-fns";
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MONTHS_RU = [
   "янв",
@@ -30,22 +38,15 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+function isoWeekParts(date: Date): { year: number; week: number } {
+  return { year: getISOWeekYear(date), week: getISOWeek(date) };
 }
 
-function isoWeekParts(input: Date): { year: number; week: number } {
-  const date = startOfDay(input);
-  const day = (date.getDay() + 6) % 7; // 0 = пн
-  const thursday = new Date(date);
-  thursday.setDate(date.getDate() - day + 3);
-  const year = thursday.getFullYear();
-  const jan1 = new Date(year, 0, 1);
-  const jan1Day = (jan1.getDay() + 6) % 7;
-  const firstThursday = new Date(year, 0, 1 + ((3 - jan1Day + 7) % 7));
-  const week =
-    Math.floor((thursday.getTime() - firstThursday.getTime()) / (7 * MS_PER_DAY)) + 1;
-  return { year, week };
+function startOfWeek(weekId: string): Date {
+  const { year, week } = parseWeekId(weekId);
+  // ISO week 1 is the week that contains January 4.
+  const week1Monday = startOfISOWeek(new Date(year, 0, 4));
+  return dfAddWeeks(week1Monday, week - 1);
 }
 
 export function formatDate(d: Date): string {
@@ -73,14 +74,7 @@ export function getCurrentWeekId(): string {
 }
 
 export function getWeekStartDate(weekId: string): string {
-  const { year, week } = parseWeekId(weekId);
-  const jan4 = new Date(year, 0, 4);
-  const jan4Day = (jan4.getDay() + 6) % 7;
-  const week1Monday = new Date(jan4);
-  week1Monday.setDate(jan4.getDate() - jan4Day);
-  const target = new Date(week1Monday);
-  target.setDate(week1Monday.getDate() + (week - 1) * 7);
-  return formatDate(target);
+  return format(startOfWeek(weekId), "yyyy-MM-dd");
 }
 
 export function getWeekDates(weekId: string): string[] {
@@ -95,10 +89,8 @@ export function getWeekDates(weekId: string): string[] {
 }
 
 export function addWeeks(weekId: string, delta: number): string {
-  const start = parseDate(getWeekStartDate(weekId));
-  start.setDate(start.getDate() + delta * 7);
-  const { year, week } = isoWeekParts(start);
-  return formatWeekId(year, week);
+  const next = dfAddWeeks(startOfWeek(weekId), delta);
+  return formatWeekId(getISOWeekYear(next), getISOWeek(next));
 }
 
 export function getWeekNumber(weekId: string): number {

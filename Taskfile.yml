@@ -69,8 +69,14 @@ tasks:
     cmds:
       - rm -rf node_modules
 
+  test:
+    desc: Run vitest unit tests
+    cmds:
+      - npm test
+
   check:
-    desc: Pre-commit sanity check (typecheck + fe:build)
+    desc: Pre-commit sanity check (typecheck + test + fe:build)
     cmds:
       - task: typecheck
+      - task: test
       - task: fe:build
