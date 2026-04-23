@@ -3,6 +3,7 @@ import {
   addWeeks,
   dateForDayIndex,
   dayIndexOfDate,
+  fmtDur,
   getCurrentWeekId,
   getWeekDates,
   getWeekNumber,
@@ -80,5 +81,23 @@ describe("ISO week math", () => {
         expect(dayIndexOfDate(date, start)).toBe(i);
       }
     });
+  });
+});
+
+describe("fmtDur", () => {
+  it.each([
+    [15, "15m"],
+    [30, "30m"],
+    [45, "45m"],
+    [60, "1h"],
+    [90, "1.5h"],
+    [120, "2h"],
+    [150, "2.5h"],
+    [180, "3h"],
+    [75, "1h 15m"],
+    [105, "1h 45m"],
+    [195, "3h 15m"],
+  ])("%i → %s", (min, expected) => {
+    expect(fmtDur(min)).toBe(expected);
   });
 });

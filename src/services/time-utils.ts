@@ -170,11 +170,12 @@ export function yToMin(y: number, snap: number = SNAP_MIN): number {
 }
 
 export function fmtDur(min: number): string {
-  if (min >= 60) {
-    const h = Math.round((min / 60) * 10) / 10;
-    return `${h}h`;
-  }
-  return `${min}m`;
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (m === 0) return `${h}h`;
+  if (m === 30) return `${h}.5h`;
+  return `${h}h ${m}m`;
 }
 
 export function dayIndexOfDate(date: string, weekStart: string): number {
