@@ -1,10 +1,12 @@
+import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useUIStore } from "../../store/ui";
 import { useScheduleStore } from "../../store/schedule";
-import { 
-  getWeekNumber, 
-  formatWeekRange 
+import {
+  getWeekNumber,
+  formatWeekRange,
 } from "../../services/time-utils";
+import { CreateDropdown } from "../entities/CreateDropdown";
 
 export function Header() {
   const currentPage = useUIStore((s) => s.currentPage);
@@ -75,16 +77,38 @@ function PlannerHeader() {
 }
 
 function EntitiesHeader() {
+  const search = useUIStore((s) => s.entitySearch);
+  const setSearch = useUIStore((s) => s.setEntitySearch);
+  const open = useUIStore((s) => s.createDropdownOpen);
+  const toggle = useUIStore((s) => s.toggleCreateDropdown);
+  const close = useUIStore((s) => s.closeCreateDropdown);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
   return (
     <>
       <div className="hdr-title" data-tauri-drag-region>
         Сущности
       </div>
-      <input className="search-input" placeholder="Поиск..." />
+      <input
+        className="search-input"
+        placeholder="Поиск..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
       <div className="hdr-spacer" data-tauri-drag-region />
-      <button type="button" className="hdr-btn" disabled>
-        + Создать
-      </button>
+      <div className="hdr-create-wrap">
+        <button
+          ref={btnRef}
+          type="button"
+          className="hdr-btn"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-haspopup="menu"
+        >
+          + Создать <span className="hdr-caret">▾</span>
+        </button>
+        {open && <CreateDropdown anchorRef={btnRef} onClose={close} />}
+      </div>
     </>
   );
 }

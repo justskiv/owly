@@ -18,6 +18,7 @@ import {
 import { EMPTY_ENTITIES_FILE } from "../services/defaults";
 import { generateId, nowISO } from "../services/time-utils";
 import { trackSave } from "../services/save-status";
+import { useConfigStore } from "./config";
 
 type EntityDraft = Omit<Entity, "id" | "created_at" | "updated_at">;
 
@@ -60,6 +61,22 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
         EntitiesFileSchema,
         EMPTY_ENTITIES_FILE,
       );
+      // Soft validation: flag tags that aren't in config.areas. We
+      // don't drop or rewrite — the user might be migrating a config
+      // and seeing their own labels is more useful than silent data.
+      const areas = useConfigStore.getState().config?.areas;
+      if (areas) {
+        const known = new Set(areas.map((a) => a.id));
+        for (const e of file.entities) {
+          const unknown = e.tags.filter((t) => !known.has(t));
+          if (unknown.length) {
+            console.warn(
+              `[entities] ${e.id} (${e.title}) has unknown tags:`,
+              unknown,
+            );
+          }
+        }
+      }
       set({ entities: file.entities, loading: false });
     } catch (e) {
       set({ error: (e as Error).message, loading: false });

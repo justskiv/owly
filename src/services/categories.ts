@@ -28,3 +28,22 @@ export function pickCategory(tags: readonly string[]): Category {
   }
   return "work";
 }
+
+// Area is a dynamic concept — the user can add custom ones in Settings.
+// These helpers resolve a tag string against the runtime config rather
+// than the five built-ins, so custom areas render correctly.
+export function getAreaColor(
+  tag: string,
+  areas: readonly { id: string; color: string }[],
+): string {
+  const a = areas.find((x) => x.id === tag);
+  return a?.color ?? "#707070";
+}
+
+export function getAreaLabel(
+  tag: string,
+  areas: readonly { id: string; label: string }[],
+): string {
+  const a = areas.find((x) => x.id === tag);
+  return a?.label ?? tag;
+}

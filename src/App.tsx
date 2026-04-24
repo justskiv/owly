@@ -39,10 +39,16 @@ function App() {
     void (async () => {
       try {
         await ensureDataDir();
+        // Config must load before entities: entities.loadEntities warns
+        // on unknown tags by looking at config.areas.
+        await useConfigStore.getState().loadConfig();
         await Promise.all([
-          useConfigStore.getState().loadConfig(),
           useEntityStore.getState().loadEntities(),
-          useScheduleStore.getState().loadWeek(getCurrentWeekId()),
+          // First boot: create empty week file silently if none exists,
+          // otherwise a dialog would pop before the UI even paints.
+          useScheduleStore
+            .getState()
+            .loadWeek(getCurrentWeekId(), { silentCreate: true }),
         ]);
       } catch (e) {
         if (cancelled) return;

@@ -1,6 +1,6 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import type { Entity, Priority } from "../../schemas";
 import { useEntityStore } from "../../store/entities";
 import { useScheduleStore } from "../../store/schedule";
@@ -10,6 +10,7 @@ import {
   fmtDur,
 } from "../../services/time-utils";
 import { CAT_COLORS, pickCategory } from "../../services/categories";
+import { getCarryOverEntities } from "../../services/week-manager";
 
 // null priority → "low" bucket. Keeps grouping exhaustive without a
 // fourth "Без приоритета" group in the UI.
@@ -39,10 +40,14 @@ interface TaskPoolProps {
 export function TaskPool({ onPoolItemPointerDown }: TaskPoolProps) {
   const poolCollapsed = useUIStore((s) => s.poolCollapsed);
   const togglePool = useUIStore((s) => s.togglePool);
+  const carryCollapsed = useUIStore((s) => s.carryOverCollapsed);
+  const toggleCarry = useUIStore((s) => s.toggleCarryOver);
   const entities = useEntityStore((s) => s.entities);
   const blocks = useScheduleStore((s) => s.blocks);
+  const currentWeek = useScheduleStore((s) => s.currentWeek);
 
   const [query, setQuery] = useState("");
+  const [carryOver, setCarryOver] = useState<Entity[]>([]);
 
   // Selector lives in the entity store so the definition of "what
   // belongs in the pool" has a single source of truth. useMemo caches
@@ -51,6 +56,20 @@ export function TaskPool({ onPoolItemPointerDown }: TaskPoolProps) {
     () => useEntityStore.getState().getUnscheduled(blocks),
     [entities, blocks],
   );
+
+  // Entities that had an unresolved planned block last week and no
+  // block this week. Recomputed whenever the user navigates or the
+  // entities set changes. Async — might race with rapid nav; cancelled
+  // flag keeps stale results out of state.
+  useEffect(() => {
+    let cancelled = false;
+    void getCarryOverEntities(currentWeek, entities).then((x) => {
+      if (!cancelled) setCarryOver(x);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentWeek, entities, blocks]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -94,6 +113,37 @@ export function TaskPool({ onPoolItemPointerDown }: TaskPoolProps) {
         />
       </div>
       <div className="pool-items">
+        {carryOver.length > 0 && (
+          <>
+            <div
+              className="pg pg-carry"
+              role="button"
+              tabIndex={0}
+              onClick={toggleCarry}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter" || ev.key === " ") {
+                  ev.preventDefault();
+                  toggleCarry();
+                }
+              }}
+            >
+              <ChevronDown
+                size={10}
+                className={`pgc${carryCollapsed ? " collapsed" : ""}`}
+              />
+              С прошлой недели
+              <span className="fc">{carryOver.length}</span>
+            </div>
+            {!carryCollapsed &&
+              carryOver.map((e) => (
+                <PoolItem
+                  key={`carry-${e.id}`}
+                  entity={e}
+                  onPointerDown={onPoolItemPointerDown}
+                />
+              ))}
+          </>
+        )}
         {GROUPS.map(({ key, label, dot }) => {
           const items = grouped[key];
           if (!items.length) return null;

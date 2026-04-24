@@ -6,6 +6,8 @@ import { Toast } from "../shared/Toast";
 import { PlannerPage } from "../../pages/PlannerPage";
 import { EntitiesPage } from "../../pages/EntitiesPage";
 import { DashboardsPage } from "../../pages/DashboardsPage";
+import { EntityEditor } from "../entities/EntityEditor";
+import { SettingsModal } from "../settings/SettingsModal";
 import { useUIStore, type Page } from "../../store/ui";
 
 const KEY_PAGE: Record<string, Page> = {
@@ -16,6 +18,8 @@ const KEY_PAGE: Record<string, Page> = {
 
 export function Shell() {
   const setPage = useUIStore((s) => s.setPage);
+  const entityEditor = useUIStore((s) => s.entityEditor);
+  const settingsOpen = useUIStore((s) => s.settingsOpen);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -58,6 +62,8 @@ export function Shell() {
       </main>
       <StatusBar />
       <Toast />
+      {entityEditor.open && <EntityEditor state={entityEditor} />}
+      {settingsOpen && <SettingsModal />}
     </div>
   );
 }

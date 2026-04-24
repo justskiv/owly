@@ -3,6 +3,7 @@ import { BlockContextMenu } from "../components/planner/BlockContextMenu";
 import { BlockEditor } from "../components/planner/BlockEditor";
 import { DurationTip } from "../components/planner/DurationTip";
 import { TaskPool } from "../components/planner/TaskPool";
+import { WeekNotFoundDialog } from "../components/planner/WeekNotFoundDialog";
 import {
   WeekGrid,
   type WeekActions,
@@ -57,6 +58,7 @@ export function PlannerPage() {
   const selectedId = useUIStore((s) => s.selectedBlockId);
   const setSelected = useUIStore((s) => s.setSelectedBlock);
   const newBlockTrigger = useUIStore((s) => s.newBlockTrigger);
+  const weekPromptId = useUIStore((s) => s.weekPromptId);
 
   const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
   const areaIds = useMemo(() => areas.map((a) => a.id), [areas]);
@@ -296,6 +298,7 @@ export function PlannerPage() {
           onClose={overlay.close}
         />
       )}
+      {weekPromptId && <WeekNotFoundDialog weekId={weekPromptId} />}
     </div>
   );
 }

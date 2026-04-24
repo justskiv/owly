@@ -17,6 +17,8 @@ const NAV: NavItem[] = [
 export function Sidebar() {
   const currentPage = useUIStore((s) => s.currentPage);
   const setPage = useUIStore((s) => s.setPage);
+  const openSettings = useUIStore((s) => s.openSettings);
+  const settingsOpen = useUIStore((s) => s.settingsOpen);
 
   return (
     <nav
@@ -48,10 +50,10 @@ export function Sidebar() {
       <div className="s-bot" data-tauri-drag-region>
         <button
           type="button"
-          className="si"
-          title="Настройки (скоро)"
+          className={`si${settingsOpen ? " active" : ""}`}
+          title="Настройки"
           aria-label="Настройки"
-          disabled
+          onClick={() => openSettings()}
         >
           <Settings size={18} strokeWidth={1.5} />
         </button>
