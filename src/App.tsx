@@ -84,6 +84,10 @@ function App() {
         case "next-week":
           void useScheduleStore.getState().goToNextWeek();
           break;
+        case "toggle-pool":
+          useUIStore.getState().setPage("planner");
+          useUIStore.getState().togglePool();
+          break;
       }
     }).then((fn) => {
       unlisten = fn;
