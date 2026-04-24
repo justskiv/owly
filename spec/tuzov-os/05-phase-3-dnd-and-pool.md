@@ -29,10 +29,11 @@
 - **Читаемый `fmtDur`** — `fa6941f`
   `feat(time): readable duration format`. 75→«1h 15m», 90→«1.5h».
   +11 тестов.
-- **Drag & Drop + Resize** — готов, не закоммичен
-  После трёх итераций на `@dnd-kit` вернулись к нативным pointer
-  events + `setPointerCapture` (как в моке — три независимых ревью
-  сошлись). Хук `useBlockGesture`:
+- **Drag & Drop + Resize** — `bc5ab55`
+  `refactor(planner): native pointer gesture for DnD`. После трёх
+  итераций на `@dnd-kit` вернулись к нативным pointer events +
+  `setPointerCapture` (как в моке — три независимых ревью сошлись).
+  Хук `useBlockGesture`:
   - Drag: ghost через portal с синхронным `ghost.style.left/top`
     на каждый pointermove — то самое «воздушное» ощущение из мока.
   - Resize: та же gesture-функция различает по target `.rh` либо
@@ -46,18 +47,28 @@
   - Escape cancels gesture, другие хоткеи глушатся во время drag.
   - Cleanup по `pointercancel / lostpointercapture / blur`, фильтр
     по `pointerId`. Scroll во время drag recompute через listener.
-
-### Осталось
-
-- **Task Pool UI** (Commit 6)
-  Правая панель 264px с незапланированными задачами. Группировка
-  по priority (high/med/low/none), поиск по title, toggle по `T`
-  и кнопке в Header. `useUIStore.poolCollapsed / togglePool`.
-- **Drag задач из пула в сетку** (Commit 7)
-  Расширить `useBlockGesture` (или отдельный хук) на pool items —
-  при drop создать блок с `source_entity_id = entity.id`.
-- **Toggle Pool в macOS View menu** (Commit 8)
-  `src-tauri/src/lib.rs` + event handler в `App.tsx`.
+- **Task Pool UI** — `03c67a0`
+  `feat(planner): task pool with groups and search`. Правая панель
+  264px, группы high/med/low с цветами точек, поиск по title
+  (case-insensitive). Toggle по `T`, кнопке «Пул» в хедере и ×
+  внутри пула. `useUIStore.poolCollapsed / togglePool`,
+  `getUnscheduled` — селектор в entity store, фильтрует по
+  `type ∈ {task, project, event, routine}` и `status === "active"`.
+- **Drag задач из пула в сетку** — `4e178d8`
+  `feat(planner): drag tasks from pool to grid`. Тот же хук
+  `useBlockGesture` — второй entry-point `onPoolItemPointerDown`,
+  ghost 140px × по `estimated_minutes`. Drop вызывает
+  `addBlock(source_entity_id = entity.id)` → задача исчезает из
+  пула автоматически через селектор. `activeRef`/`gesturing`
+  держатся до `finally` async-мутации — второй drag той же задачи
+  не стартует, пока первый не завершился. Category и duration
+  дефолтятся через общий `pickCategory(entity.tags)` +
+  `DEFAULT_BLOCK_DURATION_MIN` (60m) — meta в пуле согласована с
+  тем, что создаётся при drop.
+- **Toggle Pool в macOS View menu** — `3883f66`
+  `feat(menu): toggle Task Pool in View menu`. View → «Показать/
+  скрыть пул задач», accelerator `Cmd+Shift+P`. Эмитит menu event
+  → `App.tsx` переключает на planner и зовёт `togglePool()`.
 
 ### Отложено (LOW priority из AI-ревью)
 
@@ -396,24 +407,25 @@ visible { outline: 2px solid var(--focus-ring); outline-offset:
 
 ## Критерии готовности
 
-- [ ] Блоки перетаскиваются между днями и временами, snap 30 мин
-- [ ] Ghost следует за курсором с правильным offset (не прыгает
+- [x] Блоки перетаскиваются между днями и временами, snap 30 мин
+- [x] Ghost следует за курсором с правильным offset (не прыгает
   в угол блока)
-- [ ] Snap-preview показывает целевую позицию
-- [ ] Resize за нижний край работает, снап 30, минимум 30
-- [ ] Tooltip длительности виден у курсора при resize
-- [ ] Клик на блок открывает редактор не путается с drag
+- [x] Snap-preview показывает целевую позицию
+- [x] Resize за нижний край работает, снап 30, минимум 30
+- [x] Tooltip длительности виден у курсора при resize
+- [x] Клик на блок открывает редактор не путается с drag
   (threshold 5px)
-- [ ] Пул задач 264px открывается/закрывается по `T` и кнопке
-- [ ] Незапланированные задачи группируются по priority с
+- [x] Пул задач 264px открывается/закрывается по `T` и кнопке
+- [x] Незапланированные задачи группируются по priority с
   правильными цветами точек
-- [ ] Поиск по title работает (case-insensitive substring)
-- [ ] Drag из пула на сетку создаёт блок с корректной привязкой
+- [x] Поиск по title работает (case-insensitive substring)
+- [x] Drag из пула на сетку создаёт блок с корректной привязкой
   к entity
-- [ ] Задача исчезает из пула после размещения
-- [ ] Удаление блока (из фазы 2) возвращает задачу в пул
-- [ ] Focus-visible золотой outline виден при Tab-навигации по
-  блокам, пулу, sidebar
-- [ ] Enter/Space на сфокусированном блоке/задаче — триггерит
-  тот же callback, что клик
-- [ ] Все изменения автосохраняются
+- [x] Задача исчезает из пула после размещения
+- [x] Удаление блока (из фазы 2) возвращает задачу в пул
+- [~] Focus-visible золотой outline при Tab-навигации — N/A,
+  Tab отключён в Shell по решению пользователя (memory
+  `feedback_no_cosmetic_overrides`).
+- [~] Enter/Space на сфокусированном блоке/задаче — N/A,
+  следствие выше.
+- [x] Все изменения автосохраняются
