@@ -13,12 +13,14 @@ interface UIStore {
   // Monotonic counter incremented when an external trigger (menu bar)
   // requests a new block. PlannerPage subscribes and opens the editor.
   newBlockTrigger: number;
+  poolCollapsed: boolean;
 
   setPage: (page: Page) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
   setSaveStatus: (status: SaveStatus, error?: string | null) => void;
   requestNewBlock: () => void;
+  togglePool: () => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -29,6 +31,7 @@ export const useUIStore = create<UIStore>((set) => ({
   saveError: null,
   savedAt: null,
   newBlockTrigger: 0,
+  poolCollapsed: false,
 
   setPage: (currentPage) => set({ currentPage }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
@@ -41,4 +44,6 @@ export const useUIStore = create<UIStore>((set) => ({
     })),
   requestNewBlock: () =>
     set((prev) => ({ newBlockTrigger: prev.newBlockTrigger + 1 })),
+  togglePool: () =>
+    set((prev) => ({ poolCollapsed: !prev.poolCollapsed })),
 }));

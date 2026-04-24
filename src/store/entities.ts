@@ -1,6 +1,15 @@
 import { create } from "zustand";
 import type { Block, EntitiesFile, Entity, EntityType } from "../schemas";
 import { EntitiesFileSchema } from "../schemas";
+
+// Types shown in the Task Pool. Contacts/goals/notes/metrics live in
+// the Entities page, not on the weekly grid.
+const POOL_TYPES = new Set<EntityType>([
+  "task",
+  "project",
+  "event",
+  "routine",
+]);
 import {
   getDataPath,
   readJsonFileOrCreate,
@@ -103,7 +112,10 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
         .filter((id): id is string => id !== null),
     );
     return get().entities.filter(
-      (e) => !scheduledIds.has(e.id) && e.status === "active",
+      (e) =>
+        !scheduledIds.has(e.id) &&
+        e.status === "active" &&
+        POOL_TYPES.has(e.type),
     );
   },
 }));

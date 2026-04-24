@@ -83,47 +83,45 @@ export function WeekGrid({
   }, [model.weekKey]);
 
   return (
-    <div className="planner-body">
-      <div className="grid-area">
-        <div className="day-headers">
-          <div style={{ width: "var(--time-w)" }} />
+    <div className="grid-area">
+      <div className="day-headers">
+        <div style={{ width: "var(--time-w)" }} />
+        {model.days.map((day, idx) => (
+          <DayHeader
+            key={day.date}
+            date={day.date}
+            dayIdx={idx}
+            isToday={day.isToday}
+            balance={day.balance}
+            freeMinutes={day.free}
+          />
+        ))}
+      </div>
+      <div className="grid-scroll" ref={scrollRef}>
+        <div className="grid-body">
+          <TimeColumn />
           {model.days.map((day, idx) => (
-            <DayHeader
+            <DayColumn
               key={day.date}
-              date={day.date}
+              day={day}
               dayIdx={idx}
-              isToday={day.isToday}
-              balance={day.balance}
-              freeMinutes={day.free}
+              selectedId={model.selectedId}
+              overlapping={model.overlapping}
+              actions={actions}
+              dropPreview={
+                dropTarget?.date === day.date
+                  ? {
+                      minute: dropTarget.minute,
+                      duration: dropTarget.duration,
+                    }
+                  : null
+              }
+              draggingBlockId={draggingBlockId}
+              resizingBlockId={resizingBlockId}
+              resizeDuration={resizeDuration}
+              onBlockPointerDown={onBlockPointerDown}
             />
           ))}
-        </div>
-        <div className="grid-scroll" ref={scrollRef}>
-          <div className="grid-body">
-            <TimeColumn />
-            {model.days.map((day, idx) => (
-              <DayColumn
-                key={day.date}
-                day={day}
-                dayIdx={idx}
-                selectedId={model.selectedId}
-                overlapping={model.overlapping}
-                actions={actions}
-                dropPreview={
-                  dropTarget?.date === day.date
-                    ? {
-                        minute: dropTarget.minute,
-                        duration: dropTarget.duration,
-                      }
-                    : null
-                }
-                draggingBlockId={draggingBlockId}
-                resizingBlockId={resizingBlockId}
-                resizeDuration={resizeDuration}
-                onBlockPointerDown={onBlockPointerDown}
-              />
-            ))}
-          </div>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BlockContextMenu } from "../components/planner/BlockContextMenu";
 import { BlockEditor } from "../components/planner/BlockEditor";
 import { DurationTip } from "../components/planner/DurationTip";
+import { TaskPool } from "../components/planner/TaskPool";
 import {
   WeekGrid,
   type WeekActions,
@@ -120,9 +121,10 @@ export function PlannerPage() {
     },
     [overlay],
   );
-  const onTogglePool = useCallback(() => {
-    // Появится в Commit 6.
-  }, []);
+  const onTogglePool = useCallback(
+    () => useUIStore.getState().togglePool(),
+    [],
+  );
 
   const gesture = useBlockGesture();
 
@@ -248,15 +250,18 @@ export function PlannerPage() {
   return (
     <div className={`page${active ? " active" : ""}`}>
       <WeekSummary balance={weekBal} freeMinutes={freeWk} />
-      <WeekGrid
-        model={weekModel}
-        actions={actions}
-        dropTarget={gesture.dropTarget}
-        draggingBlockId={gesture.activeDragBlockId}
-        resizingBlockId={gesture.resizeState?.blockId ?? null}
-        resizeDuration={gesture.resizeState?.duration ?? null}
-        onBlockPointerDown={gesture.onBlockPointerDown}
-      />
+      <div className="planner-body">
+        <WeekGrid
+          model={weekModel}
+          actions={actions}
+          dropTarget={gesture.dropTarget}
+          draggingBlockId={gesture.activeDragBlockId}
+          resizingBlockId={gesture.resizeState?.blockId ?? null}
+          resizeDuration={gesture.resizeState?.duration ?? null}
+          onBlockPointerDown={gesture.onBlockPointerDown}
+        />
+        <TaskPool />
+      </div>
       {gesture.resizeState ? (
         <DurationTip
           x={gesture.resizeState.tipX}

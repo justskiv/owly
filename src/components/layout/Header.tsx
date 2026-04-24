@@ -24,6 +24,7 @@ function PlannerHeader() {
   const goToNext = useScheduleStore((s) => s.goToNextWeek);
   const goToCurrent = useScheduleStore((s) => s.goToCurrentWeek);
   const setSelectedBlock = useUIStore((s) => s.setSelectedBlock);
+  const togglePool = useUIStore((s) => s.togglePool);
 
   const navWeek = (fn: () => Promise<void> | void) => () => {
     setSelectedBlock(null);
@@ -65,9 +66,7 @@ function PlannerHeader() {
       <button
         type="button"
         className="hdr-btn hdr-btn-ghost"
-        onClick={() => {
-          /* фаза 3: пул задач */
-        }}
+        onClick={togglePool}
       >
         Пул<span className="hkbd">T</span>
       </button>
