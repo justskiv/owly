@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import type { Block } from "../schemas";
+import type { Block, Entity } from "../schemas";
 import { toast } from "../components/shared/Toast";
 import { useScheduleStore } from "../store/schedule";
 import { useUIStore } from "../store/ui";
 import {
+  DEFAULT_BLOCK_DURATION_MIN,
   END_HOUR,
   MIN_BLOCK_MIN,
   ROW_H,
@@ -15,6 +16,12 @@ import {
   timeToMinutes,
   yToMin,
 } from "../services/time-utils";
+import { pickCategory } from "../services/categories";
+
+// Pool ghost has no parent column, so it can't take the day-column
+// width. Mirrors mock line 674 — wide enough to show title+meta,
+// narrow enough not to cover a whole column on drop preview.
+const POOL_GHOST_WIDTH = 140;
 
 export interface DropTarget {
   date: string;
@@ -29,11 +36,15 @@ export interface ResizeState {
   tipY: number;
 }
 
-type GestureKind = "drag" | "resize";
+type GestureKind = "drag" | "resize" | "pool-drag";
 
 interface Active {
-  blockId: string;
-  block: Block;
+  // For pool-drag, blockId/block/originalDuration/pendingResize are
+  // unused — the entity is the source and addBlock creates a fresh
+  // one. For drag/resize, entity is unused.
+  blockId: string | null;
+  block: Block | null;
+  entity: Entity | null;
   kind: GestureKind;
   el: HTMLElement;
   pointerId: number;
@@ -115,7 +126,7 @@ export function useBlockGesture() {
   const lastCursorRef = useRef<{ x: number; y: number } | null>(null);
 
   const teardown = useCallback(
-    (commit: "move" | "resize" | "select" | "cancel") => {
+    (commit: "move" | "resize" | "select" | "cancel" | "pool-drop") => {
       const a = activeRef.current;
       if (!a) return;
 
@@ -136,36 +147,63 @@ export function useBlockGesture() {
 
       const {
         block,
+        entity,
         pendingDrop,
         pendingResize,
         originalDuration,
         ghost,
+        el,
       } = a;
-      activeRef.current = null;
       lastCursorRef.current = null;
-      setGesturing(false);
+
+      // activeRef/gesturing stay live until any in-flight store write
+      // settles. Without that, a second pointerdown on the same pool
+      // item (or block) could sneak past the activeRef guard while
+      // addBlock/moveBlock is still awaiting disk I/O — producing a
+      // duplicate block or racing two writes.
+      const releaseActive = () => {
+        if (activeRef.current === a) {
+          activeRef.current = null;
+          setGesturing(false);
+        }
+      };
+
+      const clearPoolSource = () => {
+        if (entity) {
+          el.classList.remove("dragging-source");
+        }
+      };
 
       // Sync branches remove ghost immediately.
       if (commit === "select") {
         if (ghost) ghost.remove();
+        clearPoolSource();
         setActiveDragBlockId(null);
         setDropTarget(null);
         setResizeState(null);
-        useUIStore.getState().setSelectedBlock(block.id);
+        if (block) useUIStore.getState().setSelectedBlock(block.id);
+        releaseActive();
         return;
       }
       if (commit === "cancel") {
         if (ghost) ghost.remove();
+        clearPoolSource();
         setActiveDragBlockId(null);
         setDropTarget(null);
         setResizeState(null);
+        releaseActive();
         return;
       }
       if (commit === "move") {
+        if (!block) {
+          releaseActive();
+          return;
+        }
         if (!pendingDrop) {
           if (ghost) ghost.remove();
           setActiveDragBlockId(null);
           setDropTarget(null);
+          releaseActive();
           return;
         }
         const sameSlot =
@@ -175,6 +213,7 @@ export function useBlockGesture() {
           if (ghost) ghost.remove();
           setActiveDragBlockId(null);
           setDropTarget(null);
+          releaseActive();
           return;
         }
         // Keep ghost + .dragging state until the store update settles.
@@ -196,11 +235,16 @@ export function useBlockGesture() {
             if (ghost) ghost.remove();
             setActiveDragBlockId(null);
             setDropTarget(null);
+            releaseActive();
           }
         })();
         return;
       }
       if (commit === "resize") {
+        if (!block) {
+          releaseActive();
+          return;
+        }
         if (
           pendingResize != null &&
           pendingResize !== originalDuration
@@ -214,11 +258,51 @@ export function useBlockGesture() {
               toast.error(`Не удалось: ${(e as Error).message}`);
             } finally {
               setResizeState(null);
+              releaseActive();
             }
           })();
           return;
         }
         setResizeState(null);
+        releaseActive();
+        return;
+      }
+      if (commit === "pool-drop") {
+        if (!entity || !pendingDrop) {
+          if (ghost) ghost.remove();
+          clearPoolSource();
+          setDropTarget(null);
+          releaseActive();
+          return;
+        }
+        // Pool drop is additive — no placeholder swap needed. Clear
+        // visuals before the await so the snap-preview doesn't linger
+        // on top of the freshly rendered block.
+        if (ghost) ghost.remove();
+        clearPoolSource();
+        setDropTarget(null);
+        const duration =
+          entity.estimated_minutes ?? DEFAULT_BLOCK_DURATION_MIN;
+        const category = pickCategory(entity.tags);
+        void (async () => {
+          try {
+            await useScheduleStore.getState().addBlock({
+              title: entity.title,
+              date: pendingDrop.date,
+              start: minutesToTime(pendingDrop.minute),
+              duration,
+              category,
+              status: "planned",
+              notes: "",
+              source_entity_id: entity.id,
+            });
+          } catch (e) {
+            toast.error(`Не удалось: ${(e as Error).message}`);
+          } finally {
+            releaseActive();
+          }
+        })();
+        return;
       }
     },
     [],
@@ -254,6 +338,7 @@ export function useBlockGesture() {
       const a: Active = {
         blockId: block.id,
         block,
+        entity: null,
         kind: isResize ? "resize" : "drag",
         el,
         pointerId,
@@ -277,13 +362,13 @@ export function useBlockGesture() {
 
       const recomputeDropTarget = (cx: number, cy: number) => {
         const topY = cy - a.grabOffY;
-        const target = findDropTarget(cx, topY, a.block.duration);
+        const target = findDropTarget(cx, topY, block.duration);
         if (target) {
           a.pendingDrop = target;
           setDropTarget({
             date: target.date,
             minute: target.minute,
-            duration: a.block.duration,
+            duration: block.duration,
           });
         } else {
           a.pendingDrop = null;
@@ -306,7 +391,7 @@ export function useBlockGesture() {
         lastCursorRef.current = { x: ev.clientX, y: ev.clientY };
 
         if (a.kind === "resize") {
-          const startMin = timeToMinutes(a.block.start);
+          const startMin = timeToMinutes(block.start);
           const maxDur = END_HOUR * 60 - startMin;
           const raw =
             Math.round(
@@ -315,7 +400,7 @@ export function useBlockGesture() {
           const newDur = Math.min(maxDur, Math.max(MIN_BLOCK_MIN, raw));
           a.pendingResize = newDur;
           setResizeState({
-            blockId: a.blockId,
+            blockId: block.id,
             duration: newDur,
             tipX: ev.clientX,
             tipY: ev.clientY,
@@ -326,15 +411,15 @@ export function useBlockGesture() {
         // drag branch
         if (!a.ghost) {
           const g = document.createElement("div");
-          g.className = `drag-ghost tb ${a.block.category}`;
+          g.className = `drag-ghost tb ${block.category}`;
           g.style.width = a.rectWidth + "px";
           g.style.height = a.rectHeight + "px";
           g.innerHTML =
-            `<div class="bt">${escapeHtml(a.block.title)}</div>` +
-            `<div class="bm">${fmtDur(a.block.duration)}</div>`;
+            `<div class="bt">${escapeHtml(block.title)}</div>` +
+            `<div class="bm">${fmtDur(block.duration)}</div>`;
           document.body.appendChild(g);
           a.ghost = g;
-          setActiveDragBlockId(a.blockId);
+          setActiveDragBlockId(block.id);
         }
         // Synchronous ghost follow — that's the "airy" feel from the
         // mock. No React batching between pointermove and paint.
@@ -391,6 +476,144 @@ export function useBlockGesture() {
     [teardown],
   );
 
+  const onPoolItemPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>, entity: Entity) => {
+      if (e.button !== 0) return;
+      if (activeRef.current) return;
+
+      const el = e.currentTarget;
+      const rect = el.getBoundingClientRect();
+      const pointerId = e.pointerId;
+      const duration = entity.estimated_minutes ?? DEFAULT_BLOCK_DURATION_MIN;
+      const category = pickCategory(entity.tags);
+      const ghostHeight = (duration / 30) * ROW_H;
+
+      // preventDefault blocks native text-selection on .pi-t /.pi-m.
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        if (el.isConnected) el.setPointerCapture(pointerId);
+      } catch {
+        // ignore
+      }
+
+      const a: Active = {
+        blockId: null,
+        block: null,
+        entity,
+        kind: "pool-drag",
+        el,
+        pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        // Ghost is 140px wide but the source .pi can be wider — anchor
+        // ghost so grab point lines up with cursor's X-offset inside
+        // the original card, clamped to ghost width.
+        grabOffX: Math.min(e.clientX - rect.left, POOL_GHOST_WIDTH - 10),
+        grabOffY: Math.min(e.clientY - rect.top, ghostHeight - 10),
+        rectWidth: POOL_GHOST_WIDTH,
+        rectHeight: ghostHeight,
+        originalDuration: duration,
+        moved: false,
+        ghost: null,
+        pendingDrop: null,
+        pendingResize: null,
+        onMove: () => {},
+        onUp: () => {},
+        onCancel: () => {},
+        onBlur: () => {},
+        onScroll: () => {},
+      };
+
+      const recomputeDropTarget = (cx: number, cy: number) => {
+        const topY = cy - a.grabOffY;
+        const target = findDropTarget(cx, topY, duration);
+        if (target) {
+          a.pendingDrop = target;
+          setDropTarget({
+            date: target.date,
+            minute: target.minute,
+            duration,
+          });
+        } else {
+          a.pendingDrop = null;
+          setDropTarget(null);
+        }
+      };
+
+      const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== a.pointerId) return;
+        const dx = ev.clientX - a.startX;
+        const dy = ev.clientY - a.startY;
+        if (
+          !a.moved &&
+          Math.abs(dx) < DRAG_THRESHOLD_PX &&
+          Math.abs(dy) < DRAG_THRESHOLD_PX
+        ) {
+          return;
+        }
+        a.moved = true;
+        lastCursorRef.current = { x: ev.clientX, y: ev.clientY };
+
+        if (!a.ghost) {
+          const g = document.createElement("div");
+          g.className = `drag-ghost tb ${category}`;
+          g.style.width = POOL_GHOST_WIDTH + "px";
+          g.style.height = ghostHeight + "px";
+          g.innerHTML =
+            `<div class="bt">${escapeHtml(entity.title)}</div>` +
+            `<div class="bm">${fmtDur(duration)}</div>`;
+          document.body.appendChild(g);
+          a.ghost = g;
+          el.classList.add("dragging-source");
+        }
+        a.ghost.style.left = ev.clientX - a.grabOffX + "px";
+        a.ghost.style.top = ev.clientY - a.grabOffY + "px";
+
+        recomputeDropTarget(ev.clientX, ev.clientY);
+      };
+
+      const onUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== a.pointerId) return;
+        // No movement → click on a pool item does nothing; the entity
+        // editor lands in Phase 4.
+        if (!a.moved) {
+          teardown("cancel");
+          return;
+        }
+        teardown("pool-drop");
+      };
+
+      const onCancel = (ev: PointerEvent) => {
+        if (ev.pointerId !== a.pointerId) return;
+        teardown("cancel");
+      };
+      const onBlur = () => teardown("cancel");
+      const onScroll = () => {
+        const c = lastCursorRef.current;
+        if (!c) return;
+        recomputeDropTarget(c.x, c.y);
+      };
+
+      a.onMove = onMove;
+      a.onUp = onUp;
+      a.onCancel = onCancel;
+      a.onBlur = onBlur;
+      a.onScroll = onScroll;
+      activeRef.current = a;
+      setGesturing(true);
+
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onCancel);
+      window.addEventListener("lostpointercapture", onCancel);
+      window.addEventListener("blur", onBlur);
+      document.addEventListener("scroll", onScroll, true);
+    },
+    [teardown],
+  );
+
   const cancelGesture = useCallback(() => {
     if (activeRef.current) teardown("cancel");
   }, [teardown]);
@@ -407,6 +630,7 @@ export function useBlockGesture() {
     resizeState,
     gesturing,
     onBlockPointerDown,
+    onPoolItemPointerDown,
     cancelGesture,
   };
 }

@@ -5,17 +5,11 @@ import type { Entity, Priority } from "../../schemas";
 import { useEntityStore } from "../../store/entities";
 import { useScheduleStore } from "../../store/schedule";
 import { useUIStore } from "../../store/ui";
-import { fmtDur } from "../../services/time-utils";
-
-// Category → CSS variable. Falls back to --text-tertiary for tags
-// outside the canonical five (e.g. legacy data from entities.json).
-const CAT_COLORS: Record<string, string> = {
-  work: "var(--work)",
-  people: "var(--people)",
-  life: "var(--life)",
-  growth: "var(--growth)",
-  health: "var(--health)",
-};
+import {
+  DEFAULT_BLOCK_DURATION_MIN,
+  fmtDur,
+} from "../../services/time-utils";
+import { CAT_COLORS, pickCategory } from "../../services/categories";
 
 // null priority → "low" bucket. Keeps grouping exhaustive without a
 // fourth "Без приоритета" group in the UI.
@@ -50,20 +44,13 @@ export function TaskPool({ onPoolItemPointerDown }: TaskPoolProps) {
 
   const [query, setQuery] = useState("");
 
-  const unscheduled = useMemo(() => {
-    const scheduled = new Set(
-      blocks
-        .map((b) => b.source_entity_id)
-        .filter((id): id is string => id !== null),
-    );
-    const poolTypes = new Set(["task", "project", "event", "routine"]);
-    return entities.filter(
-      (e) =>
-        !scheduled.has(e.id) &&
-        e.status === "active" &&
-        poolTypes.has(e.type),
-    );
-  }, [entities, blocks]);
+  // Selector lives in the entity store so the definition of "what
+  // belongs in the pool" has a single source of truth. useMemo caches
+  // the result until the two subscriptions fire.
+  const unscheduled = useMemo(
+    () => useEntityStore.getState().getUnscheduled(blocks),
+    [entities, blocks],
+  );
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -137,9 +124,11 @@ interface PoolItemProps {
 }
 
 function PoolItem({ entity, onPointerDown }: PoolItemProps) {
-  const category = entity.tags[0] ?? "work";
-  const color = CAT_COLORS[category] ?? "var(--text-tertiary)";
-  const dur = entity.estimated_minutes;
+  const category = pickCategory(entity.tags);
+  // Meta mirrors the default used by the drop handler so dragging a
+  // task without estimated_minutes lands a block of the same length
+  // the user saw in the pool.
+  const dur = entity.estimated_minutes ?? DEFAULT_BLOCK_DURATION_MIN;
   return (
     <div
       className="pi"
@@ -150,8 +139,8 @@ function PoolItem({ entity, onPointerDown }: PoolItemProps) {
     >
       <div className="pi-t">{entity.title}</div>
       <div className="pi-m">
-        <span className="pit" style={{ background: color }} />
-        {category} · {dur !== null ? fmtDur(dur) : "—"}
+        <span className="pit" style={{ background: CAT_COLORS[category] }} />
+        {category} · {fmtDur(dur)}
       </div>
     </div>
   );

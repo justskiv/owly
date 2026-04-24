@@ -41,6 +41,14 @@ export function usePlannerHotkeys(args: HotkeysArgs) {
   useEffect(() => {
     if (!active) return;
     const handler = (e: KeyboardEvent) => {
+      // Gesture cancel preempts every other guard — pool-search input
+      // can keep focus while the user drags, and Escape must abort
+      // the drag rather than just blur the field.
+      if (e.key === "Escape" && gesturing) {
+        onCancelGesture();
+        return;
+      }
+
       const t = e.target as HTMLElement | null;
       const isInputTarget =
         t instanceof HTMLInputElement ||
@@ -53,13 +61,8 @@ export function usePlannerHotkeys(args: HotkeysArgs) {
         return;
       }
 
-      // Esc cancels an active drag/resize first (before overlays),
-      // then closes overlays + drops selection.
+      // Esc closes overlays + drops selection.
       if (e.key === "Escape") {
-        if (gesturing) {
-          onCancelGesture();
-          return;
-        }
         onCloseOverlay();
         onClearSelection();
         return;

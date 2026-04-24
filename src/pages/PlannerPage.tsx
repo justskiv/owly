@@ -260,7 +260,7 @@ export function PlannerPage() {
           resizeDuration={gesture.resizeState?.duration ?? null}
           onBlockPointerDown={gesture.onBlockPointerDown}
         />
-        <TaskPool />
+        <TaskPool onPoolItemPointerDown={gesture.onPoolItemPointerDown} />
       </div>
       {gesture.resizeState ? (
         <DurationTip
