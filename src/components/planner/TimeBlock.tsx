@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import type { MouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { Block } from "../../schemas";
 import {
   ROW_H,
@@ -13,7 +13,9 @@ interface TimeBlockProps {
   selected: boolean;
   isNow: boolean;
   overlap: boolean;
-  onClick: () => void;
+  dragging: boolean;
+  resizeDuration: number | null;
+  onPointerDown: (e: ReactPointerEvent<HTMLDivElement>, block: Block) => void;
   onDblClick: () => void;
   onContext: (e: MouseEvent) => void;
 }
@@ -23,12 +25,15 @@ export function TimeBlock({
   selected,
   isNow,
   overlap,
-  onClick,
+  dragging,
+  resizeDuration,
+  onPointerDown,
   onDblClick,
   onContext,
 }: TimeBlockProps) {
+  const effectiveDur = resizeDuration ?? block.duration;
   const startMin = timeToMinutes(block.start);
-  const endMin = startMin + block.duration;
+  const endMin = startMin + effectiveDur;
 
   const cls = [
     "tb",
@@ -38,13 +43,14 @@ export function TimeBlock({
     block.status === "done" && "done",
     block.status === "skipped" && "skipped",
     overlap && "overlap",
+    dragging && "dragging",
   ]
     .filter(Boolean)
     .join(" ");
 
   const ariaLabel =
     `${block.title}, ${minutesToTime(startMin)}–${minutesToTime(endMin)}, ` +
-    `${fmtDur(block.duration)}, ${block.category}` +
+    `${fmtDur(effectiveDur)}, ${block.category}` +
     (block.status === "done"
       ? ", выполнено"
       : block.status === "skipped"
@@ -56,17 +62,14 @@ export function TimeBlock({
       className={cls}
       style={{
         top: minToY(startMin),
-        height: (block.duration / 30) * ROW_H,
+        height: (effectiveDur / 30) * ROW_H,
       }}
       tabIndex={-1}
       role="button"
       aria-label={ariaLabel}
       aria-pressed={selected}
       data-block-id={block.id}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
+      onPointerDown={(e) => onPointerDown(e, block)}
       onDoubleClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -79,13 +82,13 @@ export function TimeBlock({
       }}
     >
       <div className="bt">{block.title}</div>
-      {block.duration >= 30 && (
+      {effectiveDur >= 30 && (
         <div className="bm">
           {minutesToTime(startMin)}–{minutesToTime(endMin)} ·{" "}
-          {fmtDur(block.duration)}
+          {fmtDur(effectiveDur)}
         </div>
       )}
-      {block.duration >= 90 && block.notes && (
+      {effectiveDur >= 90 && block.notes && (
         <div className="bn">{block.notes}</div>
       )}
       <div className="rh" />

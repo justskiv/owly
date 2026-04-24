@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Block } from "../schemas";
 import { BlockContextMenu } from "../components/planner/BlockContextMenu";
 import { BlockEditor } from "../components/planner/BlockEditor";
+import { DurationTip } from "../components/planner/DurationTip";
 import {
   WeekGrid,
   type WeekActions,
@@ -16,11 +16,13 @@ import {
   weekFreeMinutes,
 } from "../services/balance";
 import {
-  START_HOUR,
   END_HOUR,
+  START_HOUR,
   formatDate,
   getWeekDates,
 } from "../services/time-utils";
+import type { Block } from "../schemas";
+import { useBlockGesture } from "../hooks/useBlockGesture";
 import { usePlannerCommands } from "../hooks/usePlannerCommands";
 import { usePlannerHotkeys } from "../hooks/usePlannerHotkeys";
 import { usePlannerOverlay } from "../hooks/usePlannerOverlay";
@@ -122,12 +124,16 @@ export function PlannerPage() {
     // Появится в Commit 6.
   }, []);
 
+  const gesture = useBlockGesture();
+
   usePlannerHotkeys({
     active,
     overlayOpen: overlay.overlay !== null,
+    gesturing: gesture.gesturing,
     selectedBlock,
     onCloseOverlay: overlay.close,
     onClearSelection,
+    onCancelGesture: gesture.cancelGesture,
     onOpenNew,
     onTogglePool,
     onOpenEdit,
@@ -148,7 +154,8 @@ export function PlannerPage() {
         target.closest(".tb") ||
         target.closest(".ctx") ||
         target.closest(".modal-bg") ||
-        target.closest(".inline-block")
+        target.closest(".inline-block") ||
+        target.closest(".drag-ghost")
       ) {
         return;
       }
@@ -156,7 +163,6 @@ export function PlannerPage() {
       if (ui.selectedBlockId !== null) {
         setSelected(null);
       }
-      // Click on .gr opens a new inline-create itself; don't kill it here.
       if (!target.closest(".gr") && overlay.overlay?.kind === "inline-create") {
         overlay.close();
       }
@@ -216,7 +222,6 @@ export function PlannerPage() {
   const actions = useMemo<WeekActions>(
     () => ({
       onEmptyClick: (date, minute) => overlay.openInline(date, minute),
-      onBlockClick: (id) => setSelected(id),
       onBlockDblClick: (id) => overlay.openEditorEdit(id),
       onBlockContext: (e, id) => {
         setSelected(id);
@@ -243,7 +248,22 @@ export function PlannerPage() {
   return (
     <div className={`page${active ? " active" : ""}`}>
       <WeekSummary balance={weekBal} freeMinutes={freeWk} />
-      <WeekGrid model={weekModel} actions={actions} />
+      <WeekGrid
+        model={weekModel}
+        actions={actions}
+        dropTarget={gesture.dropTarget}
+        draggingBlockId={gesture.activeDragBlockId}
+        resizingBlockId={gesture.resizeState?.blockId ?? null}
+        resizeDuration={gesture.resizeState?.duration ?? null}
+        onBlockPointerDown={gesture.onBlockPointerDown}
+      />
+      {gesture.resizeState ? (
+        <DurationTip
+          x={gesture.resizeState.tipX}
+          y={gesture.resizeState.tipY}
+          duration={gesture.resizeState.duration}
+        />
+      ) : null}
       {ov?.kind === "editor-new" && (
         <BlockEditor
           mode={{ kind: "new", defaults: ov.defaults }}

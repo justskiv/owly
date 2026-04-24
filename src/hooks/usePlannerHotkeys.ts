@@ -4,9 +4,11 @@ import type { Block } from "../schemas";
 interface HotkeysArgs {
   active: boolean;
   overlayOpen: boolean;
+  gesturing: boolean;
   selectedBlock: Block | null;
   onCloseOverlay: () => void;
   onClearSelection: () => void;
+  onCancelGesture: () => void;
   onOpenNew: () => void;
   onTogglePool: () => void;
   onOpenEdit: (block: Block) => void;
@@ -21,9 +23,11 @@ export function usePlannerHotkeys(args: HotkeysArgs) {
   const {
     active,
     overlayOpen,
+    gesturing,
     selectedBlock,
     onCloseOverlay,
     onClearSelection,
+    onCancelGesture,
     onOpenNew,
     onTogglePool,
     onOpenEdit,
@@ -49,16 +53,21 @@ export function usePlannerHotkeys(args: HotkeysArgs) {
         return;
       }
 
-      // Esc always closes overlay + drops selection (even when an
-      // overlay is open — that's the only way out of overlays).
+      // Esc cancels an active drag/resize first (before overlays),
+      // then closes overlays + drops selection.
       if (e.key === "Escape") {
+        if (gesturing) {
+          onCancelGesture();
+          return;
+        }
         onCloseOverlay();
         onClearSelection();
         return;
       }
 
-      // Guard 2: overlay open — swallow other shortcuts.
-      if (overlayOpen) return;
+      // Guard 2: overlay open or gesture in flight — swallow other
+      // shortcuts (no accidental N/Delete while dragging a block).
+      if (overlayOpen || gesturing) return;
 
       // Guard 3: letters require !meta && !ctrl && !alt to avoid
       // shadowing system shortcuts (Cmd+D etc).
@@ -111,9 +120,11 @@ export function usePlannerHotkeys(args: HotkeysArgs) {
   }, [
     active,
     overlayOpen,
+    gesturing,
     selectedBlock,
     onCloseOverlay,
     onClearSelection,
+    onCancelGesture,
     onOpenNew,
     onTogglePool,
     onOpenEdit,

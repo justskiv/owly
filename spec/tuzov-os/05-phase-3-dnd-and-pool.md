@@ -11,6 +11,73 @@
 > **Предусловие:** фаза 2 завершена, сетка рендерит блоки, inline-
 > создание и редактирование работают.
 
+---
+
+## Статус реализации
+
+### Сделано
+
+- **Техдолг фазы 2** (prep for DnD) — `ebaf8ed`
+  `refactor(planner): prep for phase-3 DnD`. Три overlay-state'a →
+  один discriminated union (`usePlannerOverlay`), мутации → хук
+  `usePlannerCommands` (единый try/catch+toast), keydown listener
+  → `usePlannerHotkeys`, WeekGrid 12-prop → `model + actions`,
+  BlockEditor — discriminated mode.
+- **Клавиатура в ctx-меню** — `13bdc1d`
+  `feat(planner): keyboard nav in block context menu`. Shift+F10
+  открывает меню на selected блоке, ↑/↓/Home/End/Enter/Esc.
+- **Читаемый `fmtDur`** — `fa6941f`
+  `feat(time): readable duration format`. 75→«1h 15m», 90→«1.5h».
+  +11 тестов.
+- **Drag & Drop + Resize** — готов, не закоммичен
+  После трёх итераций на `@dnd-kit` вернулись к нативным pointer
+  events + `setPointerCapture` (как в моке — три независимых ревью
+  сошлись). Хук `useBlockGesture`:
+  - Drag: ghost через portal с синхронным `ghost.style.left/top`
+    на каждый pointermove — то самое «воздушное» ощущение из мока.
+  - Resize: та же gesture-функция различает по target `.rh` либо
+    координате Y. Tooltip `.dur-tip` с длительностью.
+  - Threshold 5px (click vs drag), snap 30 мин, min 30 мин.
+  - Drop target: колонка по X курсора, минута по верху блока
+    (`cy − grabOffY`). Clamp — drop за 23:00 или резайз сверх дня
+    отклоняются.
+  - `.dragging` остаётся до конца `await moveBlock` → нет вспышки
+    на старом месте при drop.
+  - Escape cancels gesture, другие хоткеи глушатся во время drag.
+  - Cleanup по `pointercancel / lostpointercapture / blur`, фильтр
+    по `pointerId`. Scroll во время drag recompute через listener.
+
+### Осталось
+
+- **Task Pool UI** (Commit 6)
+  Правая панель 264px с незапланированными задачами. Группировка
+  по priority (high/med/low/none), поиск по title, toggle по `T`
+  и кнопке в Header. `useUIStore.poolCollapsed / togglePool`.
+- **Drag задач из пула в сетку** (Commit 7)
+  Расширить `useBlockGesture` (или отдельный хук) на pool items —
+  при drop создать блок с `source_entity_id = entity.id`.
+- **Toggle Pool в macOS View menu** (Commit 8)
+  `src-tauri/src/lib.rs` + event handler в `App.tsx`.
+
+### Отложено (LOW priority из AI-ревью)
+
+- Mutex на concurrent store mutations — требует очень быстрого
+  взаимодействия, в реальности не триггерится.
+- Cancel gesture при смене недели/страницы во время drag —
+  физически сложно сделать (обе руки заняты).
+- Edge auto-scroll (когда ghost у края — грид прокручивается) —
+  nice-to-have, в моке тоже нет.
+- Click suppression post-drag — 5px threshold пересекается с
+  browser-native, проблем не наблюдается.
+
+### Не выполняется (решение пользователя)
+
+- `focus-visible` outline на `.tb/.pi` при Tab — Tab-навигация
+  выключена в Shell (memory `feedback_no_cosmetic_overrides`).
+- Enter/Space на pool item — следствие выше.
+
+---
+
 ## Контекст
 
 Прочитай `00-overview.md`, `01-data-schema.md`, `02-architecture.md`.

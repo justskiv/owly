@@ -1,6 +1,9 @@
+import type { PointerEvent as ReactPointerEvent } from "react";
+import type { Block } from "../../schemas";
 import { SNAP_MIN, START_HOUR, END_HOUR, timeToMinutes } from "../../services/time-utils";
 import { InlineCreate } from "./InlineCreate";
 import { NowLine } from "./NowLine";
+import { SnapPreview } from "./SnapPreview";
 import { TimeBlock } from "./TimeBlock";
 import type { WeekActions, WeekDayModel } from "./WeekGrid";
 
@@ -26,12 +29,22 @@ const ROWS: GridRow[] = (() => {
   return out;
 })();
 
+interface DropPreview {
+  minute: number;
+  duration: number;
+}
+
 interface DayColumnProps {
   day: WeekDayModel;
   dayIdx: number;
   selectedId: string | null;
   overlapping: Set<string>;
   actions: WeekActions;
+  dropPreview: DropPreview | null;
+  draggingBlockId: string | null;
+  resizingBlockId: string | null;
+  resizeDuration: number | null;
+  onBlockPointerDown: (e: ReactPointerEvent<HTMLDivElement>, block: Block) => void;
 }
 
 export function DayColumn({
@@ -40,6 +53,11 @@ export function DayColumn({
   selectedId,
   overlapping,
   actions,
+  dropPreview,
+  draggingBlockId,
+  resizingBlockId,
+  resizeDuration,
+  onBlockPointerDown,
 }: DayColumnProps) {
   const inline = day.inline;
   return (
@@ -72,7 +90,11 @@ export function DayColumn({
             selected={selectedId === b.id}
             isNow={isNow}
             overlap={overlapping.has(b.id)}
-            onClick={() => actions.onBlockClick(b.id)}
+            dragging={draggingBlockId === b.id}
+            resizeDuration={
+              resizingBlockId === b.id ? resizeDuration : null
+            }
+            onPointerDown={onBlockPointerDown}
             onDblClick={() => actions.onBlockDblClick(b.id)}
             onContext={(e) => actions.onBlockContext(e, b.id)}
           />
@@ -81,6 +103,12 @@ export function DayColumn({
       {day.isToday && day.nowMinutes != null && (
         <NowLine minutes={day.nowMinutes} />
       )}
+      {dropPreview ? (
+        <SnapPreview
+          minute={dropPreview.minute}
+          duration={dropPreview.duration}
+        />
+      ) : null}
       {inline && (
         <InlineCreate
           minute={inline.minute}

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { MouseEvent } from "react";
+import type { MouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { Block } from "../../schemas";
 import { END_HOUR, ROW_H, START_HOUR } from "../../services/time-utils";
 import type { CategoryBalance } from "../../services/balance";
@@ -43,19 +43,37 @@ export interface WeekModel {
 
 export interface WeekActions {
   onEmptyClick: (date: string, minute: number) => void;
-  onBlockClick: (id: string) => void;
   onBlockDblClick: (id: string) => void;
   onBlockContext: (e: MouseEvent, id: string) => void;
   onInlineCancel: () => void;
   onInlineSubmit: (date: string, minute: number, title: string) => void;
 }
 
+export interface DropTarget {
+  date: string;
+  minute: number;
+  duration: number;
+}
+
 interface WeekGridProps {
   model: WeekModel;
   actions: WeekActions;
+  dropTarget: DropTarget | null;
+  draggingBlockId: string | null;
+  resizingBlockId: string | null;
+  resizeDuration: number | null;
+  onBlockPointerDown: (e: ReactPointerEvent<HTMLDivElement>, block: Block) => void;
 }
 
-export function WeekGrid({ model, actions }: WeekGridProps) {
+export function WeekGrid({
+  model,
+  actions,
+  dropTarget,
+  draggingBlockId,
+  resizingBlockId,
+  resizeDuration,
+  onBlockPointerDown,
+}: WeekGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,6 +109,18 @@ export function WeekGrid({ model, actions }: WeekGridProps) {
                 selectedId={model.selectedId}
                 overlapping={model.overlapping}
                 actions={actions}
+                dropPreview={
+                  dropTarget?.date === day.date
+                    ? {
+                        minute: dropTarget.minute,
+                        duration: dropTarget.duration,
+                      }
+                    : null
+                }
+                draggingBlockId={draggingBlockId}
+                resizingBlockId={resizingBlockId}
+                resizeDuration={resizeDuration}
+                onBlockPointerDown={onBlockPointerDown}
               />
             ))}
           </div>
