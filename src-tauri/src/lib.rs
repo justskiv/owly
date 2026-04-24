@@ -175,7 +175,6 @@ fn build_menu(
         "toggle-pool",
         "Показать/скрыть пул задач",
     )
-    .accelerator("Cmd+Shift+P")
     .build(app)?;
     let view_sub = SubmenuBuilder::new(app, "View")
         .item(&prev_week)

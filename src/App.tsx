@@ -67,8 +67,15 @@ function App() {
 
   // Native menu bar dispatches actions to the frontend over a single
   // "menu" event, payload is the menu item id.
+  //
+  // StrictMode mounts this effect twice. Without the cancelled flag,
+  // the first `listen` resolves after the second mount starts, so
+  // both subscriptions stick and every menu click fires twice —
+  // invisible for idempotent actions (goToCurrentWeek), fatal for
+  // toggles (togglePool flips back to the original state).
   useEffect(() => {
     let unlisten: (() => void) | null = null;
+    let cancelled = false;
     void listen<string>("menu", (e) => {
       switch (e.payload) {
         case "new-block":
@@ -90,9 +97,11 @@ function App() {
           break;
       }
     }).then((fn) => {
-      unlisten = fn;
+      if (cancelled) fn();
+      else unlisten = fn;
     });
     return () => {
+      cancelled = true;
       if (unlisten) unlisten();
     };
   }, []);
