@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { RoutineEntity } from "../../../schemas";
+import { useScheduleStore } from "../../../store/schedule";
 import {
   computeRoutineStats,
   type RoutineStats,
@@ -22,17 +23,29 @@ function todayIndex(): number {
 
 export function RoutineDetail({ entity }: { entity: RoutineEntity }) {
   const [stats, setStats] = useState<RoutineStats | null>(null);
+  // Subscribing to blocks makes the panel reactive to planner edits:
+  // marking a routine block as done updates streak/heatmap on the
+  // current screen instead of waiting for an entity re-select.
+  // currentWeek changes too when the user navigates the planner —
+  // both are cheap to depend on, the cache shields the disk.
+  const blocks = useScheduleStore((s) => s.blocks);
+  const currentWeek = useScheduleStore((s) => s.currentWeek);
+
+  // Reset to loading state ONLY when the routine itself changes — a
+  // background block edit shouldn't blank the panel mid-view.
+  useEffect(() => {
+    setStats(null);
+  }, [entity.id]);
 
   useEffect(() => {
     let cancelled = false;
-    setStats(null);
     computeRoutineStats(entity.id).then((s) => {
       if (!cancelled) setStats(s);
     });
     return () => {
       cancelled = true;
     };
-  }, [entity.id]);
+  }, [entity.id, blocks, currentWeek]);
 
   if (!stats) {
     return (

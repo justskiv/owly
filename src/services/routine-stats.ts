@@ -1,12 +1,11 @@
-import type { Block, WeekFile } from "../schemas";
-import { WeekFileSchema } from "../schemas";
-import { fileExists, getDataPath, readJsonFile } from "./file-io";
+import type { Block } from "../schemas";
 import {
   addWeeks,
   formatDate,
   getCurrentWeekId,
   getWeekStartDate,
 } from "./time-utils";
+import { getCachedWeek } from "./week-cache";
 
 export interface HeatmapDay {
   date: string;
@@ -52,19 +51,12 @@ function doneLevelFor(count: number): HeatmapDay["level"] {
   return 4;
 }
 
-// Reads a week file if it exists; returns [] if not. Shields stats
-// computation from missing history — fresh installs have no past weeks.
+// Routes through week-cache, so re-opening a routine doesn't re-read
+// 26 files from disk every time. Missing/corrupt files surface as
+// `null` in the cache and become `[]` here.
 async function tryReadWeekBlocks(weekId: string): Promise<Block[]> {
-  const path = await getDataPath("schedule", `${weekId}.json`);
-  if (!(await fileExists(path))) return [];
-  try {
-    const file: WeekFile = await readJsonFile(path, WeekFileSchema);
-    return file.blocks;
-  } catch (e) {
-    // Corrupt files are rare but shouldn't crash routine detail.
-    console.warn(`[routine-stats] skip ${weekId}: ${(e as Error).message}`);
-    return [];
-  }
+  const file = await getCachedWeek(weekId);
+  return file?.blocks ?? [];
 }
 
 export async function computeRoutineStats(

@@ -1,5 +1,5 @@
-import type { Entity, TemplateFile, WeekFile } from "../schemas";
-import { WeekFileSchema } from "../schemas";
+import type { DayOfWeek, Entity, TemplateFile, WeekFile } from "../schemas";
+import { TemplateFileSchema } from "../schemas";
 import {
   fileExists,
   getDataPath,
@@ -7,14 +7,13 @@ import {
   writeJsonFile,
 } from "./file-io";
 import { EMPTY_TEMPLATE_FILE, emptyWeekFile } from "./defaults";
-import { TemplateFileSchema } from "../schemas";
 import {
   addWeeks,
   dateForDayIndex,
   generateId,
   getWeekStartDate,
 } from "./time-utils";
-import type { DayOfWeek } from "../schemas";
+import { getCachedWeek, setCachedWeek } from "./week-cache";
 
 const DAY_INDEX: Record<DayOfWeek, number> = {
   mon: 0,
@@ -45,6 +44,7 @@ export async function createEmptyWeek(weekId: string): Promise<WeekFile> {
   const file = emptyWeekFile(weekId, startDate);
   const path = await getDataPath("schedule", `${weekId}.json`);
   await writeJsonFile(path, file);
+  setCachedWeek(weekId, file);
   return file;
 }
 
@@ -73,6 +73,7 @@ export async function createWeekFromTemplate(
   };
   const path = await getDataPath("schedule", `${weekId}.json`);
   await writeJsonFile(path, file);
+  setCachedWeek(weekId, file);
   return file;
 }
 
@@ -84,14 +85,11 @@ export async function getCarryOverEntities(
   entities: readonly Entity[],
 ): Promise<Entity[]> {
   const prevId = addWeeks(currentWeekId, -1);
-  const prevPath = await getDataPath("schedule", `${prevId}.json`);
-  const currPath = await getDataPath("schedule", `${currentWeekId}.json`);
-  if (!(await fileExists(prevPath))) return [];
-
-  const prev = await readJsonFile(prevPath, WeekFileSchema);
-  const curr = (await fileExists(currPath))
-    ? await readJsonFile(currPath, WeekFileSchema)
-    : null;
+  // Both reads go through the cache — the pool re-runs this on every
+  // navigation and on entity changes, so disk hits would add up fast.
+  const prev = await getCachedWeek(prevId);
+  if (!prev) return [];
+  const curr = await getCachedWeek(currentWeekId);
 
   const prevUndone = new Set<string>();
   for (const b of prev.blocks) {
