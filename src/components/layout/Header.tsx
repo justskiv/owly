@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useUIStore } from "../../store/ui";
 import { useScheduleStore } from "../../store/schedule";
@@ -120,6 +120,17 @@ function DashboardsHeader() {
   const openAdd = useUIStore((s) => s.openDashboardEditorAdd);
   const bumpReload = useDashboardStore((s) => s.bumpReload);
   const registry = useDashboardStore((s) => s.registry);
+  // Brief disabled window after a reload click. The actual recompile
+  // happens synchronously on the next render of DashboardHost, so we
+  // don't have an async flag to listen to — 250ms is enough for the
+  // user to see "I clicked it" before the button is hot again.
+  const [reloading, setReloading] = useState(false);
+  const onReload = () => {
+    if (reloading) return;
+    setReloading(true);
+    bumpReload();
+    window.setTimeout(() => setReloading(false), 250);
+  };
 
   if (!selectedId) {
     return (
@@ -161,7 +172,8 @@ function DashboardsHeader() {
       <button
         type="button"
         className="hdr-btn-ghost hdr-btn"
-        onClick={bumpReload}
+        onClick={onReload}
+        disabled={reloading}
         title="Перечитать .jsx с диска"
       >
         ↻ Обновить

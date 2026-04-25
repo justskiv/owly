@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useEscape } from "../../hooks/useEscape";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { useRestoreFocus } from "../../hooks/useRestoreFocus";
 import { useDashboardStore } from "../../store/dashboards";
@@ -20,18 +21,11 @@ export function AddDashboardModal() {
 
   useFocusTrap(dialogRef, true);
   useRestoreFocus(true);
+  useEscape(close);
 
   useEffect(() => {
     titleRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [close]);
 
   const onSave = async () => {
     const t = title.trim();

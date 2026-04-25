@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useEscape } from "../../hooks/useEscape";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { useRestoreFocus } from "../../hooks/useRestoreFocus";
 import { useDashboardStore } from "../../store/dashboards";
@@ -23,20 +24,13 @@ export function ConfirmDeleteDashboard({ id }: Props) {
 
   useFocusTrap(dialogRef, true);
   useRestoreFocus(true);
+  useEscape(close);
 
   useEffect(() => {
     // Default focus on Cancel — destructive action shouldn't be the
     // first thing Enter activates.
     cancelRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [close]);
 
   if (!entry) return null;
 

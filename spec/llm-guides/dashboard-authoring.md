@@ -61,7 +61,7 @@ export default function MyDashboard({ entities, schedule, config, widgets }) {
 
 | Имя         | Тип          | Что это                       |
 |-------------|--------------|-------------------------------|
-| `React`     | namespace    | Можно `React.createElement`   |
+| `React`     | namespace    | Можно `React.createElement`, `React.Fragment`, `React.useState` (если предпочитаешь namespace-стиль) |
 | `useState`  | hook         | `const [v, set] = useState(0)` |
 | `useEffect` | hook         | Эффекты                       |
 | `useMemo`   | hook         | Мемоизация                    |

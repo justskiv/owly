@@ -35,18 +35,20 @@ export function DashboardCardMenu({ onRename, onDelete }: Props) {
         type="button"
         className="dcard-menu"
         aria-label="Меню дашборда"
-        aria-haspopup="menu"
+        aria-haspopup="true"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
         ⋯
       </button>
       {open && (
-        <div className="dcard-menu-dd" role="menu">
+        // No role="menu" here: this is a 2-item dropdown where Tab is
+        // the natural keyboard model. role="menu" would imply Arrow
+        // navigation (per WAI-ARIA APG), which we don't implement.
+        <div className="dcard-menu-dd">
           <button
             type="button"
             className="dcard-menu-item"
-            role="menuitem"
             onClick={() => {
               setOpen(false);
               onRename();
@@ -57,7 +59,6 @@ export function DashboardCardMenu({ onRename, onDelete }: Props) {
           <button
             type="button"
             className="dcard-menu-item danger"
-            role="menuitem"
             onClick={() => {
               setOpen(false);
               onDelete();

@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
+import { useEscape } from "../hooks/useEscape";
 import { useDashboardStore } from "../store/dashboards";
 import { useUIStore } from "../store/ui";
 import { AddDashboardCard } from "../components/dashboards/AddDashboardCard";
@@ -14,17 +15,12 @@ export function DashboardsPage() {
   const editor = useUIStore((s) => s.dashboardEditor);
   const setSelected = useUIStore((s) => s.setSelectedDashboard);
 
-  // Escape returns to grid when a dashboard is open. Modal-level
-  // Escape (in Add/Rename/Delete) is handled inside each modal and
-  // takes precedence — they don't propagate.
-  useEffect(() => {
-    if (!active || !selectedId || editor.open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelected(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [active, selectedId, editor.open, setSelected]);
+  // Escape returns to grid when a dashboard is open and no modal is
+  // covering it. Modals install their own Escape handler that just
+  // closes the modal — both are window listeners, so the editor.open
+  // gate is what keeps them from firing together.
+  const onEscape = useCallback(() => setSelected(null), [setSelected]);
+  useEscape(onEscape, active && !!selectedId && !editor.open);
 
   return (
     <div className={`page${active ? " active" : ""}`}>

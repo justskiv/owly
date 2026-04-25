@@ -511,12 +511,12 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
 .data-path{background:var(--bg-tint-1);padding:10px 12px;border-radius:var(--radius-md);font-family:var(--mono);font-size:var(--fs-sm);color:var(--text-secondary);word-break:break-all}
 
 /* === dashboards === */
-.dash-grid{display:flex;flex-wrap:wrap;gap:12px;padding:20px;align-content:flex-start;flex:1;overflow-y:auto}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,200px);justify-content:start;gap:12px;padding:20px;align-content:flex-start;flex:1;overflow-y:auto}
 .dash-empty{padding:48px;text-align:center;color:var(--text-tertiary)}
 .dash-loading{padding:48px;text-align:center;color:var(--text-tertiary);font-size:var(--fs-sm)}
 
 /* card */
-.dcard{position:relative;width:200px;height:130px;padding:16px;background:var(--bg-tint-1);border:1px solid var(--border);border-radius:var(--radius-lg);cursor:pointer;display:flex;flex-direction:column;transition:all var(--duration-base);text-align:left;font:inherit;color:inherit;flex-shrink:0}
+.dcard{position:relative;height:130px;padding:16px;background:var(--bg-tint-1);border:1px solid var(--border);border-radius:var(--radius-lg);cursor:pointer;display:flex;flex-direction:column;transition:all var(--duration-base);text-align:left;font:inherit;color:inherit}
 .dcard:hover{border-color:var(--border-default);transform:translateY(-1px);background:var(--bg-tint-2)}
 .dcard-icon{font-size:var(--fs-xl);margin-bottom:12px;opacity:.7;line-height:1;color:var(--text-secondary)}
 .dcard-icon svg{display:block}

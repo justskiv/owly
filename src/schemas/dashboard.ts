@@ -12,8 +12,8 @@ export const DashboardEntrySchema = z.object({
   file: z
     .string()
     .regex(
-      /^[a-z0-9_\-]+\.jsx$/i,
-      "filename must be alphanumeric with .jsx extension",
+      /^[a-z0-9_\-]+\.jsx$/,
+      "filename must be lowercase alphanumeric with .jsx extension",
     ),
   // Either a Lucide icon name (e.g. "bar-chart") or an emoji.
   icon: z.string().default("bar-chart"),
