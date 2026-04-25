@@ -23,10 +23,20 @@ import { useConfigStore } from "./config";
 type EntityDraft = Omit<Entity, "id" | "created_at" | "updated_at">;
 
 // Persist-first: see schedule.ts for the same rationale.
+// Validates before write — any call path that drifts from the schema
+// surfaces as a throw instead of a silently corrupt file that would
+// later be wiped by the corrupt-recovery path in readJsonFileOrCreate.
 async function persistEntities(entities: Entity[]) {
   const path = await getDataPath("entities.json");
   const file: EntitiesFile = { version: 1, entities };
-  await writeJsonFile(path, file);
+  const parsed = EntitiesFileSchema.safeParse(file);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+      .join("; ");
+    throw new Error(`entities.json save rejected: ${issues}`);
+  }
+  await writeJsonFile(path, parsed.data);
 }
 
 interface EntityStore {
@@ -88,6 +98,11 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
     await trackSave(() => persistEntities(get().entities));
   },
 
+  // In-memory set before disk write. persistEntities throws on a
+  // rejected shape, leaving the in-memory set intact — downstream
+  // toast surfaces the error and the next save retries the same state.
+  // The previous await-first ordering let rapid consecutive calls
+  // read stale `get()` snapshots and lose the intermediate update.
   addEntity: async (draft) => {
     const now = nowISO();
     const entity = {
@@ -97,8 +112,8 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
       updated_at: now,
     } as Entity;
     const next = [...get().entities, entity];
-    await trackSave(() => persistEntities(next));
     set({ entities: next });
+    await trackSave(() => persistEntities(next));
     return entity;
   },
 
@@ -108,14 +123,14 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
         ? ({ ...e, ...updates, updated_at: nowISO() } as Entity)
         : e,
     );
-    await trackSave(() => persistEntities(next));
     set({ entities: next });
+    await trackSave(() => persistEntities(next));
   },
 
   deleteEntity: async (id) => {
     const next = get().entities.filter((e) => e.id !== id);
-    await trackSave(() => persistEntities(next));
     set({ entities: next });
+    await trackSave(() => persistEntities(next));
   },
 
   getByType: (type) => get().entities.filter((e) => e.type === type),

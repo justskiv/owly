@@ -18,6 +18,13 @@ export function DetailActions({ entity }: { entity: Entity }) {
     return () => window.clearTimeout(t);
   }, [confirming]);
 
+  // Switching to another entity while the confirm state is armed
+  // would otherwise let the second click delete a DIFFERENT entity
+  // than the user thought they were targeting.
+  useEffect(() => {
+    setConfirming(false);
+  }, [entity.id]);
+
   const handleDelete = async () => {
     if (!confirming) {
       setConfirming(true);

@@ -20,7 +20,11 @@
 body{font-family:var(--font);background:var(--bg-base);color:var(--text-primary);font-size:var(--fs-md);line-height:1.5;overflow:hidden;height:100vh;-webkit-font-smoothing:antialiased;user-select:none}
 .edp-title,.edp-desc,.edp-val,.edp-cl li,.ct-item,.stat-num,.er-title,.note-body,.search-input,.fi{user-select:text}
 ::selection{background:rgba(224,184,96,.25)}
-button:focus,button:focus-visible,[tabindex]:focus,[tabindex]:focus-visible{outline:none}
+/* Suppress mouse-triggered focus rings (they noise up click-heavy UIs)
+   but keep the keyboard-triggered ring on :focus-visible so tabbing is
+   navigable. The ring matches the gold accent from the design spec. */
+button:focus,[tabindex]:focus{outline:none}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px;border-radius:inherit}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 /* Drag region: kill text selection / drag ghosts / I-beam cursor.
    Native macOS title bars suppress all of these automatically; our
@@ -493,7 +497,7 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
 .settings-inner{display:flex;flex-direction:column;gap:12px}
 .settings-hint{font-size:var(--fs-xs);color:var(--text-tertiary);padding:8px 10px;background:var(--bg-tint-1);border-radius:var(--radius-md);line-height:1.5}
 .areas-list,.pipeline-list,.template-list{display:flex;flex-direction:column;gap:6px}
-.area-row{display:grid;grid-template-columns:32px 100px 1fr 80px 24px;gap:6px;align-items:center}
+.area-row{display:grid;grid-template-columns:32px 100px 1fr 80px 28px 24px;gap:6px;align-items:center}
 .area-color{width:32px;height:28px;border:1px solid var(--border);border-radius:var(--radius-sm);background:none;padding:0;cursor:pointer}
 .area-id{font-family:var(--mono);color:var(--text-tertiary)}
 .area-id:disabled{opacity:.7;cursor:default}

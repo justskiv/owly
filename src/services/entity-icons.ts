@@ -58,7 +58,7 @@ export const STATUS_LABELS_RU: Record<Status, string> = {
 
 export const PRIORITY_LABELS_RU: Record<NonNullable<Priority>, string> = {
   high: "HIGH",
-  medium: "MED",
+  medium: "MEDIUM",
   low: "LOW",
 };
 

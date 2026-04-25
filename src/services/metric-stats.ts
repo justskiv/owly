@@ -48,7 +48,11 @@ export function computeMetricStats(
       sparkline: [],
     };
   }
-  const sorted = [...history].sort((a, b) => (a.date < b.date ? -1 : 1));
+  // Stable tri-state comparator so history points with identical
+  // dates keep insertion order instead of relying on engine quirks.
+  const sorted = [...history].sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+  );
   const values = sorted.map((h) => h.value);
   const last = values[values.length - 1];
   const prev = values.length > 1 ? values[values.length - 2] : last;

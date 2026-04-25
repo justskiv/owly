@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type RefObject,
+} from "react";
 import { useUIStore } from "../../store/ui";
 import {
   ENTITY_CREATE_TYPES,
@@ -14,6 +20,7 @@ interface Props {
 export function CreateDropdown({ anchorRef, onClose }: Props) {
   const openEditorNew = useUIStore((s) => s.openEntityEditorNew);
   const menuRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
 
   // Position under the anchor button. Computed once on mount — the
@@ -27,6 +34,14 @@ export function CreateDropdown({ anchorRef, onClose }: Props) {
       right: window.innerWidth - rect.right,
     });
   }, [anchorRef]);
+
+  // Move focus into the menu once it renders; without this the menu
+  // opens but keyboard stays on the anchor button, making ArrowDown
+  // land in the button bar instead of navigating menu items.
+  useEffect(() => {
+    if (!pos) return;
+    itemRefs.current[0]?.focus();
+  }, [pos]);
 
   // Close on outside click or Escape. Using pointerdown matches the
   // rest of the app (BlockEditor backdrop).
@@ -42,7 +57,7 @@ export function CreateDropdown({ anchorRef, onClose }: Props) {
         onClose();
       }
     };
-    const onKey = (e: KeyboardEvent) => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("pointerdown", onDown);
@@ -55,6 +70,23 @@ export function CreateDropdown({ anchorRef, onClose }: Props) {
 
   if (!pos) return null;
 
+  const onItemKey = (e: KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    const total = ENTITY_CREATE_TYPES.length;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      itemRefs.current[(idx + 1) % total]?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      itemRefs.current[(idx - 1 + total) % total]?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      itemRefs.current[0]?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      itemRefs.current[total - 1]?.focus();
+    }
+  };
+
   return (
     <div
       ref={menuRef}
@@ -62,9 +94,12 @@ export function CreateDropdown({ anchorRef, onClose }: Props) {
       role="menu"
       style={{ top: pos.top, right: pos.right }}
     >
-      {ENTITY_CREATE_TYPES.map((t) => (
+      {ENTITY_CREATE_TYPES.map((t, idx) => (
         <button
           key={t}
+          ref={(el) => {
+            itemRefs.current[idx] = el;
+          }}
           type="button"
           className="create-dd-item"
           role="menuitem"
@@ -72,6 +107,7 @@ export function CreateDropdown({ anchorRef, onClose }: Props) {
             openEditorNew(t);
             onClose();
           }}
+          onKeyDown={(e) => onItemKey(e, idx)}
         >
           <span style={{ width: 18, display: "inline-block" }}>
             {ENTITY_ICONS[t]}

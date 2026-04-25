@@ -128,11 +128,14 @@ export async function computeRoutineStats(
   }
 
   // Streak: count consecutive days ending today (inclusive) that had a
-  // done block. The streak breaks on the first day with no done block.
+  // done block. Capped to the heatmap window (26 weeks ≈ 182 days)
+  // since byDate only contains blocks from that range — looping
+  // further just returns zeros and the streak would spuriously break.
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const STREAK_CAP_DAYS = HEATMAP_WEEKS * 7;
   let streak = 0;
-  for (let offset = 0; offset < 365; offset++) {
+  for (let offset = 0; offset < STREAK_CAP_DAYS; offset++) {
     const d = new Date(today);
     d.setDate(today.getDate() - offset);
     const iso = formatDate(d);
@@ -148,9 +151,10 @@ export async function computeRoutineStats(
     }
   }
 
-  // Rate: over the last 30 days, done / (done + skipped). Planned but
-  // expired days (before today with no done) count as skipped for the
-  // purposes of ratio — they indicate a miss.
+  // Rate: over the last 30 days, done / (done + miss). Today is
+  // excluded from the denominator if there's nothing yet — otherwise
+  // the percentage drops the moment the user opens the detail panel
+  // in the morning and recovers only after they complete the routine.
   let doneCount = 0;
   let missCount = 0;
   for (let offset = 0; offset < 30; offset++) {
@@ -161,6 +165,7 @@ export async function computeRoutineStats(
     if (blocks.length === 0) continue;
     const anyDone = blocks.some((b) => b.status === "done");
     if (anyDone) doneCount++;
+    else if (offset === 0) continue;
     else missCount++;
   }
   const rateBase = doneCount + missCount;

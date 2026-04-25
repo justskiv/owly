@@ -1,5 +1,6 @@
 import type { TaskEntity } from "../../../schemas";
 import { useEntityStore } from "../../../store/entities";
+import { toast } from "../../shared/Toast";
 import { Checklist } from "./parts/Checklist";
 
 export function TaskDetail({ entity }: { entity: TaskEntity }) {
@@ -12,9 +13,12 @@ export function TaskDetail({ entity }: { entity: TaskEntity }) {
     const next = items.map((it, i) =>
       i === idx ? { ...it, done: !it.done } : it,
     );
-    void useEntityStore.getState().updateEntity(entity.id, {
-      fields: { ...entity.fields, checklist: next },
-    } as Partial<TaskEntity>);
+    useEntityStore
+      .getState()
+      .updateEntity(entity.id, {
+        fields: { ...entity.fields, checklist: next },
+      } as Partial<TaskEntity>)
+      .catch((e) => toast.error(`Не удалось: ${(e as Error).message}`));
   };
 
   return (

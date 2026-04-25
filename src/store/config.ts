@@ -21,7 +21,14 @@ interface ConfigStore {
 
 async function persistConfig(config: ConfigFile) {
   const path = await getDataPath("config.json");
-  await writeJsonFile(path, config);
+  const parsed = ConfigFileSchema.safeParse(config);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+      .join("; ");
+    throw new Error(`config.json save rejected: ${issues}`);
+  }
+  await writeJsonFile(path, parsed.data);
 }
 
 export const useConfigStore = create<ConfigStore>((set, get) => ({
@@ -51,19 +58,24 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     await trackSave(() => persistConfig(cfg));
   },
 
+  // Set in-memory FIRST, then write. Rapid keystrokes in Settings
+  // must each read the latest state — otherwise the next call pulls
+  // a stale `cfg` from before the previous write finished and the
+  // intermediate edit is lost. persistConfig re-validates so a
+  // rejected shape surfaces via the save-status banner.
   setAreas: async (areas) => {
     const cfg = get().config;
     if (!cfg) return;
     const next: ConfigFile = { ...cfg, areas };
-    await trackSave(() => persistConfig(next));
     set({ config: next });
+    await trackSave(() => persistConfig(next));
   },
 
   setPipelineStages: async (stages) => {
     const cfg = get().config;
     if (!cfg) return;
     const next: ConfigFile = { ...cfg, pipeline_stages: stages };
-    await trackSave(() => persistConfig(next));
     set({ config: next });
+    await trackSave(() => persistConfig(next));
   },
 }));

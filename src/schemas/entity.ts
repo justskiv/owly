@@ -27,10 +27,14 @@ export type ChecklistItem = z.infer<typeof ChecklistItemSchema>;
 
 export const TaskFieldsSchema = z.object({
   parent_project_id: z.string().nullable(),
-  checklist: z.array(ChecklistItemSchema),
+  checklist: z.array(ChecklistItemSchema).default([]),
 });
 export type TaskFields = z.infer<typeof TaskFieldsSchema>;
 
+// Historical fixed set of pipeline stages — retained only to drive
+// the localisation table in PIPELINE_LABELS_RU. The schema itself uses
+// z.string() because users can add/remove stages in Settings, and the
+// enum would otherwise reject any entity referencing a custom stage.
 export const PipelineStageSchema = z.enum([
   "research",
   "production",
@@ -42,9 +46,9 @@ export const PipelineStageSchema = z.enum([
 export type PipelineStage = z.infer<typeof PipelineStageSchema>;
 
 export const ProjectFieldsSchema = z.object({
-  description: z.string(),
-  pipeline_stage: PipelineStageSchema,
-  task_ids: z.array(z.string()),
+  description: z.string().default(""),
+  pipeline_stage: z.string().default("research"),
+  task_ids: z.array(z.string()).default([]),
 });
 export type ProjectFields = z.infer<typeof ProjectFieldsSchema>;
 
@@ -63,8 +67,8 @@ export const EventFieldsSchema = z.object({
   date: isoDate(),
   time: timeHHMM(),
   duration: z.number().int().positive(),
-  location: z.string(),
-  travel_time: z.number().int().nonnegative(),
+  location: z.string().default(""),
+  travel_time: z.number().int().nonnegative().default(0),
 });
 export type EventFields = z.infer<typeof EventFieldsSchema>;
 
@@ -87,14 +91,14 @@ export const ContactHistoryItemSchema = z.object({
 export type ContactHistoryItem = z.infer<typeof ContactHistoryItemSchema>;
 
 export const ContactFieldsSchema = z.object({
-  name: z.string(),
-  desired_cadence_days: z.number().int().positive().nullable(),
-  last_contact: isoDate().nullable(),
-  travel_time: z.number().int().nonnegative(),
-  important_dates: z.array(ImportantDateSchema),
+  name: z.string().default(""),
+  desired_cadence_days: z.number().int().positive().nullable().default(null),
+  last_contact: isoDate().nullable().default(null),
+  travel_time: z.number().int().nonnegative().default(0),
+  important_dates: z.array(ImportantDateSchema).default([]),
   topics: z.array(ContactTopicSchema).default([]),
   contact_history: z.array(ContactHistoryItemSchema).default([]),
-  notes: z.string(),
+  notes: z.string().default(""),
 });
 export type ContactFields = z.infer<typeof ContactFieldsSchema>;
 
@@ -118,10 +122,10 @@ export const MetricHistoryItemSchema = z.object({
 export type MetricHistoryItem = z.infer<typeof MetricHistoryItemSchema>;
 
 export const MetricFieldsSchema = z.object({
-  unit: z.string(),
-  current_value: z.number(),
+  unit: z.string().default(""),
+  current_value: z.number().default(0),
   linked_goal_id: z.string().nullable().default(null),
-  history: z.array(MetricHistoryItemSchema),
+  history: z.array(MetricHistoryItemSchema).default([]),
 });
 export type MetricFields = z.infer<typeof MetricFieldsSchema>;
 

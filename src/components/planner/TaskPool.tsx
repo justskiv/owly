@@ -58,9 +58,11 @@ export function TaskPool({ onPoolItemPointerDown }: TaskPoolProps) {
   );
 
   // Entities that had an unresolved planned block last week and no
-  // block this week. Recomputed whenever the user navigates or the
-  // entities set changes. Async — might race with rapid nav; cancelled
-  // flag keeps stale results out of state.
+  // block this week. Recomputed when the user navigates or the
+  // entities set changes. Intentionally NOT depending on `blocks`:
+  // carry-over is a function of (prev week file, entities, current
+  // sources). Current-week block edits don't change the set, and
+  // re-reading two files on every drag-move wastes I/O.
   useEffect(() => {
     let cancelled = false;
     void getCarryOverEntities(currentWeek, entities).then((x) => {
@@ -69,13 +71,23 @@ export function TaskPool({ onPoolItemPointerDown }: TaskPoolProps) {
     return () => {
       cancelled = true;
     };
-  }, [currentWeek, entities, blocks]);
+  }, [currentWeek, entities]);
+
+  // Carry-over entities are rendered as their own section, so remove
+  // them from the main unscheduled set — otherwise expanding the
+  // "С прошлой недели" group shows the same item twice: once in the
+  // carry section, once in its priority group below.
+  const carryIds = useMemo(
+    () => new Set(carryOver.map((e) => e.id)),
+    [carryOver],
+  );
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return unscheduled;
-    return unscheduled.filter((e) => e.title.toLowerCase().includes(q));
-  }, [unscheduled, query]);
+    const pool = unscheduled.filter((e) => !carryIds.has(e.id));
+    if (!q) return pool;
+    return pool.filter((e) => e.title.toLowerCase().includes(q));
+  }, [unscheduled, query, carryIds]);
 
   const grouped = useMemo(() => {
     const acc: Record<PriorityKey, Entity[]> = {

@@ -111,25 +111,57 @@ export async function readJsonFileOrCreate<T>(
   try {
     return await readJsonFile(path, schema);
   } catch (e) {
-    if (e instanceof JsonReadError) {
-      // Snapshot the corrupted file so the user can recover it later,
-      // then create a fresh default and continue boot. Without this
-      // a single bad file aborts the whole app.
-      const ts = new Date().toISOString().replace(/[:.]/g, "-");
-      const corrupted = `${path}.corrupted-${ts}.json`;
-      try {
-        await moveFile(path, corrupted);
-      } catch {
-        // If the rename fails, the writeJsonFile below will just
-        // overwrite the broken file. We lose the snapshot but recover.
-      }
-      console.error(`[recovery] ${path} → ${corrupted}: ${e.message}`);
-      const name = corrupted.split("/").pop() ?? corrupted;
-      toast.error(`Файл повреждён, восстановлен пустой. Бэкап: ${name}`);
-      await writeJsonFile(path, defaultData);
-      return defaultData;
+    if (!(e instanceof JsonReadError)) throw e;
+
+    // Read the raw bytes BEFORE touching disk. The original recovery
+    // flow would silently overwrite the user's file with defaults if
+    // `moveFile` failed (cross-device rename, permission, etc.) —
+    // worst case the user's whole entities.json vanishes because a
+    // single field failed validation. Now we always have a copy in
+    // memory and fall back to a content-write backup when rename
+    // can't create the side file.
+    let rawBytes: string | null = null;
+    try {
+      rawBytes = await invoke<string>("read_file", { path });
+    } catch {
+      rawBytes = null;
     }
-    throw e;
+
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    const corrupted = `${path}.corrupted-${ts}.json`;
+
+    let backupOk = false;
+    try {
+      await moveFile(path, corrupted);
+      backupOk = true;
+    } catch {
+      if (rawBytes !== null) {
+        try {
+          await invoke("write_file", { path: corrupted, content: rawBytes });
+          backupOk = true;
+        } catch {
+          backupOk = false;
+        }
+      }
+    }
+
+    if (!backupOk) {
+      // Without a verified backup we refuse to overwrite. The caller
+      // gets the original JsonReadError so the app can surface a
+      // clear error rather than returning defaults that look like
+      // lost data.
+      console.error(`[recovery] ${path} backup FAILED: ${e.message}`);
+      toast.error(
+        `Файл повреждён, бэкап создать не удалось. Данные не тронуты.`,
+      );
+      throw e;
+    }
+
+    console.error(`[recovery] ${path} → ${corrupted}: ${e.message}`);
+    const name = corrupted.split("/").pop() ?? corrupted;
+    toast.error(`Файл повреждён, восстановлен пустой. Бэкап: ${name}`);
+    await writeJsonFile(path, defaultData);
+    return defaultData;
   }
 }
 

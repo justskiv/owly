@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DayOfWeek, TemplateBlock, TemplateFile } from "../../schemas";
 import { TemplateFileSchema } from "../../schemas";
 import { useConfigStore } from "../../store/config";
@@ -21,10 +21,20 @@ const DAYS_RU: Record<DayOfWeek, string> = {
   sun: "Вс",
 };
 
+const PERSIST_DELAY_MS = 400;
+
 export function TemplateTab() {
   const areas = useConfigStore((s) => s.config?.areas) ?? [];
   const [file, setFile] = useState<TemplateFile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Debounce handle + latest-state ref. Writing on every keystroke
+  // used to push invalid intermediates (`start: "1"`) straight to
+  // disk, which failed schema validation on next load and let the
+  // corrupt-recovery path nuke the template. Now edits stay in-memory
+  // until they pass TemplateFileSchema AND a short idle window.
+  const pendingRef = useRef<TemplateFile | null>(null);
+  const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,15 +62,53 @@ export function TemplateTab() {
     };
   }, []);
 
-  const persist = async (next: TemplateFile) => {
-    setFile(next);
+  // Flush any pending draft on unmount so a user's last edit isn't
+  // lost when they close Settings before the debounce fires.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+        const pending = pendingRef.current;
+        if (pending) {
+          void flushWrite(pending);
+        }
+      }
+    };
+  }, []);
+
+  async function flushWrite(draft: TemplateFile) {
+    const parsed = TemplateFileSchema.safeParse(draft);
+    if (!parsed.success) {
+      // Invalid drafts stay in-memory — the user will see the bad
+      // field highlighted (or rather, feel that nothing saved) and
+      // can fix it. Surfacing every keystroke toast would be noisy,
+      // so we only log.
+      console.warn(
+        "[template] skipped invalid save:",
+        parsed.error.issues,
+      );
+      return;
+    }
     try {
       const path = await getDataPath("templates", "default.json");
-      await writeJsonFile(path, next);
+      await writeJsonFile(path, parsed.data);
+      pendingRef.current = null;
     } catch (e) {
       toast.error(`Не удалось сохранить: ${(e as Error).message}`);
     }
-  };
+  }
+
+  function scheduleWrite(next: TemplateFile) {
+    setFile(next);
+    pendingRef.current = next;
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+    }
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      void flushWrite(next);
+    }, PERSIST_DELAY_MS);
+  }
 
   if (loading || !file) {
     return (
@@ -74,11 +122,11 @@ export function TemplateTab() {
     const blocks = file.blocks.map((b, idx) =>
       idx === i ? { ...b, ...patch } : b,
     );
-    void persist({ ...file, blocks });
+    scheduleWrite({ ...file, blocks });
   };
 
   const removeBlock = (i: number) => {
-    void persist({
+    scheduleWrite({
       ...file,
       blocks: file.blocks.filter((_, idx) => idx !== i),
     });
@@ -93,14 +141,16 @@ export function TemplateTab() {
       title: "Новый блок",
       category: defaultCategory,
     };
-    void persist({ ...file, blocks: [...file.blocks, nb] });
+    scheduleWrite({ ...file, blocks: [...file.blocks, nb] });
   };
 
   return (
     <div className="settings-inner">
       <div className="settings-hint">
         Шаблонные блоки копируются при создании новой недели. Применяются
-        только если пользователь выбрал «Создать из шаблона».
+        только если пользователь выбрал «Создать из шаблона». Сохраняется
+        автоматически; некорректные значения (например, неполное время)
+        не уходят на диск — закончите ввод, чтобы закрепить изменения.
       </div>
       <div className="template-list">
         <div className="tpl-header">

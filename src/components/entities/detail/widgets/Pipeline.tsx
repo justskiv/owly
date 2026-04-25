@@ -1,8 +1,10 @@
-import type { PipelineStage } from "../../../../schemas";
 import { PIPELINE_LABELS_RU } from "../../../../services/entity-icons";
 
 interface Props {
-  currentStage: PipelineStage;
+  // Accept any string — the schema (as of phase 4 review) now allows
+  // custom pipeline stages defined in Settings, not just the canned
+  // enum. Known ids get a Russian label; unknown ids render as-is.
+  currentStage: string;
   stages: string[];
 }
 

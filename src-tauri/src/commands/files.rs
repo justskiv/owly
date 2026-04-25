@@ -113,8 +113,23 @@ pub fn file_exists(path: String, root: tauri::State<AppRoot>) -> Result<bool, St
     Ok(p.exists())
 }
 
+// Random suffix so two simultaneous writes to the same path don't
+// trample each other's temp file. Without this, a fast second writer
+// can truncate the first's in-progress tmp, then the first finishes
+// and renames a half-written file onto the final path.
 fn tmp_sibling(path: &Path) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let pid = std::process::id();
+
     let mut tmp = path.as_os_str().to_owned();
-    tmp.push(".tmp");
+    tmp.push(format!(".tmp.{pid}.{nanos}.{n}"));
     PathBuf::from(tmp)
 }

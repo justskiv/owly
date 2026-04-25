@@ -19,8 +19,16 @@ export function SettingsModal() {
   const setTab = useUIStore((s) => s.setSettingsTab);
   const close = useUIStore((s) => s.closeSettings);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const firstTabRef = useRef<HTMLButtonElement>(null);
   useFocusTrap(dialogRef, true);
   useRestoreFocus(true);
+
+  // Focus trap only keeps focus *inside* once it's already there. Shell
+  // blocks Tab outside dialogs, so without an explicit move-in the
+  // keyboard is stranded on the button that opened this modal.
+  useEffect(() => {
+    firstTabRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -54,9 +62,10 @@ export function SettingsModal() {
           </button>
         </div>
         <div className="settings-tabs">
-          {TABS.map(({ id, label }) => (
+          {TABS.map(({ id, label }, idx) => (
             <button
               key={id}
+              ref={idx === 0 ? firstTabRef : undefined}
               type="button"
               className={`stab${tab === id ? " active" : ""}`}
               onClick={() => setTab(id)}

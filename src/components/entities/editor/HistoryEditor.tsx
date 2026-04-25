@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { MetricHistoryItem } from "../../../schemas";
 
 interface Props {
@@ -11,6 +12,54 @@ function todayISO(): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+// Numeric inputs with a string-backed draft: Number(e.target.value) on
+// every keystroke eats intermediate decimals ("0." becomes 0) and
+// silently accepts Infinity/NaN. We buffer text locally and only
+// commit a valid finite number on blur or Enter; invalid input reverts
+// to the previous stored value so the user sees why it didn't stick.
+function NumericField({
+  value,
+  onCommit,
+  style,
+}: {
+  value: number;
+  onCommit: (next: number) => void;
+  style?: React.CSSProperties;
+}) {
+  const [draft, setDraft] = useState<string>(() => String(value));
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  const commit = () => {
+    const n = parseFloat(draft.replace(",", "."));
+    if (Number.isFinite(n)) {
+      onCommit(n);
+    } else {
+      setDraft(String(value));
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      className="fi"
+      style={{ fontFamily: "var(--mono)", ...style }}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+    />
+  );
 }
 
 export function HistoryEditor({ history, onChange }: Props) {
@@ -36,12 +85,9 @@ export function HistoryEditor({ history, onChange }: Props) {
               value={h.date}
               onChange={(e) => editDate(i, e.target.value)}
             />
-            <input
-              type="number"
-              className="fi"
-              style={{ fontFamily: "var(--mono)" }}
+            <NumericField
               value={h.value}
-              onChange={(e) => editValue(i, Number(e.target.value) || 0)}
+              onCommit={(v) => editValue(i, v)}
             />
             <button
               type="button"

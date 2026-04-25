@@ -32,11 +32,18 @@ export function MetricDetail({ entity }: { entity: MetricEntity }) {
         <div className="metric-val">
           {fmtNum(f.current_value)} {f.unit}
         </div>
-        {stats.sparkline.length > 1 && (
+        {stats.sparkline.length > 1 ? (
           <div className={`metric-change${down ? " down" : ""}`}>
             {down ? "↓" : "↑"} {fmtNum(Math.round(Math.abs(stats.change)))} за
             последний период ({stats.changePct >= 0 ? "+" : ""}
             {stats.changePct.toFixed(1)}%)
+          </div>
+        ) : (
+          <div
+            className="metric-change"
+            style={{ color: "var(--text-tertiary)" }}
+          >
+            — недостаточно истории для тренда
           </div>
         )}
       </section>
@@ -48,34 +55,42 @@ export function MetricDetail({ entity }: { entity: MetricEntity }) {
         </section>
       )}
 
-      <StatFooter
-        items={[
-          { label: "Единица", value: f.unit || "—" },
-          {
-            label: "Ср. рост",
-            value:
-              stats.avgGrowth !== 0
-                ? `${stats.avgGrowth > 0 ? "+" : ""}${fmtNum(Math.round(stats.avgGrowth))}/шаг`
-                : "—",
-            color: stats.avgGrowth > 0 ? "success" : undefined,
-          },
-          {
-            label: "Связанная цель",
-            value: linkedGoal ? (
-              <span
-                role="button"
-                tabIndex={0}
-                style={{ cursor: "pointer", textDecoration: "underline" }}
-                onClick={() => setSelected(linkedGoal.id)}
-              >
-                {linkedGoal.title}
-              </span>
-            ) : (
-              "—"
-            ),
-          },
-        ]}
-      />
+      <section className="edp-sec">
+        <StatFooter
+          items={[
+            { label: "Единица", value: f.unit || "—" },
+            {
+              label: "Ср. рост",
+              value:
+                stats.avgGrowth !== 0
+                  ? `${stats.avgGrowth > 0 ? "+" : ""}${fmtNum(Math.round(stats.avgGrowth))}/шаг`
+                  : "—",
+              color: stats.avgGrowth > 0 ? "success" : undefined,
+            },
+            {
+              label: "Связанная цель",
+              value: linkedGoal ? (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: "pointer", textDecoration: "underline" }}
+                  onClick={() => setSelected(linkedGoal.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelected(linkedGoal.id);
+                    }
+                  }}
+                >
+                  {linkedGoal.title}
+                </span>
+              ) : (
+                "—"
+              ),
+            },
+          ]}
+        />
+      </section>
     </>
   );
 }

@@ -40,7 +40,12 @@ function renderInline(s: string): string {
   let out = escapeHtml(s);
   // Bold first so `_italic_` inside **bold** still works.
   out = out.replace(/\*\*([^*]+)\*\*/g, '<span class="n-b">$1</span>');
-  out = out.replace(/_([^_]+)_/g, '<span class="n-i">$1</span>');
+  // Italic requires a word-boundary on both sides so snake_case
+  // identifiers (`foo_bar_baz`) don't get eaten as italic runs.
+  out = out.replace(
+    /(^|[\s>])_([^_\s][^_]*?)_(?=[\s<.,:;!?)]|$)/g,
+    '$1<span class="n-i">$2</span>',
+  );
   return out;
 }
 

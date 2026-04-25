@@ -1,5 +1,7 @@
 import type { Area } from "../../schemas";
 import { useConfigStore } from "../../store/config";
+import { useEntityStore } from "../../store/entities";
+import { useScheduleStore } from "../../store/schedule";
 import { toast } from "../shared/Toast";
 
 function slug(s: string): string {
@@ -12,6 +14,13 @@ function slug(s: string): string {
 export function AreasTab() {
   const areas = useConfigStore((s) => s.config?.areas) ?? [];
   const setAreas = useConfigStore((s) => s.setAreas);
+  const entities = useEntityStore((s) => s.entities);
+  const blocks = useScheduleStore((s) => s.blocks);
+
+  const usageFor = (id: string) => ({
+    entities: entities.filter((e) => e.tags.includes(id)).length,
+    blocks: blocks.filter((b) => b.category === id).length,
+  });
 
   const update = (idx: number, patch: Partial<Area>) => {
     const next = areas.map((a, i) => (i === idx ? { ...a, ...patch } : a));
@@ -35,8 +44,17 @@ export function AreasTab() {
   const remove = (idx: number) => {
     const removed = areas[idx];
     if (!removed) return;
+    const u = usageFor(removed.id);
     void setAreas(areas.filter((_, i) => i !== idx));
-    toast.success(`Область удалена: ${removed.label}`);
+    if (u.entities > 0 || u.blocks > 0) {
+      toast.error(
+        `Область «${removed.label}» удалена, но используется в ` +
+          `${u.entities} сущностях и ${u.blocks} блоках — теги и ` +
+          `категории останутся как orphan`,
+      );
+    } else {
+      toast.success(`Область удалена: ${removed.label}`);
+    }
   };
 
   return (
@@ -46,41 +64,50 @@ export function AreasTab() {
         id не меняется — сущности привязываются к нему.
       </div>
       <div className="areas-list">
-        {areas.map((a, i) => (
-          <div key={a.id} className="area-row">
-            <input
-              type="color"
-              className="area-color"
-              value={a.color}
-              onChange={(e) => update(i, { color: e.target.value })}
-            />
-            <input
-              className="fi area-id"
-              value={a.id}
-              disabled
-              title="id нельзя менять"
-            />
-            <input
-              className="fi area-label"
-              value={a.label}
-              onChange={(e) => update(i, { label: e.target.value })}
-            />
-            <input
-              className="fi area-icon"
-              placeholder="icon"
-              value={a.icon}
-              onChange={(e) => update(i, { icon: e.target.value })}
-            />
-            <button
-              type="button"
-              className="editor-x"
-              aria-label="Удалить"
-              onClick={() => remove(i)}
-            >
-              ×
-            </button>
-          </div>
-        ))}
+        {areas.map((a, i) => {
+          const u = usageFor(a.id);
+          return (
+            <div key={a.id} className="area-row">
+              <input
+                type="color"
+                className="area-color"
+                value={a.color}
+                onChange={(e) => update(i, { color: e.target.value })}
+              />
+              <input
+                className="fi area-id"
+                value={a.id}
+                disabled
+                title="id нельзя менять"
+              />
+              <input
+                className="fi area-label"
+                value={a.label}
+                onChange={(e) => update(i, { label: e.target.value })}
+              />
+              <input
+                className="fi area-icon"
+                placeholder="icon"
+                value={a.icon}
+                onChange={(e) => update(i, { icon: e.target.value })}
+              />
+              <span
+                className="pipe-usage"
+                title={`${u.entities} сущностей · ${u.blocks} блоков`}
+              >
+                {u.entities + u.blocks}
+              </span>
+              <button
+                type="button"
+                className="editor-x"
+                aria-label="Удалить"
+                onClick={() => remove(i)}
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
         <button type="button" className="editor-add" onClick={add}>
           + Добавить область
         </button>

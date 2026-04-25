@@ -57,9 +57,12 @@ const initialWeek = getCurrentWeekId();
 // after week N+2's set({currentWeek}), and writes go to the wrong file.
 let loadToken = 0;
 
-// Persist-first: write the file before mutating store. If the write
-// throws, in-memory state still matches disk and the toast surfaces
-// the failure; otherwise a silent state/disk drift bites on next reload.
+// Validate-then-write. We used to persist before updating in-memory
+// state so a failed write couldn't leak stale data; the downside was
+// that rapid mutations (two drag moves in a row, fast checklist
+// toggles) pulled stale snapshots and lost updates. After review we
+// flipped the order store-side and added Zod guarding here — a bad
+// shape throws and the toast surfaces it, without ever hitting disk.
 async function persistWeek(
   snapshot: {
     currentWeek: string;
@@ -76,7 +79,14 @@ async function persistWeek(
     template_applied: snapshot.templateApplied,
     blocks,
   };
-  await writeJsonFile(path, file);
+  const parsed = WeekFileSchema.safeParse(file);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+      .join("; ");
+    throw new Error(`${snapshot.currentWeek}.json save rejected: ${issues}`);
+  }
+  await writeJsonFile(path, parsed.data);
 }
 
 export const useScheduleStore = create<ScheduleStore>((set, get) => ({
@@ -142,8 +152,8 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     const block: Block = { ...draft, id: generateId("blk") };
     const snap = get();
     const next = [...snap.blocks, block];
-    await trackSave(() => persistWeek(snap, next));
     set({ blocks: next });
+    await trackSave(() => persistWeek(snap, next));
     return block;
   },
 
@@ -152,8 +162,8 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     const next = snap.blocks.map((b) =>
       b.id === id ? { ...b, ...updates } : b,
     );
-    await trackSave(() => persistWeek(snap, next));
     set({ blocks: next });
+    await trackSave(() => persistWeek(snap, next));
   },
 
   moveBlock: async (id, date, start) => {
@@ -167,8 +177,8 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   deleteBlock: async (id) => {
     const snap = get();
     const next = snap.blocks.filter((b) => b.id !== id);
-    await trackSave(() => persistWeek(snap, next));
     set({ blocks: next });
+    await trackSave(() => persistWeek(snap, next));
   },
 
   setBlockStatus: async (id, status) => {

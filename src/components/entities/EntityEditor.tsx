@@ -17,6 +17,7 @@ import {
   ENTITY_LABELS_ACC,
   ENTITY_LABELS_RU,
 } from "../../services/entity-icons";
+import { formatDate } from "../../services/time-utils";
 import { TagsField } from "./editor/TagsField";
 import { TypeSpecificFields } from "./editor/TypeSpecificFields";
 
@@ -36,8 +37,10 @@ function defaultFieldsFor(type: EntityType): Entity["fields"] {
         default_time: "09:00",
       };
     case "event":
+      // Local date, not UTC — toISOString() shifts by timezone and
+      // around midnight would land on yesterday/tomorrow.
       return {
-        date: new Date().toISOString().slice(0, 10),
+        date: formatDate(new Date()),
         time: "12:00",
         duration: 60,
         location: "",
@@ -239,7 +242,13 @@ export function EntityEditor({ state }: Props) {
       return;
     }
     try {
-      const title = form.title;
+      // Resolve the CURRENT-on-disk title, not the draft the user
+      // may have just typed — the toast should name what they see
+      // in the list on the left, not an unsaved edit.
+      const existing = useEntityStore
+        .getState()
+        .entities.find((e) => e.id === state.entityId);
+      const title = existing?.title ?? form.title;
       await useEntityStore.getState().deleteEntity(state.entityId);
       setSelected(null);
       toast.success(`✕ Удалён: ${title}`);
@@ -257,8 +266,22 @@ export function EntityEditor({ state }: Props) {
   };
 
   const onTypeChange = (t: EntityType) => {
-    // Changing type invalidates tуpe-specific fields. Reset them to
-    // defaults rather than trying to cross-convert shapes.
+    if (t === form.type) return;
+    // Type-specific fields can't be cross-converted, so they reset to
+    // defaults — which would silently wipe a 10-minute contact form
+    // if the user grazes the select. Ask first if the draft has any
+    // data worth losing; edit-mode disables the select entirely so
+    // only "new" flows hit this path.
+    const hasDraftData =
+      form.title.trim().length > 0 ||
+      form.description.trim().length > 0 ||
+      form.tags.length > 0;
+    if (hasDraftData) {
+      const ok = window.confirm(
+        "Сменить тип? Данные подтипа (чеклисты, темы, история и т.п.) сбросятся.",
+      );
+      if (!ok) return;
+    }
     patch({ type: t, fields: defaultFieldsFor(t) });
   };
 

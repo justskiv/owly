@@ -6,8 +6,6 @@ import { useScheduleStore } from "../../../store/schedule";
 import { computeContactStats } from "../../../services/contact-stats";
 import {
   fmtDur,
-  minutesToTime,
-  timeToMinutes,
   dayIndexOfDate,
   WEEKDAYS_RU,
 } from "../../../services/time-utils";
@@ -37,19 +35,23 @@ export function ContactDetail({ entity }: { entity: ContactEntity }) {
     const next = entity.fields.topics.map((t, i) =>
       i === idx ? { ...t, done: !t.done } : t,
     );
-    void useEntityStore.getState().updateEntity(entity.id, {
-      fields: { ...entity.fields, topics: next },
-    } as Partial<ContactEntity>);
+    useEntityStore
+      .getState()
+      .updateEntity(entity.id, {
+        fields: { ...entity.fields, topics: next },
+      } as Partial<ContactEntity>)
+      .catch((e) => toast.error(`Не удалось: ${(e as Error).message}`));
   };
 
   const removeTopic = (idx: number) => {
     const next = entity.fields.topics.filter((_, i) => i !== idx);
-    void useEntityStore
+    useEntityStore
       .getState()
       .updateEntity(entity.id, {
         fields: { ...entity.fields, topics: next },
-      } as Partial<ContactEntity>);
-    toast.success("✕ Тема убрана");
+      } as Partial<ContactEntity>)
+      .then(() => toast.success("✕ Тема убрана"))
+      .catch((e) => toast.error(`Не удалось: ${(e as Error).message}`));
   };
 
   return (
@@ -64,7 +66,6 @@ export function ContactDetail({ entity }: { entity: ContactEntity }) {
           <div className="edp-sec-title">На этой неделе</div>
           {weekItems.map((b) => {
             const dayIdx = dayIndexOfDate(b.date, weekStart);
-            const endMin = timeToMinutes(b.start) + b.duration;
             const dayLabel = WEEKDAYS_RU[dayIdx] ?? "";
             return (
               <div
@@ -74,7 +75,7 @@ export function ContactDetail({ entity }: { entity: ContactEntity }) {
               >
                 <span className="ct-week-day">{dayLabel}</span>
                 <span className="ct-week-title">
-                  {b.title} · {b.start}–{minutesToTime(endMin)}
+                  {b.title} · {b.start}
                 </span>
                 <span className="ct-week-dur">{fmtDur(b.duration)}</span>
               </div>

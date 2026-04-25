@@ -47,7 +47,11 @@ export function DetailHeader({ entity }: { entity: Entity }) {
         )}
         {entity.deadline && (
           <span
-            className={`edp-deadline${isOverdue(entity.deadline) ? " overdue" : ""}`}
+            className={`edp-deadline${
+              isOverdue(entity.deadline) && entity.status !== "done"
+                ? " overdue"
+                : ""
+            }`}
           >
             📅 до {fmtShortDate(entity.deadline)}
           </span>
