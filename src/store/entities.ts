@@ -1,6 +1,20 @@
 import { create } from "zustand";
-import type { Block, EntitiesFile, Entity, EntityType } from "../schemas";
+import type {
+  Area,
+  Block,
+  EntitiesFile,
+  Entity,
+  EntityType,
+} from "../schemas";
 import { EntitiesFileSchema } from "../schemas";
+import {
+  getDataPath,
+  readJsonFileOrCreate,
+  writeJsonFile,
+} from "../services/file-io";
+import { EMPTY_ENTITIES_FILE } from "../services/defaults";
+import { generateId, nowISO } from "../services/time-utils";
+import { trackSave } from "../services/save-status";
 
 // Types shown in the Task Pool. Contacts/goals/notes/metrics live in
 // the Entities page, not on the weekly grid.
@@ -10,15 +24,6 @@ const POOL_TYPES = new Set<EntityType>([
   "event",
   "routine",
 ]);
-import {
-  getDataPath,
-  readJsonFileOrCreate,
-  writeJsonFile,
-} from "../services/file-io";
-import { EMPTY_ENTITIES_FILE } from "../services/defaults";
-import { generateId, nowISO } from "../services/time-utils";
-import { trackSave } from "../services/save-status";
-import { useConfigStore } from "./config";
 
 type EntityDraft = Omit<Entity, "id" | "created_at" | "updated_at">;
 
@@ -44,7 +49,10 @@ interface EntityStore {
   loading: boolean;
   error: string | null;
 
-  loadEntities: () => Promise<void>;
+  // `areas` is optional metadata used for unknown-tag warnings only.
+  // Pass it from the caller (App.tsx, after loadConfig) to avoid an
+  // implicit cross-store import here.
+  loadEntities: (areas?: readonly Area[]) => Promise<void>;
   saveEntities: () => Promise<void>;
 
   addEntity: (draft: EntityDraft) => Promise<Entity>;
@@ -62,7 +70,7 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
   loading: false,
   error: null,
 
-  loadEntities: async () => {
+  loadEntities: async (areas) => {
     set({ loading: true, error: null });
     try {
       const path = await getDataPath("entities.json");
@@ -74,8 +82,7 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
       // Soft validation: flag tags that aren't in config.areas. We
       // don't drop or rewrite — the user might be migrating a config
       // and seeing their own labels is more useful than silent data.
-      const areas = useConfigStore.getState().config?.areas;
-      if (areas) {
+      if (areas && areas.length > 0) {
         const known = new Set(areas.map((a) => a.id));
         for (const e of file.entities) {
           const unknown = e.tags.filter((t) => !known.has(t));

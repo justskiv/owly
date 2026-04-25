@@ -7,7 +7,6 @@ import type {
   GoalFields,
   MetricFields,
   NoteFields,
-  PipelineStage,
   ProjectFields,
   RoutineFields,
   RoutineFrequency,
@@ -31,8 +30,9 @@ const DAYS_RU: Record<DayOfWeek, string> = {
 
 interface Props {
   type: EntityType;
-  // Fields is a union across all entity types; the caller uses the
-  // correct shape per `type`. We cast inside each branch.
+  // Fields is a union across all entity types; the dispatching switch
+  // below narrows it once per branch and hands a strictly-typed prop
+  // to the sub-editor — sub-editors are then cast-free.
   fields: Entity["fields"];
   onChange: (fields: Entity["fields"]) => void;
   entities: readonly Entity[];
@@ -42,28 +42,79 @@ interface Props {
 export function TypeSpecificFields(props: Props) {
   switch (props.type) {
     case "task":
-      return <TaskFieldsEditor {...props} />;
+      return (
+        <TaskFieldsEditor
+          fields={props.fields as TaskFields}
+          onChange={props.onChange as (f: TaskFields) => void}
+          entities={props.entities}
+        />
+      );
     case "project":
-      return <ProjectFieldsEditor {...props} />;
+      return (
+        <ProjectFieldsEditor
+          fields={props.fields as ProjectFields}
+          onChange={props.onChange as (f: ProjectFields) => void}
+          pipelineStages={props.pipelineStages}
+        />
+      );
     case "routine":
-      return <RoutineFieldsEditor {...props} />;
+      return (
+        <RoutineFieldsEditor
+          fields={props.fields as RoutineFields}
+          onChange={props.onChange as (f: RoutineFields) => void}
+        />
+      );
     case "event":
-      return <EventFieldsEditor {...props} />;
+      return (
+        <EventFieldsEditor
+          fields={props.fields as EventFields}
+          onChange={props.onChange as (f: EventFields) => void}
+        />
+      );
     case "contact":
-      return <ContactFieldsEditor {...props} />;
+      return (
+        <ContactFieldsEditor
+          fields={props.fields as ContactFields}
+          onChange={props.onChange as (f: ContactFields) => void}
+        />
+      );
     case "goal":
-      return <GoalFieldsEditor {...props} />;
+      return (
+        <GoalFieldsEditor
+          fields={props.fields as GoalFields}
+          onChange={props.onChange as (f: GoalFields) => void}
+          entities={props.entities}
+        />
+      );
     case "metric":
-      return <MetricFieldsEditor {...props} />;
+      return (
+        <MetricFieldsEditor
+          fields={props.fields as MetricFields}
+          onChange={props.onChange as (f: MetricFields) => void}
+          entities={props.entities}
+        />
+      );
     case "note":
-      return <NoteFieldsEditor {...props} />;
+      return (
+        <NoteFieldsEditor
+          fields={props.fields as NoteFields}
+          onChange={props.onChange as (f: NoteFields) => void}
+        />
+      );
   }
 }
 
 // ---- Task -----------------------------------------------------------
 
-function TaskFieldsEditor({ fields, onChange, entities }: Props) {
-  const f = fields as TaskFields;
+function TaskFieldsEditor({
+  fields,
+  onChange,
+  entities,
+}: {
+  fields: TaskFields;
+  onChange: (f: TaskFields) => void;
+  entities: readonly Entity[];
+}) {
   const projects = entities.filter((e) => e.type === "project");
   return (
     <div className="type-specific">
@@ -71,10 +122,10 @@ function TaskFieldsEditor({ fields, onChange, entities }: Props) {
         <label className="fl">Родительский проект</label>
         <select
           className="fi"
-          value={f.parent_project_id ?? ""}
+          value={fields.parent_project_id ?? ""}
           onChange={(e) =>
             onChange({
-              ...f,
+              ...fields,
               parent_project_id: e.target.value || null,
             })
           }
@@ -88,8 +139,8 @@ function TaskFieldsEditor({ fields, onChange, entities }: Props) {
         </select>
       </div>
       <ChecklistEditor
-        items={f.checklist}
-        onChange={(checklist) => onChange({ ...f, checklist })}
+        items={fields.checklist}
+        onChange={(checklist) => onChange({ ...fields, checklist })}
       />
     </div>
   );
@@ -97,8 +148,15 @@ function TaskFieldsEditor({ fields, onChange, entities }: Props) {
 
 // ---- Project --------------------------------------------------------
 
-function ProjectFieldsEditor({ fields, onChange, pipelineStages }: Props) {
-  const f = fields as ProjectFields;
+function ProjectFieldsEditor({
+  fields,
+  onChange,
+  pipelineStages,
+}: {
+  fields: ProjectFields;
+  onChange: (f: ProjectFields) => void;
+  pipelineStages: readonly string[];
+}) {
   return (
     <div className="type-specific">
       <div className="fg">
@@ -106,20 +164,19 @@ function ProjectFieldsEditor({ fields, onChange, pipelineStages }: Props) {
         <textarea
           className="fi"
           rows={3}
-          value={f.description}
-          onChange={(e) => onChange({ ...f, description: e.target.value })}
+          value={fields.description}
+          onChange={(e) =>
+            onChange({ ...fields, description: e.target.value })
+          }
         />
       </div>
       <div className="fg">
         <label className="fl">Стадия пайплайна</label>
         <select
           className="fi"
-          value={f.pipeline_stage}
+          value={fields.pipeline_stage}
           onChange={(e) =>
-            onChange({
-              ...f,
-              pipeline_stage: e.target.value as PipelineStage,
-            })
+            onChange({ ...fields, pipeline_stage: e.target.value })
           }
         >
           {pipelineStages.map((s) => (
@@ -135,13 +192,18 @@ function ProjectFieldsEditor({ fields, onChange, pipelineStages }: Props) {
 
 // ---- Routine --------------------------------------------------------
 
-function RoutineFieldsEditor({ fields, onChange }: Props) {
-  const f = fields as RoutineFields;
+function RoutineFieldsEditor({
+  fields,
+  onChange,
+}: {
+  fields: RoutineFields;
+  onChange: (f: RoutineFields) => void;
+}) {
   const toggleDay = (d: DayOfWeek) => {
-    const next = f.days.includes(d)
-      ? f.days.filter((x) => x !== d)
-      : [...f.days, d];
-    onChange({ ...f, days: next });
+    const next = fields.days.includes(d)
+      ? fields.days.filter((x) => x !== d)
+      : [...fields.days, d];
+    onChange({ ...fields, days: next });
   };
   return (
     <div className="type-specific">
@@ -149,9 +211,12 @@ function RoutineFieldsEditor({ fields, onChange }: Props) {
         <label className="fl">Частота</label>
         <select
           className="fi"
-          value={f.frequency}
+          value={fields.frequency}
           onChange={(e) =>
-            onChange({ ...f, frequency: e.target.value as RoutineFrequency })
+            onChange({
+              ...fields,
+              frequency: e.target.value as RoutineFrequency,
+            })
           }
         >
           <option value="daily">Ежедневно</option>
@@ -166,7 +231,7 @@ function RoutineFieldsEditor({ fields, onChange }: Props) {
             <button
               key={d}
               type="button"
-              className={`chip${f.days.includes(d) ? " active" : ""}`}
+              className={`chip${fields.days.includes(d) ? " active" : ""}`}
               onClick={() => toggleDay(d)}
             >
               {DAYS_RU[d]}
@@ -181,10 +246,10 @@ function RoutineFieldsEditor({ fields, onChange }: Props) {
             type="number"
             className="fi"
             style={{ fontFamily: "var(--mono)" }}
-            value={f.default_duration}
+            value={fields.default_duration}
             onChange={(e) =>
               onChange({
-                ...f,
+                ...fields,
                 default_duration: Math.max(15, Number(e.target.value) || 30),
               })
             }
@@ -195,8 +260,10 @@ function RoutineFieldsEditor({ fields, onChange }: Props) {
           <input
             className="fi"
             style={{ fontFamily: "var(--mono)" }}
-            value={f.default_time}
-            onChange={(e) => onChange({ ...f, default_time: e.target.value })}
+            value={fields.default_time}
+            onChange={(e) =>
+              onChange({ ...fields, default_time: e.target.value })
+            }
           />
         </div>
       </div>
@@ -206,8 +273,13 @@ function RoutineFieldsEditor({ fields, onChange }: Props) {
 
 // ---- Event ----------------------------------------------------------
 
-function EventFieldsEditor({ fields, onChange }: Props) {
-  const f = fields as EventFields;
+function EventFieldsEditor({
+  fields,
+  onChange,
+}: {
+  fields: EventFields;
+  onChange: (f: EventFields) => void;
+}) {
   return (
     <div className="type-specific">
       <div className="f-row">
@@ -216,8 +288,8 @@ function EventFieldsEditor({ fields, onChange }: Props) {
           <input
             type="date"
             className="fi"
-            value={f.date}
-            onChange={(e) => onChange({ ...f, date: e.target.value })}
+            value={fields.date}
+            onChange={(e) => onChange({ ...fields, date: e.target.value })}
           />
         </div>
         <div className="fg">
@@ -225,8 +297,8 @@ function EventFieldsEditor({ fields, onChange }: Props) {
           <input
             className="fi"
             style={{ fontFamily: "var(--mono)" }}
-            value={f.time}
-            onChange={(e) => onChange({ ...f, time: e.target.value })}
+            value={fields.time}
+            onChange={(e) => onChange({ ...fields, time: e.target.value })}
           />
         </div>
         <div className="fg">
@@ -235,10 +307,10 @@ function EventFieldsEditor({ fields, onChange }: Props) {
             type="number"
             className="fi"
             style={{ fontFamily: "var(--mono)" }}
-            value={f.duration}
+            value={fields.duration}
             onChange={(e) =>
               onChange({
-                ...f,
+                ...fields,
                 duration: Math.max(15, Number(e.target.value) || 30),
               })
             }
@@ -249,8 +321,8 @@ function EventFieldsEditor({ fields, onChange }: Props) {
         <label className="fl">Место</label>
         <input
           className="fi"
-          value={f.location}
-          onChange={(e) => onChange({ ...f, location: e.target.value })}
+          value={fields.location}
+          onChange={(e) => onChange({ ...fields, location: e.target.value })}
         />
       </div>
       <div className="fg">
@@ -259,10 +331,10 @@ function EventFieldsEditor({ fields, onChange }: Props) {
           type="number"
           className="fi"
           style={{ fontFamily: "var(--mono)" }}
-          value={f.travel_time}
+          value={fields.travel_time}
           onChange={(e) =>
             onChange({
-              ...f,
+              ...fields,
               travel_time: Math.max(0, Number(e.target.value) || 0),
             })
           }
@@ -274,16 +346,21 @@ function EventFieldsEditor({ fields, onChange }: Props) {
 
 // ---- Contact --------------------------------------------------------
 
-function ContactFieldsEditor({ fields, onChange }: Props) {
-  const f = fields as ContactFields;
+function ContactFieldsEditor({
+  fields,
+  onChange,
+}: {
+  fields: ContactFields;
+  onChange: (f: ContactFields) => void;
+}) {
   return (
     <div className="type-specific">
       <div className="fg">
         <label className="fl">Имя</label>
         <input
           className="fi"
-          value={f.name}
-          onChange={(e) => onChange({ ...f, name: e.target.value })}
+          value={fields.name}
+          onChange={(e) => onChange({ ...fields, name: e.target.value })}
         />
       </div>
       <div className="f-row">
@@ -293,10 +370,10 @@ function ContactFieldsEditor({ fields, onChange }: Props) {
             type="number"
             className="fi"
             style={{ fontFamily: "var(--mono)" }}
-            value={f.desired_cadence_days ?? ""}
+            value={fields.desired_cadence_days ?? ""}
             onChange={(e) =>
               onChange({
-                ...f,
+                ...fields,
                 desired_cadence_days: e.target.value
                   ? Math.max(1, Number(e.target.value))
                   : null,
@@ -309,10 +386,10 @@ function ContactFieldsEditor({ fields, onChange }: Props) {
           <input
             type="date"
             className="fi"
-            value={f.last_contact ?? ""}
+            value={fields.last_contact ?? ""}
             onChange={(e) =>
               onChange({
-                ...f,
+                ...fields,
                 last_contact: e.target.value || null,
               })
             }
@@ -324,10 +401,10 @@ function ContactFieldsEditor({ fields, onChange }: Props) {
             type="number"
             className="fi"
             style={{ fontFamily: "var(--mono)" }}
-            value={f.travel_time}
+            value={fields.travel_time}
             onChange={(e) =>
               onChange({
-                ...f,
+                ...fields,
                 travel_time: Math.max(0, Number(e.target.value) || 0),
               })
             }
@@ -335,20 +412,22 @@ function ContactFieldsEditor({ fields, onChange }: Props) {
         </div>
       </div>
       <TopicsEditor
-        topics={f.topics}
-        onChange={(topics) => onChange({ ...f, topics })}
+        topics={fields.topics}
+        onChange={(topics) => onChange({ ...fields, topics })}
       />
       <ImportantDatesEditor
-        dates={f.important_dates}
-        onChange={(important_dates) => onChange({ ...f, important_dates })}
+        dates={fields.important_dates}
+        onChange={(important_dates) =>
+          onChange({ ...fields, important_dates })
+        }
       />
       <div className="fg">
         <label className="fl">Заметки</label>
         <textarea
           className="fi"
           rows={3}
-          value={f.notes}
-          onChange={(e) => onChange({ ...f, notes: e.target.value })}
+          value={fields.notes}
+          onChange={(e) => onChange({ ...fields, notes: e.target.value })}
         />
       </div>
     </div>
@@ -357,14 +436,21 @@ function ContactFieldsEditor({ fields, onChange }: Props) {
 
 // ---- Goal -----------------------------------------------------------
 
-function GoalFieldsEditor({ fields, onChange, entities }: Props) {
-  const f = fields as GoalFields;
+function GoalFieldsEditor({
+  fields,
+  onChange,
+  entities,
+}: {
+  fields: GoalFields;
+  onChange: (f: GoalFields) => void;
+  entities: readonly Entity[];
+}) {
   const metrics = entities.filter((e) => e.type === "metric");
   const toggleMetric = (id: string) => {
-    const next = f.linked_metric_ids.includes(id)
-      ? f.linked_metric_ids.filter((x) => x !== id)
-      : [...f.linked_metric_ids, id];
-    onChange({ ...f, linked_metric_ids: next });
+    const next = fields.linked_metric_ids.includes(id)
+      ? fields.linked_metric_ids.filter((x) => x !== id)
+      : [...fields.linked_metric_ids, id];
+    onChange({ ...fields, linked_metric_ids: next });
   };
   return (
     <div className="type-specific">
@@ -373,17 +459,17 @@ function GoalFieldsEditor({ fields, onChange, entities }: Props) {
           <label className="fl">Цель (значение)</label>
           <input
             className="fi"
-            value={f.target}
-            onChange={(e) => onChange({ ...f, target: e.target.value })}
+            value={fields.target}
+            onChange={(e) => onChange({ ...fields, target: e.target.value })}
           />
         </div>
         <div className="fg">
           <label className="fl">Текущее</label>
           <input
             className="fi"
-            value={f.current_value}
+            value={fields.current_value}
             onChange={(e) =>
-              onChange({ ...f, current_value: e.target.value })
+              onChange({ ...fields, current_value: e.target.value })
             }
           />
         </div>
@@ -392,9 +478,9 @@ function GoalFieldsEditor({ fields, onChange, entities }: Props) {
           <input
             type="date"
             className="fi"
-            value={f.target_date ?? ""}
+            value={fields.target_date ?? ""}
             onChange={(e) =>
-              onChange({ ...f, target_date: e.target.value || null })
+              onChange({ ...fields, target_date: e.target.value || null })
             }
           />
         </div>
@@ -411,7 +497,9 @@ function GoalFieldsEditor({ fields, onChange, entities }: Props) {
               <button
                 key={m.id}
                 type="button"
-                className={`chip${f.linked_metric_ids.includes(m.id) ? " active" : ""}`}
+                className={`chip${
+                  fields.linked_metric_ids.includes(m.id) ? " active" : ""
+                }`}
                 onClick={() => toggleMetric(m.id)}
               >
                 {m.title}
@@ -426,8 +514,15 @@ function GoalFieldsEditor({ fields, onChange, entities }: Props) {
 
 // ---- Metric ---------------------------------------------------------
 
-function MetricFieldsEditor({ fields, onChange, entities }: Props) {
-  const f = fields as MetricFields;
+function MetricFieldsEditor({
+  fields,
+  onChange,
+  entities,
+}: {
+  fields: MetricFields;
+  onChange: (f: MetricFields) => void;
+  entities: readonly Entity[];
+}) {
   const goals = entities.filter((e) => e.type === "goal");
   return (
     <div className="type-specific">
@@ -436,8 +531,8 @@ function MetricFieldsEditor({ fields, onChange, entities }: Props) {
           <label className="fl">Единица</label>
           <input
             className="fi"
-            value={f.unit}
-            onChange={(e) => onChange({ ...f, unit: e.target.value })}
+            value={fields.unit}
+            onChange={(e) => onChange({ ...fields, unit: e.target.value })}
           />
         </div>
         <div className="fg">
@@ -446,10 +541,10 @@ function MetricFieldsEditor({ fields, onChange, entities }: Props) {
             type="number"
             className="fi"
             style={{ fontFamily: "var(--mono)" }}
-            value={f.current_value}
+            value={fields.current_value}
             onChange={(e) =>
               onChange({
-                ...f,
+                ...fields,
                 current_value: Number(e.target.value) || 0,
               })
             }
@@ -459,9 +554,9 @@ function MetricFieldsEditor({ fields, onChange, entities }: Props) {
           <label className="fl">Связанная цель</label>
           <select
             className="fi"
-            value={f.linked_goal_id ?? ""}
+            value={fields.linked_goal_id ?? ""}
             onChange={(e) =>
-              onChange({ ...f, linked_goal_id: e.target.value || null })
+              onChange({ ...fields, linked_goal_id: e.target.value || null })
             }
           >
             <option value="">— нет —</option>
@@ -474,8 +569,8 @@ function MetricFieldsEditor({ fields, onChange, entities }: Props) {
         </div>
       </div>
       <HistoryEditor
-        history={f.history}
-        onChange={(history) => onChange({ ...f, history })}
+        history={fields.history}
+        onChange={(history) => onChange({ ...fields, history })}
       />
     </div>
   );
@@ -483,8 +578,13 @@ function MetricFieldsEditor({ fields, onChange, entities }: Props) {
 
 // ---- Note -----------------------------------------------------------
 
-function NoteFieldsEditor({ fields, onChange }: Props) {
-  const f = fields as NoteFields;
+function NoteFieldsEditor({
+  fields,
+  onChange,
+}: {
+  fields: NoteFields;
+  onChange: (f: NoteFields) => void;
+}) {
   return (
     <div className="type-specific">
       <div className="fg">
@@ -493,9 +593,11 @@ function NoteFieldsEditor({ fields, onChange }: Props) {
           className="fi"
           rows={12}
           style={{ fontFamily: "var(--mono)", minHeight: 240 }}
-          value={f.body}
-          onChange={(e) => onChange({ ...f, body: e.target.value })}
-          placeholder={"# Заголовок\n## Подзаголовок\n- пункт\n- [ ] невыполненная задача\n- [x] выполненная\n**жирный** _курсив_\n---"}
+          value={fields.body}
+          onChange={(e) => onChange({ ...fields, body: e.target.value })}
+          placeholder={
+            "# Заголовок\n## Подзаголовок\n- пункт\n- [ ] невыполненная задача\n- [x] выполненная\n**жирный** _курсив_\n---"
+          }
         />
       </div>
     </div>

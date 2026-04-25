@@ -39,11 +39,13 @@ function App() {
     void (async () => {
       try {
         await ensureDataDir();
-        // Config must load before entities: entities.loadEntities warns
-        // on unknown tags by looking at config.areas.
+        // Config must load first so entities can warn on unknown tags
+        // — areas are passed in explicitly to keep the entity store
+        // free of cross-store imports.
         await useConfigStore.getState().loadConfig();
+        const areas = useConfigStore.getState().config?.areas;
         await Promise.all([
-          useEntityStore.getState().loadEntities(),
+          useEntityStore.getState().loadEntities(areas),
           // First boot: create empty week file silently if none exists,
           // otherwise a dialog would pop before the UI even paints.
           useScheduleStore

@@ -7,13 +7,15 @@ interface Props {
 
 export function ImportantDatesEditor({ dates, onChange }: Props) {
   const add = () =>
-    onChange([...dates, { label: "", date: "01-01" }]);
+    onChange([...dates, { label: "", date: "01-01", icon: "📅" }]);
   const remove = (i: number) =>
     onChange(dates.filter((_, idx) => idx !== i));
   const editLabel = (i: number, label: string) =>
     onChange(dates.map((d, idx) => (idx === i ? { ...d, label } : d)));
   const editDate = (i: number, date: string) =>
     onChange(dates.map((d, idx) => (idx === i ? { ...d, date } : d)));
+  const editIcon = (i: number, icon: string) =>
+    onChange(dates.map((d, idx) => (idx === i ? { ...d, icon } : d)));
 
   return (
     <div className="fg">
@@ -21,6 +23,13 @@ export function ImportantDatesEditor({ dates, onChange }: Props) {
       <div className="editor-list">
         {dates.map((d, i) => (
           <div key={i} className="editor-row">
+            <input
+              className="fi"
+              style={{ width: 44, textAlign: "center" }}
+              placeholder="📅"
+              value={d.icon}
+              onChange={(e) => editIcon(i, e.target.value)}
+            />
             <input
               className="fi"
               placeholder="Название"

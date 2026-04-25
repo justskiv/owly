@@ -31,24 +31,36 @@ export function ContactDetail({ entity }: { entity: ContactEntity }) {
   const firstTag = entity.tags[0];
   const itemBg = firstTag ? `${getAreaColor(firstTag, areas)}1a` : undefined;
 
+  // Both handlers re-read the entity from the store at call time —
+  // closures over `entity` would lose intermediate edits if the user
+  // clicks two checkboxes in quick succession (each handler would
+  // build `next` from the same stale snapshot).
   const toggleTopic = (idx: number) => {
-    const next = entity.fields.topics.map((t, i) =>
+    const fresh = useEntityStore
+      .getState()
+      .entities.find((e) => e.id === entity.id);
+    if (!fresh || fresh.type !== "contact") return;
+    const next = fresh.fields.topics.map((t, i) =>
       i === idx ? { ...t, done: !t.done } : t,
     );
     useEntityStore
       .getState()
       .updateEntity(entity.id, {
-        fields: { ...entity.fields, topics: next },
+        fields: { ...fresh.fields, topics: next },
       } as Partial<ContactEntity>)
       .catch((e) => toast.error(`Не удалось: ${(e as Error).message}`));
   };
 
   const removeTopic = (idx: number) => {
-    const next = entity.fields.topics.filter((_, i) => i !== idx);
+    const fresh = useEntityStore
+      .getState()
+      .entities.find((e) => e.id === entity.id);
+    if (!fresh || fresh.type !== "contact") return;
+    const next = fresh.fields.topics.filter((_, i) => i !== idx);
     useEntityStore
       .getState()
       .updateEntity(entity.id, {
-        fields: { ...entity.fields, topics: next },
+        fields: { ...fresh.fields, topics: next },
       } as Partial<ContactEntity>)
       .then(() => toast.success("✕ Тема убрана"))
       .catch((e) => toast.error(`Не удалось: ${(e as Error).message}`));
@@ -133,7 +145,7 @@ export function ContactDetail({ entity }: { entity: ContactEntity }) {
           <div className="edp-sec-title">Важные даты</div>
           {entity.fields.important_dates.map((d, i) => (
             <div key={i} className="ct-date-item">
-              <span className="ct-date-icon">📅</span>
+              <span className="ct-date-icon">{d.icon || "📅"}</span>
               <span className="ct-date-label">{d.label}</span>
               <span className="ct-date-val">{d.date}</span>
             </div>

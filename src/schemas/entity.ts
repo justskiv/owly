@@ -75,6 +75,10 @@ export type EventFields = z.infer<typeof EventFieldsSchema>;
 export const ImportantDateSchema = z.object({
   label: z.string(),
   date: monthDay(),
+  // Per-row emoji (🎂 / 💐 / 🤝 / etc.) so important-date rows can
+  // visually differ in ContactDetail. Defaults to 📅 so older files
+  // migrate without losing data.
+  icon: z.string().default("📅"),
 });
 export type ImportantDate = z.infer<typeof ImportantDateSchema>;
 
