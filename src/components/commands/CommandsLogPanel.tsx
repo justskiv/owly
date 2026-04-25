@@ -24,6 +24,7 @@ export function CommandsLogPanel() {
   const clearAllFailed = useCommandStore((s) => s.clearAllFailed);
 
   const dialogRef = useRef<HTMLDivElement>(null);
+  const activeTabRef = useRef<HTMLButtonElement>(null);
   useFocusTrap(dialogRef, true);
   useRestoreFocus(true);
   useEscape(close);
@@ -35,6 +36,13 @@ export function CommandsLogPanel() {
     void loadDone();
     void loadFailed();
   }, [loadDone, loadFailed]);
+
+  // Focus-trap keeps focus inside once it's there, but at mount
+  // focus is still on whatever opened the panel. Pull focus to the
+  // active tab so keyboard users land on a sensible control.
+  useEffect(() => {
+    activeTabRef.current?.focus();
+  }, []);
 
   const showingDone = tab === "done";
 
@@ -64,6 +72,7 @@ export function CommandsLogPanel() {
 
         <div className="cmd-log-tabs" role="tablist">
           <button
+            ref={showingDone ? activeTabRef : undefined}
             type="button"
             role="tab"
             aria-selected={showingDone}
@@ -74,6 +83,7 @@ export function CommandsLogPanel() {
             {doneTruncated && "+"}
           </button>
           <button
+            ref={!showingDone ? activeTabRef : undefined}
             type="button"
             role="tab"
             aria-selected={!showingDone}
@@ -89,7 +99,7 @@ export function CommandsLogPanel() {
             done.length === 0 ? (
               <div className="cmd-log-empty">
                 Лог пуст. Команды появятся здесь после выполнения —
-                файлы из <code>commands/done/</code>.
+                файлы из <code>data/commands/done/</code>.
               </div>
             ) : (
               <>
@@ -105,14 +115,14 @@ export function CommandsLogPanel() {
                 {doneTruncated && (
                   <div className="cmd-log-trunc">
                     Показаны последние {done.length} — старее
-                    смотри в <code>commands/done/</code>.
+                    смотри в <code>data/commands/done/</code>.
                   </div>
                 )}
               </>
             )
           ) : failed.length === 0 ? (
             <div className="cmd-log-empty">
-              Нет ошибок. Файлы из <code>commands/failed/</code>{" "}
+              Нет ошибок. Файлы из <code>data/commands/failed/</code>{" "}
               появятся здесь автоматически.
             </div>
           ) : (

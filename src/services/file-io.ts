@@ -24,8 +24,7 @@ export async function getDataPath(...segments: string[]): Promise<string> {
 
 export async function getCommandsPath(...segments: string[]): Promise<string> {
   const base = await getDataDir();
-  const root = base.replace(/\/data\/?$/, "");
-  return normalizeJoin([root, "commands", ...segments]);
+  return normalizeJoin([base, "commands", ...segments]);
 }
 
 export async function fileExists(path: string): Promise<boolean> {
@@ -167,13 +166,12 @@ export async function readJsonFileOrCreate<T>(
 
 export async function ensureDataDir(): Promise<string> {
   const base = await getDataDir();
-  const root = base.replace(/\/data\/?$/, "");
   await ensureDir(base);
   await ensureDir(normalizeJoin([base, "schedule"]));
   await ensureDir(normalizeJoin([base, "templates"]));
   await ensureDir(normalizeJoin([base, "dashboards"]));
-  await ensureDir(normalizeJoin([root, "commands", "pending"]));
-  await ensureDir(normalizeJoin([root, "commands", "done"]));
-  await ensureDir(normalizeJoin([root, "commands", "failed"]));
+  await ensureDir(normalizeJoin([base, "commands", "pending"]));
+  await ensureDir(normalizeJoin([base, "commands", "done"]));
+  await ensureDir(normalizeJoin([base, "commands", "failed"]));
   return base;
 }

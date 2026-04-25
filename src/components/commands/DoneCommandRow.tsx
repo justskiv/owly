@@ -36,7 +36,7 @@ export function DoneCommandRow({ record, onDismiss }: Props) {
         type="button"
         className="done-dismiss"
         aria-label="Удалить из лога"
-        title="Удалить файл из commands/done/"
+        title="Удалить файл из data/commands/done/"
         onClick={wrap(onDismiss)}
         disabled={busy}
       >

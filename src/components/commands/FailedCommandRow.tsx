@@ -31,6 +31,16 @@ export function FailedCommandRow({ record, onRetry, onDismiss }: Props) {
       }+, упал #${f.partial.failed_at_index}`
     : "";
 
+  // Replaying a partial batch would re-execute the sub-commands
+  // that already succeeded → duplicate blocks/entities. Block
+  // retry; the user can craft a manual command for the remaining
+  // sub-commands if they need to recover.
+  const retryBlocked = f.partial !== undefined;
+  const retryTitle = retryBlocked
+    ? "Retry заблокирован: batch применён частично, " +
+      "повтор продублирует уже выполненные подкоманды"
+    : "Вернуть в pending/ для повторной попытки";
+
   return (
     <div className="fail-row">
       <div className="fail-row-head">
@@ -60,7 +70,8 @@ export function FailedCommandRow({ record, onRetry, onDismiss }: Props) {
           type="button"
           className="btn-save"
           onClick={wrap(onRetry)}
-          disabled={busy}
+          disabled={busy || retryBlocked}
+          title={retryTitle}
         >
           ↻ Retry
         </button>

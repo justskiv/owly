@@ -47,10 +47,14 @@ pub fn run() {
 
             // Make sure the directories the watcher subscribes to
             // exist before notify::watch (it errors on missing paths).
-            let pending_dir = root.join("commands").join("pending");
-            let done_dir = root.join("commands").join("done");
-            let failed_dir = root.join("commands").join("failed");
-            let dashboards_dir = root.join("data").join("dashboards");
+            // commands/ lives inside data/ so the whole user state
+            // is one folder (single backup, single app data dir on
+            // macOS release).
+            let data_dir = root.join("data");
+            let pending_dir = data_dir.join("commands").join("pending");
+            let done_dir = data_dir.join("commands").join("done");
+            let failed_dir = data_dir.join("commands").join("failed");
+            let dashboards_dir = data_dir.join("dashboards");
             watcher::ensure_dirs(&[
                 &pending_dir,
                 &done_dir,

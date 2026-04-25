@@ -96,14 +96,10 @@ export const CreateWeekCommandSchema = z.object({
   }),
 });
 
-export const ApplyTemplateCommandSchema = z.object({
-  ...baseCommandShape,
-  action: z.literal("apply_template"),
-  data: z.object({
-    week: weekId(),
-    template_name: z.string(),
-  }),
-});
+// `apply_template` (against an existing week) is not implemented yet.
+// We deliberately omit it from the schema so the validation layer
+// rejects it cleanly with a "Schema rejected" message — clearer
+// than letting the executor accept-then-throw.
 
 const SingleCommandSchema = z.discriminatedUnion("action", [
   CreateBlockCommandSchema,
@@ -116,7 +112,6 @@ const SingleCommandSchema = z.discriminatedUnion("action", [
   UpdateEntityCommandSchema,
   DeleteEntityCommandSchema,
   CreateWeekCommandSchema,
-  ApplyTemplateCommandSchema,
 ]);
 
 export const BatchCommandSchema = z.object({
@@ -138,7 +133,6 @@ export const CommandSchema = z.discriminatedUnion("action", [
   UpdateEntityCommandSchema,
   DeleteEntityCommandSchema,
   CreateWeekCommandSchema,
-  ApplyTemplateCommandSchema,
   BatchCommandSchema,
 ]);
 export type Command = z.infer<typeof CommandSchema>;

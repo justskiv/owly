@@ -13,11 +13,8 @@ dist
 dist-ssr
 *.local
 
-# User data and command queue
+# User data + command queue (commands/ lives inside data/)
 data/
-commands/pending/
-commands/done/
-commands/failed/
 
 # Editor directories and files
 .vscode/*

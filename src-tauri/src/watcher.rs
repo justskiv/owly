@@ -41,9 +41,10 @@ pub fn start_watchers(
                 }
             };
 
-            // Treat Create + Modify(Name(To/Any)) as new-file signals.
-            // macOS FSEvents reports atomic temp-rename writes as
-            // Modify(Name(To)); Linux inotify uses Create. Either way
+            // Treat Create + Modify(Name(To/Any/Both)) as new-file
+            // signals. macOS FSEvents reports atomic temp-rename
+            // writes as Modify(Name(To)); Linux inotify uses Create
+            // or RenameMode::Both (paired old/new paths). Either way
             // means "the destination exists and is final".
             let is_create = matches!(
                 event.kind,
@@ -51,6 +52,7 @@ pub fn start_watchers(
                     | EventKind::Create(CreateKind::Any)
                     | EventKind::Modify(ModifyKind::Name(RenameMode::To))
                     | EventKind::Modify(ModifyKind::Name(RenameMode::Any))
+                    | EventKind::Modify(ModifyKind::Name(RenameMode::Both))
             );
             let is_modify = matches!(
                 event.kind,
@@ -87,10 +89,20 @@ pub fn start_watchers(
         })?;
 
     watcher.watch(&pending_dir, RecursiveMode::NonRecursive)?;
-    watcher.watch(&dashboards_dir, RecursiveMode::NonRecursive)?;
+    // Recursive for dashboards so users can organize .jsx files into
+    // subfolders (data/dashboards/work/foo.jsx) without losing hot
+    // reload. The JS-side filter is the same — basename inspection.
+    watcher.watch(&dashboards_dir, RecursiveMode::Recursive)?;
 
     let state = app.state::<WatcherState>();
-    *state.0.lock().expect("WatcherState poisoned") = Some(watcher);
+    // Poison can only happen if a previous holder of this Mutex
+    // panicked while holding it; today there is no such holder. Even
+    // so, refuse to panic from inside Tauri::setup — log and return
+    // cleanly so the UI still boots.
+    match state.0.lock() {
+        Ok(mut guard) => *guard = Some(watcher),
+        Err(e) => eprintln!("[watcher] WatcherState mutex poisoned: {e}"),
+    }
     Ok(())
 }
 

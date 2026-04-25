@@ -3,9 +3,9 @@
 Документ описывает file-based API мутаций данных приложения.
 Любой внешний клиент (скрипт, AI-агент, ручная правка) может
 читать `data/` напрямую, а **писать — только** через очередь
-команд `commands/pending/`. Приложение через file-watcher
+команд `data/commands/pending/`. Приложение через file-watcher
 подхватывает новые `.json`, валидирует через Zod, исполняет
-и перемещает в `commands/done/` либо `commands/failed/`.
+и перемещает в `data/commands/done/` либо `data/commands/failed/`.
 
 ---
 
@@ -17,14 +17,18 @@ data/
 ├── schedule/2026-wNN.json        — расписание недели (ISO week)
 ├── config.json                   — конфиг + scheduling_preferences
 ├── templates/default.json        — шаблон рутин
-└── dashboards/
-    ├── _registry.json
-    └── *.jsx
-commands/
-├── pending/                      — входящие команды
-├── done/                         — выполненные
-└── failed/                       — с ошибками
+├── dashboards/
+│   ├── _registry.json
+│   └── *.jsx
+└── commands/
+    ├── pending/                  — входящие команды
+    ├── done/                     — выполненные
+    └── failed/                   — с ошибками
 ```
+
+Корень `data/`:
+- В dev — `<project root>/data/`.
+- В release (macOS) — `~/Library/Application Support/com.tuzov.os/data/`.
 
 Источник правды по схемам: `src/schemas/*.ts` (Zod).
 
@@ -52,7 +56,7 @@ commands/
 ### Имя файла
 
 ```
-commands/pending/<sortable-timestamp>-<action>.json
+data/commands/pending/<sortable-timestamp>-<action>.json
 ```
 
 Соглашение: `<unix-timestamp>-<action-slug>` или
@@ -60,12 +64,12 @@ commands/pending/<sortable-timestamp>-<action>.json
 не валидируется — но порядок выполнения (особенно при boot-drain)
 определяется лексикографической сортировкой имени.
 
-Пример: `commands/pending/1713012345-create-block.json`.
+Пример: `data/commands/pending/1713012345-create-block.json`.
 
 ### Атомарная запись
 
 Файл нужно создавать через **temp + rename**:
-1. Создать sibling-файл `<имя>.tmp.<unique>` в `commands/pending/`.
+1. Создать sibling-файл `<имя>.tmp.<unique>` в `data/commands/pending/`.
 2. fsync содержимое.
 3. rename на финальное имя `<имя>.json`.
 
@@ -135,21 +139,22 @@ client: pending/cmd-X.json
 `created_at`, `updated_at`. Префикс id — `ent-`. Timestamps
 формата `YYYY-MM-DDTHH:MM:SS`.
 
-`update_entity` — патч валидируется после применения через
-`EntitySchema.parse(merged)`. Если type-discriminator (`type`)
-меняется — поведение неопределено, не делать так. Менять только
-поля внутри одного типа.
+`update_entity` — поля `id`, `type`, `created_at`, `updated_at`
+в patch'е игнорируются (executor стрипает их перед merge — иначе
+careless patch мог бы сменить тип сущности или переписать id).
+Итоговая форма после merge валидируется через
+`EntitySchema.parse(merged)`.
 
 ### Неделя
 
 | action | data |
 | --- | --- |
 | `create_week` | `{ week: "2026-wNN", apply_template: "default"\|null }` |
-| `apply_template` | _(не реализован в MVP — использовать `create_week`)_ |
 
 `create_week` упадёт, если файл недели уже существует. Применение
-шаблона к существующей неделе через `apply_template` пока не
-поддержано.
+шаблона к **существующей** неделе через отдельный `apply_template`
+action пока не поддержано — такая команда не входит в схему и
+уйдёт в `failed/` с «Schema rejected».
 
 ### Пакетные
 
@@ -376,7 +381,7 @@ UUID v4 — 36 символов, тире-разделённый (стандар
   допустит.
 - ❌ Полагаться на возвращаемое значение — команды
   fire-and-forget; для верификации читать `data/` или
-  `commands/done/`.
+  `data/commands/done/`.
 - ❌ `create_block` для несуществующей недели — сначала
   `create_week`. Без этого блок упадёт в `failed/` с
   `Week ... does not exist`.
@@ -385,10 +390,10 @@ UUID v4 — 36 символов, тире-разделённый (стандар
 
 ## 10. Отладка
 
-- **Успех:** файл уехал в `commands/done/`, в UI:
+- **Успех:** файл уехал в `data/commands/done/`, в UI:
   - toast «✓ <action>»
   - счётчик `📥 N выполнено` в status bar.
-- **Ошибка:** файл уехал в `commands/failed/<имя>.json` с
+- **Ошибка:** файл уехал в `data/commands/failed/<имя>.json` с
   полями:
   - `error: string` — человекочитаемое описание;
   - `failed_at: ISO datetime`;
@@ -397,7 +402,10 @@ UUID v4 — 36 символов, тире-разделённый (стандар
     панель с retry/dismiss).
 - **Retry:** через UI (кнопка в панели ошибок) или вручную —
   переименование файла из `failed/` в `pending/`. Watcher
-  подхватит.
+  подхватит. **Исключение:** для batch с `partial.succeeded > 0`
+  кнопка retry заблокирована — повтор продублирует уже применённые
+  подкоманды. Восстановление — отдельный batch с оставшимися
+  sub-командами.
 - **Логи Rust-watcher:** stderr процесса (`npm run tauri dev`).
 
 ---
@@ -415,7 +423,10 @@ UUID v4 — 36 символов, тире-разделённый (стандар
 - `apply_template` (для существующей недели) — не реализован;
   использовать `create_week` с `apply_template`.
 - `move_block` между неделями: целевая неделя должна существовать
-  (или быть создана отдельной командой раньше).
+  (или быть создана отдельной командой раньше). Запись идёт
+  destination → source: при отказе destination source не тронут;
+  при отказе source-cleanup блок временно дублируется в обеих
+  неделях (восстановимо `delete_block`).
 - Поиск блока по `block_id` сканирует все `data/schedule/*.json`.
   Для типичной истории (несколько десятков недель) это <50 мс,
   но при гигантской истории команда может медлить — батчи

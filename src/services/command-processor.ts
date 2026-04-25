@@ -23,9 +23,14 @@ const ACTION_RU: Record<string, string> = {
   update_entity: "Сущность обновлена",
   delete_entity: "Сущность удалена",
   create_week: "Неделя создана",
-  apply_template: "Шаблон применён",
   batch: "Команды применены",
 };
+
+// Wait this many ms before retrying a JSON.parse failure. Covers
+// the case where a non-atomic client write was caught mid-flush.
+const PARSE_RETRY_MS = 80;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 let started = false;
 const inflight = new Set<string>();
@@ -80,9 +85,15 @@ function shouldSkip(name: string): boolean {
 function enqueue(path: string): void {
   if (inflight.has(path)) return;
   inflight.add(path);
+  // Catch ANY uncaught throw from processOne so the chain never
+  // settles in a rejected state. Without this guard, one stray
+  // exception (a finally-throw, a runtime invariant break) would
+  // wedge every future command attached to the chain.
   chain = chain.then(async () => {
     try {
       await processOne(path);
+    } catch (e) {
+      console.error("[commands] uncaught in processOne:", e);
     } finally {
       inflight.delete(path);
     }
@@ -94,12 +105,24 @@ async function processOne(path: string): Promise<void> {
   // can land after the file was moved by the first run — silent skip.
   if (!(await fileExists(path))) return;
 
+  // Read + parse with one retry. A non-atomic client write can
+  // surface as truncated JSON if the watcher fires between flush
+  // bytes; a short wait usually catches the rest.
   let raw: unknown = null;
-  try {
-    const text = await invoke<string>("read_file", { path });
-    raw = JSON.parse(text);
-  } catch (e) {
-    await fail(path, raw, `Read/parse failed: ${(e as Error).message}`);
+  let parseError: string | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const text = await invoke<string>("read_file", { path });
+      raw = JSON.parse(text);
+      parseError = null;
+      break;
+    } catch (e) {
+      parseError = (e as Error).message;
+      if (attempt === 0) await sleep(PARSE_RETRY_MS);
+    }
+  }
+  if (parseError !== null) {
+    await fail(path, raw, `Read/parse failed: ${parseError}`);
     return;
   }
 
@@ -136,9 +159,25 @@ async function markDone(path: string): Promise<string | null> {
     // moveFile auto-creates the parent if missing.
     await invoke("move_file", { from: path, to: dest });
     return dest;
-  } catch {
-    // Move can lose a race against a duplicate event that already
-    // moved the file — both cases mean the source is gone.
+  } catch (moveErr) {
+    // Move failed but the command already executed. If the source
+    // file is still there, the next watcher event or boot drain
+    // would re-execute it → duplicate effect. Force-delete the
+    // source as a fallback; if that also fails, surface to the
+    // user so they can clean up by hand.
+    try {
+      if (await fileExists(path)) {
+        await invoke("delete_file", { path });
+      }
+    } catch (delErr) {
+      console.error("[commands] markDone fallback delete failed:", delErr);
+      toast.error(
+        `Команда выполнена, но не удалось убрать ${name} из pending — ` +
+          `удалите вручную, иначе при перезапуске запустится снова.`,
+      );
+      return null;
+    }
+    console.warn("[commands] markDone moved-failed; deleted source:", moveErr);
     return null;
   }
 }

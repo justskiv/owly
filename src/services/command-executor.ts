@@ -1,6 +1,10 @@
 import type { Block, Command, Entity } from "../schemas";
 import { EntitySchema } from "../schemas";
-import { applyToWeek, findWeekContainingBlock } from "../store/schedule";
+import {
+  applyToWeek,
+  findBlockById,
+  findWeekContainingBlock,
+} from "../store/schedule";
 import { useEntityStore } from "../store/entities";
 import {
   createEmptyWeek,
@@ -77,23 +81,27 @@ export async function executeCommand(cmd: Command): Promise<void> {
         );
         return;
       }
-      // Cross-week: pull from source, then push to destination.
-      let moved: Block | null = null;
-      await applyToWeek(fromWeek, (bs) => {
-        const next: Block[] = [];
-        for (const b of bs) {
-          if (b.id === block_id) moved = b;
-          else next.push(b);
-        }
-        return next;
-      });
-      if (!moved) throw new Error(`Block ${block_id} vanished mid-move`);
-      const movedBlock: Block = {
-        ...(moved as Block),
-        date: new_date,
-        start: new_start,
-      };
+      // Cross-week: write destination FIRST, then remove from source.
+      // If dest write fails → source untouched (no data loss). If
+      // source-removal fails → block exists in both weeks (recoverable
+      // via update_block / delete_block). Either way is better than
+      // the reverse order, where dest-failure permanently lost a
+      // block that source already deleted.
+      const cur = await findBlockById(fromWeek, block_id);
+      if (!cur) throw new Error(`Block ${block_id} vanished mid-move`);
+      const movedBlock: Block = { ...cur, date: new_date, start: new_start };
       await applyToWeek(toWeek, (bs) => [...bs, movedBlock]);
+      try {
+        await applyToWeek(fromWeek, (bs) =>
+          bs.filter((b) => b.id !== block_id),
+        );
+      } catch (e) {
+        throw new Error(
+          `move_block: destination written but source cleanup failed — ` +
+            `block ${block_id} now duplicated in ${fromWeek} and ${toWeek}: ` +
+            `${(e as Error).message}`,
+        );
+      }
       return;
     }
 
@@ -139,7 +147,21 @@ export async function executeCommand(cmd: Command): Promise<void> {
 
     case "update_entity": {
       const data = cmd.data as Record<string, unknown> & { entity_id: string };
-      const { entity_id, ...patch } = data;
+      // Strip identity fields from the patch so a careless agent
+      // can't morph a task into a contact, rewrite history, or
+      // overwrite the canonical id. updated_at is always set fresh.
+      const {
+        entity_id,
+        id: _ignoreId,
+        type: _ignoreType,
+        created_at: _ignoreCreated,
+        updated_at: _ignoreUpdated,
+        ...patch
+      } = data;
+      void _ignoreId;
+      void _ignoreType;
+      void _ignoreCreated;
+      void _ignoreUpdated;
       const cur = useEntityStore
         .getState()
         .entities.find((e: Entity) => e.id === entity_id);
@@ -176,16 +198,6 @@ export async function executeCommand(cmd: Command): Promise<void> {
         await createEmptyWeek(week);
       }
       return;
-    }
-
-    case "apply_template": {
-      // Deferred. create_week with apply_template covers the common
-      // case (start a week from a template); applying a template
-      // onto an existing populated week needs a merge strategy
-      // that we haven't decided on yet.
-      throw new Error(
-        "apply_template not implemented; use create_week with apply_template",
-      );
     }
 
     case "batch": {

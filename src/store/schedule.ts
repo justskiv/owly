@@ -281,22 +281,18 @@ export async function applyToWeek(
   );
 }
 
-// Scan the cache for the week containing a given block id. Falls
-// back to the active week's in-memory blocks for the hot path.
-// Does NOT scan the disk — the week-cache is populated by every
-// loadWeek + getCachedWeek call, so well-trodden weeks are covered.
-// Agents targeting cold weeks should resolve the date themselves
-// and use create/move semantics that don't need this lookup.
+// Find which week a given block belongs to. Hot path: check the
+// active week's in-memory blocks. Cold path: walk all schedule files
+// on disk (via week-cache, which fronts disk reads). With a typical
+// single-user history (dozens of weeks) the scan completes in a
+// handful of milliseconds — acceptable for a fallback that runs at
+// most once per agent command.
 export async function findWeekContainingBlock(
   blockId: string,
 ): Promise<string | null> {
   const cur = useScheduleStore.getState();
   if (cur.blocks.some((b) => b.id === blockId)) return cur.currentWeek;
 
-  // Walk all schedule files on disk. With single-user data this is
-  // a few dozen files at most; the cost is acceptable for a fallback
-  // path that runs once per agent command. Using listFiles directly
-  // (not the cache) so freshly-written weeks are visible too.
   const dir = await getDataPath("schedule");
   let names: string[] = [];
   try {
@@ -311,4 +307,19 @@ export async function findWeekContainingBlock(
     if (file && file.blocks.some((b) => b.id === blockId)) return weekId;
   }
   return null;
+}
+
+// Look up a single block on a known week. Used by cross-week
+// move_block to capture the source row before mutation, so the
+// destination can receive an exact copy.
+export async function findBlockById(
+  weekId: string,
+  blockId: string,
+): Promise<Block | null> {
+  const store = useScheduleStore.getState();
+  if (weekId === store.currentWeek) {
+    return store.blocks.find((b) => b.id === blockId) ?? null;
+  }
+  const file = await getCachedWeek(weekId);
+  return file?.blocks.find((b) => b.id === blockId) ?? null;
 }
