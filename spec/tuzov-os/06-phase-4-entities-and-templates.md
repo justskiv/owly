@@ -554,40 +554,95 @@ export function listWeeks(): Promise<string[]>;
 После этих двух правок — обновить CODESTYLE п.1 (валидация на
 границе) кейсом «теги/категории по `config.areas`».
 
+## Статус реализации
+
+**Сделано** (`bc5a932` — entities master-detail, settings, week
+lifecycle; `32e8b93` — ai-review fixes; `63ff6da` — week-cache
+layer + reactive routine stats; `b65616d` — schema-level date
+validation, stale-closure fixes, TypeSpecificFields narrowing,
+cross-store cleanup).
+
+После реализации провели внешний AI-review (Gemini + Codex + Claude
+субагенты в 4 наборов, 12 независимых проверок). Из критических
+данных-целостности находок применены: validate-on-write через Zod в
+persistEntities/persistConfig/persistWeek, preserve-bytes на
+recovery в `readJsonFileOrCreate`, рандомное tmp-имя в Rust для
+устранения tmp-collision при concurrent writes, set-before-await в
+store-mutations, валидация дат/времени на schema-уровне.
+
 ## Критерии готовности
 
-- [ ] Layout Entities: 3 колонки 180/380/flex, фиксированные
+- [x] Layout Entities: 3 колонки 180/380/flex, фиксированные
   ширины + max-width 480 на detail
-- [ ] Фильтры: 8 вкладок по типу (без «События»), 5 областей с
+- [x] Фильтры: 8 вкладок по типу (без «События»), 5 областей с
   точками, 3 статуса; активная опция — золотой фон; счётчики
   корректные
-- [ ] Поиск по title работает
-- [ ] Список `.erow`: иконка + title + priority pill (правильные
+- [x] Поиск по title работает
+- [x] Список `.erow`: иконка + title + priority pill (правильные
   цвета HIGH red / MEDIUM горчичный / LOW серый) + теги + meta
-- [ ] Клик на `.erow` → подсветка + рендер detail
-- [ ] Empty state detail-панели виден, когда ничего не выбрано
-- [ ] **Task detail:** badges + чеклист с прогресс-баром + notes
-- [ ] **Project detail:** pipeline визуализация с done/current/
-  future + чеклист глав
-- [ ] **Routine detail:** 3 stat-cards + streak-неделя с today-
-  рамкой + heatmap 26×7
-- [ ] **Contact detail:** status-widget с countdown + «на этой
+- [x] Клик на `.erow` → подсветка + рендер detail
+- [x] Empty state detail-панели виден, когда ничего не выбрано
+- [x] **Task detail:** badges + чеклист с прогресс-баром + notes
+- [x] **Project detail:** pipeline визуализация с done/current/
+  future + связанные задачи (как кликабельный список вместо
+  чеклиста — задачи отдельные сущности, чекбокс жил бы на их
+  стороне)
+- [x] **Routine detail:** 3 stat-cards + streak-неделя с today-
+  рамкой + heatmap 26×7. Реактивно обновляется при пометке
+  блока done в планере (через week-cache + sync push в `set`)
+- [x] **Contact detail:** status-widget с countdown + «на этой
   неделе» с заливкой категории + topics-чеклист с hover-× +
   история контактов + важные даты без фонового бокса
-- [ ] **Goal detail:** goal-block + stat-footer + связанные
-  метрики (с opacity-0 стрелкой на hover) + sparkline SVG
-- [ ] **Metric detail:** 36px mono value + `↑/↓` change + bar
+- [x] **Goal detail:** goal-block + stat-footer (Тип/Темп/Прогноз
+  с linear forecast по linked-metric) + связанные метрики
+  (с opacity-0 стрелкой на hover) + sparkline SVG
+- [x] **Metric detail:** 36px mono value + `↑/↓` change + bar
   chart 6 мес с gradient opacity + stat-footer
-- [ ] **Note detail:** рендерер h1/h2/p/li/cb/hr с
+- [x] **Note detail:** рендерер h1/h2/p/li/cb/hr с
   `--note-accent` = категория заметки
-- [ ] **Event detail:** простая форма (дата/время/место/заметки)
-- [ ] EntityEditor открывается по клику «Редактировать» +
-  «+ Создать», все тип-специфичные поля показываются
-- [ ] Удаление с подтверждением
-- [ ] Шаблон недели редактируется в мини-сетке
-- [ ] Создание новой недели: диалог + применение шаблона или
-  пустая
-- [ ] Carry-over в пуле видит незавершённые задачи прошлой недели
-  (секция collapsed, badge-счётчик)
-- [ ] Settings: CRUD по областям и пайплайну
-- [ ] Все изменения сохраняются в JSON-файлы
+- [x] **Event detail:** простая форма (дата/время/место/заметки)
+- [x] EntityEditor открывается по клику «Редактировать» +
+  «+ Создать», все тип-специфичные поля показываются;
+  type-change в новых сущностях с подтверждением
+- [x] Удаление с подтверждением (двух-кликовое в-app)
+- [~] Шаблон недели — таблица (день/время/длит/название/область),
+  не мини-WeekGrid; debounced write с safeParse, чтобы
+  intermediate `start: "1"` не попадал на диск
+- [x] Создание новой недели: диалог + применение шаблона или
+  пустая; in-flight guards и Escape возвращает на текущую
+  неделю вместо «застрять на missing»
+- [x] Carry-over в пуле видит незавершённые задачи прошлой недели
+  (секция collapsed, badge-счётчик); деdupe от приоритетных
+  групп
+- [x] Settings: CRUD по областям и пайплайну (с usage-count
+  и предупреждением при удалении)
+- [x] Все изменения сохраняются в JSON-файлы (через atomic
+  write + per-write случайный tmp-suffix)
+
+## Тех-долг от фазы 2 — статус
+
+- **Категории/теги по `config.areas`:** валидируются при load,
+  unknown теги логируются в console; entities-store принимает
+  `areas` параметром (cross-store import убран). `pipeline_stage`
+  переведён на `z.string()` — Settings больше не конфликтует с
+  схемой.
+- **Динамические цвета:** `getAreaColor`/`getAreaLabel` в
+  `services/categories.ts`, используется в новых entity-компонентах.
+  Старый template-string в планере не трогали — там фиксированный
+  набор `--work/--people/...` всё ещё работает.
+
+## Что отложено
+
+- Long-title overflow в `.edp-title` / `.pipe-name` (косметика,
+  `word-break: break-word`).
+- TaskDetail не показывает родительский проект (минор UX).
+- Sparkline в Goal без X-axis labels.
+- ChecklistEditor index-as-key focus drift при удалении среднего
+  пункта.
+- DataTab clipboard fallback через `execCommand`.
+- Полная типобезопасность TypeSpecificFields (discriminated form
+  state) — сейчас 8 cast'ов в одном switch вместо 16+ внутри
+  sub-editor'ов; рефакторить до zero-cast лишний overhead.
+- TagBadge tailwind-классы — компонент не используется в entities,
+  отдельный cleanup задел.
+- `getCommandsPath` Windows backslash — не актуально до фазы 6.
