@@ -5,6 +5,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { exit } from "@tauri-apps/plugin-process";
 import { Shell } from "./components/layout/Shell";
 import { useConfigStore } from "./store/config";
+import { useDashboardStore } from "./store/dashboards";
 import { useEntityStore } from "./store/entities";
 import { useScheduleStore } from "./store/schedule";
 import { useUIStore } from "./store/ui";
@@ -51,6 +52,7 @@ function App() {
           useScheduleStore
             .getState()
             .loadWeek(getCurrentWeekId(), { silentCreate: true }),
+          useDashboardStore.getState().loadRegistry(),
         ]);
       } catch (e) {
         if (cancelled) return;

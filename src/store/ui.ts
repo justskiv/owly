@@ -10,6 +10,12 @@ export type EntityEditorState =
   | { open: true; mode: "new"; type: EntityType }
   | { open: true; mode: "edit"; entityId: string };
 
+export type DashboardEditorState =
+  | { open: false }
+  | { open: true; mode: "add" }
+  | { open: true; mode: "rename"; id: string }
+  | { open: true; mode: "delete"; id: string };
+
 interface UIStore {
   currentPage: Page;
   selectedEntityId: string | null;
@@ -45,6 +51,12 @@ interface UIStore {
   // week id and PlannerPage shows a dialog offering template/empty.
   weekPromptId: string | null;
 
+  // Dashboard view state. selectedDashboardId === null means we're
+  // on the grid; setting it to a registry id switches to the host
+  // view that compiles and renders the corresponding .jsx.
+  selectedDashboardId: string | null;
+  dashboardEditor: DashboardEditorState;
+
   setPage: (page: Page) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
@@ -72,6 +84,12 @@ interface UIStore {
   toggleCarryOver: () => void;
 
   setWeekPrompt: (id: string | null) => void;
+
+  setSelectedDashboard: (id: string | null) => void;
+  openDashboardEditorAdd: () => void;
+  openDashboardEditorRename: (id: string) => void;
+  openDashboardEditorDelete: (id: string) => void;
+  closeDashboardEditor: () => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -97,6 +115,9 @@ export const useUIStore = create<UIStore>((set) => ({
   createDropdownOpen: false,
   carryOverCollapsed: true,
   weekPromptId: null,
+
+  selectedDashboardId: null,
+  dashboardEditor: { open: false },
 
   setPage: (currentPage) => set({ currentPage }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
@@ -153,4 +174,14 @@ export const useUIStore = create<UIStore>((set) => ({
     set((prev) => ({ carryOverCollapsed: !prev.carryOverCollapsed })),
 
   setWeekPrompt: (weekPromptId) => set({ weekPromptId }),
+
+  setSelectedDashboard: (selectedDashboardId) =>
+    set({ selectedDashboardId }),
+  openDashboardEditorAdd: () =>
+    set({ dashboardEditor: { open: true, mode: "add" } }),
+  openDashboardEditorRename: (id) =>
+    set({ dashboardEditor: { open: true, mode: "rename", id } }),
+  openDashboardEditorDelete: (id) =>
+    set({ dashboardEditor: { open: true, mode: "delete", id } }),
+  closeDashboardEditor: () => set({ dashboardEditor: { open: false } }),
 }));

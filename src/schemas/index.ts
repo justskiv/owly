@@ -4,3 +4,4 @@ export * from "./schedule";
 export * from "./template";
 export * from "./config";
 export * from "./command";
+export * from "./dashboard";

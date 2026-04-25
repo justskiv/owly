@@ -1,5 +1,6 @@
 import type {
   ConfigFile,
+  DashboardRegistry,
   EntitiesFile,
   TemplateFile,
   WeekFile,
@@ -61,3 +62,38 @@ export function emptyWeekFile(week: string, startDate: string): WeekFile {
     blocks: [],
   };
 }
+
+export const EMPTY_DASHBOARD_REGISTRY: DashboardRegistry = {
+  version: 1,
+  dashboards: [],
+};
+
+// Skeleton seeded into a freshly-created dashboard (.jsx) file. The
+// inline guidance points the user (or their AI agent) at the
+// authoring guide rather than re-stating the rules here.
+export const BLANK_DASHBOARD_TEMPLATE = `// New dashboard. See spec/tuzov-os/07a-dashboard-authoring-guide.md
+// Globals (via new Function): React, useState, useEffect, useMemo.
+// Props: { entities, schedule, config, allWeeks, widgets }
+
+export default function NewDashboard({ entities, schedule, widgets }) {
+  const { Section, Stat, StatRow, EmptyState } = widgets;
+
+  if (!entities || entities.length === 0) {
+    return (
+      <EmptyState
+        title="Нет данных"
+        hint="Добавьте сущности на странице Данные"
+      />
+    );
+  }
+
+  return (
+    <Section title="Новый дашборд">
+      <StatRow>
+        <Stat label="Всего сущностей" value={entities.length} />
+        <Stat label="Блоков на этой неделе" value={schedule?.blocks?.length ?? 0} />
+      </StatRow>
+    </Section>
+  );
+}
+`;

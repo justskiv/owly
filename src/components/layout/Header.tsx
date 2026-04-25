@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useUIStore } from "../../store/ui";
 import { useScheduleStore } from "../../store/schedule";
+import { useDashboardStore } from "../../store/dashboards";
 import {
   getWeekNumber,
   formatWeekRange,
@@ -114,14 +115,56 @@ function EntitiesHeader() {
 }
 
 function DashboardsHeader() {
+  const selectedId = useUIStore((s) => s.selectedDashboardId);
+  const setSelected = useUIStore((s) => s.setSelectedDashboard);
+  const openAdd = useUIStore((s) => s.openDashboardEditorAdd);
+  const bumpReload = useDashboardStore((s) => s.bumpReload);
+  const registry = useDashboardStore((s) => s.registry);
+
+  if (!selectedId) {
+    return (
+      <>
+        <div className="hdr-title" data-tauri-drag-region>
+          Дашборды
+        </div>
+        <div className="hdr-spacer" data-tauri-drag-region />
+        <button type="button" className="hdr-btn" onClick={openAdd}>
+          + Добавить
+        </button>
+      </>
+    );
+  }
+
+  const entry = registry.find((d) => d.id === selectedId);
   return (
     <>
-      <div className="hdr-title" data-tauri-drag-region>
-        Дашборды
+      <button
+        type="button"
+        className="nav-btn"
+        onClick={() => setSelected(null)}
+        aria-label="Назад к списку дашбордов"
+      >
+        <ChevronLeft />
+      </button>
+      <div className="hdr-bread" data-tauri-drag-region>
+        <button
+          type="button"
+          className="hdr-bread-root"
+          onClick={() => setSelected(null)}
+        >
+          Дашборды
+        </button>
+        <span className="hdr-bread-sep">›</span>
+        <span className="hdr-bread-curr">{entry?.title ?? selectedId}</span>
       </div>
       <div className="hdr-spacer" data-tauri-drag-region />
-      <button type="button" className="hdr-btn" disabled>
-        + Добавить
+      <button
+        type="button"
+        className="hdr-btn-ghost hdr-btn"
+        onClick={bumpReload}
+        title="Перечитать .jsx с диска"
+      >
+        ↻ Обновить
       </button>
     </>
   );
