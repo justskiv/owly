@@ -9,6 +9,9 @@ export interface KpiCardProps {
   delta?: number | null;
   deltaLabel?: ReactNode;
   accent?: string;
+  // For metrics where lower is better (weight, bugs, errors). When
+  // true, a negative delta is shown green and a positive delta red.
+  inverted?: boolean;
 }
 
 export function KpiCard({
@@ -18,11 +21,15 @@ export function KpiCard({
   delta,
   deltaLabel,
   accent,
+  inverted = false,
 }: KpiCardProps) {
+  const goodWhenPositive = !inverted;
+  const isGood =
+    delta == null ? null : delta >= 0 === goodWhenPositive;
   const dColor =
-    delta == null
+    isGood == null
       ? null
-      : delta >= 0
+      : isGood
         ? "var(--success)"
         : "var(--error)";
   return (

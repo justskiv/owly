@@ -2,6 +2,11 @@ import React from "react";
 
 interface Props {
   children: React.ReactNode;
+  // Recompiles the dashboard from disk. Without this, "Try again"
+  // re-renders the SAME compiled component instance with stale
+  // closures over props from the previous render — a transient
+  // error would just throw again on the next render.
+  onRetry: () => void;
 }
 
 interface State {
@@ -40,7 +45,10 @@ export class DashboardErrorBoundary extends React.Component<Props, State> {
           <button
             type="button"
             className="hdr-btn"
-            onClick={() => this.setState({ error: null })}
+            onClick={() => {
+              this.setState({ error: null });
+              this.props.onRetry();
+            }}
           >
             Попробовать снова
           </button>

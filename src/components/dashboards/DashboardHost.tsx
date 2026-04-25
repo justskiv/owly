@@ -4,6 +4,7 @@ import {
   type DashboardProps,
 } from "../../services/dashboard-compiler";
 import { buildDashboardProps } from "../../services/dashboard-context";
+import { DEFAULT_CONFIG } from "../../services/defaults";
 import { useConfigStore } from "../../store/config";
 import { useDashboardStore } from "../../store/dashboards";
 import { useEntityStore } from "../../store/entities";
@@ -22,13 +23,18 @@ type LoadState =
 
 export function DashboardHost({ id }: Props) {
   const reloadToken = useDashboardStore((s) => s.reloadToken);
+  const bumpReload = useDashboardStore((s) => s.bumpReload);
   const readSource = useDashboardStore((s) => s.readDashboardSource);
+  const registry = useDashboardStore((s) => s.registry);
   const entities = useEntityStore((s) => s.entities);
   const blocks = useScheduleStore((s) => s.blocks);
   const startDate = useScheduleStore((s) => s.startDate);
   const currentWeek = useScheduleStore((s) => s.currentWeek);
   const templateApplied = useScheduleStore((s) => s.templateApplied);
   const config = useConfigStore((s) => s.config);
+
+  const entry = registry.find((d) => d.id === id);
+  const filename = entry?.file ?? `${id}.jsx`;
 
   // Wrap the in-memory schedule slice into the WeekFile shape that
   // dashboards expect (per spec). Keeps authors from poking around
@@ -53,7 +59,7 @@ export function DashboardHost({ id }: Props) {
       try {
         const code = await readSource(id);
         if (cancelled) return;
-        const Component = compileDashboard(code);
+        const Component = compileDashboard(code, filename);
         if (cancelled) return;
         setState({ kind: "ready", Component });
       } catch (e) {
@@ -64,7 +70,24 @@ export function DashboardHost({ id }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [id, reloadToken, readSource]);
+  }, [id, reloadToken, readSource, filename]);
+
+  // Surface async errors thrown inside the dashboard's useEffect /
+  // setTimeout / promise chains. React error boundaries only catch
+  // sync render exceptions, so without this an async failure prints
+  // to the console and the dashboard silently shows stale UI.
+  useEffect(() => {
+    if (state.kind !== "ready") return;
+    const onRejection = (e: PromiseRejectionEvent) => {
+      const err =
+        e.reason instanceof Error
+          ? e.reason
+          : new Error(`Unhandled rejection: ${String(e.reason)}`);
+      setState({ kind: "error", error: err });
+    };
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => window.removeEventListener("unhandledrejection", onRejection);
+  }, [state.kind]);
 
   if (state.kind === "loading") {
     return <div className="dash-loading">Загрузка...</div>;
@@ -73,16 +96,22 @@ export function DashboardHost({ id }: Props) {
     return <DashboardCompileErrorPanel error={state.error} />;
   }
 
+  // DEFAULT_CONFIG (not `{}`) keeps `config.areas.map(...)` and
+  // friends from throwing inside dashboards before the user's real
+  // config has loaded.
   const props = buildDashboardProps({
     entities,
     schedule,
-    config: config ?? {},
+    config: config ?? DEFAULT_CONFIG,
     allWeeks: [],
   });
 
   const Component = state.Component;
   return (
-    <DashboardErrorBoundary key={`${id}-${reloadToken}`}>
+    <DashboardErrorBoundary
+      key={`${id}-${reloadToken}`}
+      onRetry={bumpReload}
+    >
       <div className="dash-host">
         <Component {...props} />
       </div>

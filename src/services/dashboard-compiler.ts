@@ -27,19 +27,25 @@ export class DashboardCompileError extends Error {
 // hot-reload relies on reading .jsx fresh from disk, and a typical
 // dashboard transpiles in <50ms — well under perceptible.
 //
-// `transforms: ['jsx', 'imports']` — JSX → React.createElement AND
-// rewrite `export default X` into `exports.default = X` (and `import`
-// into `require`, which will throw at runtime — by design, since the
-// authoring guide forbids imports). Without 'imports' the `export`
-// keyword survives and `new Function` rejects it as illegal in a
-// function body.
+// Transforms:
+//   - 'jsx'        — JSX → React.createElement
+//   - 'imports'    — rewrites `export default X` to `exports.default = X`
+//                    (without it, `new Function` rejects the export
+//                    keyword as illegal in a function body).
+//   - 'typescript' — strips type annotations so authors who slip
+//                    `useState<number>(0)` or `(props: Props)` past
+//                    the guide get a working dashboard, not a
+//                    confusing SyntaxError.
+const SUCRASE_TRANSFORMS = ["jsx", "imports", "typescript"] as const;
+
 export function compileDashboard(
   jsxSource: string,
+  filename = "dashboard.jsx",
 ): ComponentType<DashboardProps> {
   let jsCode: string;
   try {
     jsCode = transform(jsxSource, {
-      transforms: ["jsx", "imports"],
+      transforms: [...SUCRASE_TRANSFORMS],
     }).code;
   } catch (e) {
     throw new DashboardCompileError(
@@ -49,11 +55,12 @@ export function compileDashboard(
     );
   }
 
-  // Leading newline keeps stack-trace line numbers aligned with the
-  // source file. `new Function` injects an implicit line 0 with the
-  // parameter list, so without this offset every error reports
-  // `lineN+1` of the source.
-  const wrapped = "\n" + jsCode;
+  // sourceURL gives stack traces an honest filename instead of
+  // "anonymous"/"eval". Line numbers are still off by a few rows
+  // because the imports transform inserts an `Object.defineProperty`
+  // prelude, but the file pointer is way more useful than the
+  // single-line offset we had before.
+  const wrapped = `${jsCode}\n//# sourceURL=tuzov-dashboard:///${filename}`;
 
   let factory: Function;
   try {

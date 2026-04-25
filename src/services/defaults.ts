@@ -71,7 +71,7 @@ export const EMPTY_DASHBOARD_REGISTRY: DashboardRegistry = {
 // Skeleton seeded into a freshly-created dashboard (.jsx) file. The
 // inline guidance points the user (or their AI agent) at the
 // authoring guide rather than re-stating the rules here.
-export const BLANK_DASHBOARD_TEMPLATE = `// New dashboard. See spec/tuzov-os/07a-dashboard-authoring-guide.md
+export const BLANK_DASHBOARD_TEMPLATE = `// New dashboard. See spec/llm-guides/dashboard-authoring.md
 // Globals (via new Function): React, useState, useEffect, useMemo.
 // Props: { entities, schedule, config, allWeeks, widgets }
 

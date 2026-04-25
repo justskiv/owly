@@ -38,9 +38,15 @@ export function BarChart({
   const values = bars.map((b) => b.value);
   const minV = Math.min(...values);
   const maxV = Math.max(...values);
-  // Slight floor padding so the smallest bar still has visible height.
-  const baseV = minV === maxV ? minV - 1 : minV - (maxV - minV) * 0.1;
-  const range = maxV - baseV || 1;
+  // When all values are equal we used to floor at `min - 1`, which
+  // rendered every bar at 100% height — including the all-zero case,
+  // visually lying that there is data. Now: equal values render flat
+  // at a small fixed height so authors see "no variation, but data
+  // exists". Real spread uses a 10% headroom below the minimum.
+  const flat = minV === maxV;
+  const baseV = flat ? minV : minV - (maxV - minV) * 0.1;
+  const range = flat ? 1 : maxV - baseV;
+  const flatHeight = 4;
 
   return (
     <div
@@ -52,7 +58,9 @@ export function BarChart({
       }}
     >
       {bars.map((b, i) => {
-        const fillHeight = ((b.value - baseV) / range) * height;
+        const fillHeight = flat
+          ? flatHeight
+          : ((b.value - baseV) / range) * height;
         const opacity = 0.4 + (i / Math.max(bars.length - 1, 1)) * 0.6;
         return (
           <div

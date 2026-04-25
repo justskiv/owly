@@ -73,19 +73,25 @@ export default function MyDashboard({ entities, schedule, config, widgets }) {
 | `entities` | `Entity[]`                   | Все сущности (см. `01-data-schema.md`)             |
 | `schedule` | `WeekFile \| null`           | Текущая неделя; **может быть `null`**              |
 | `config`   | `Config`                     | Полный конфиг (`areas`, `pipeline_stages`, …)      |
-| `allWeeks` | `WeekFile[]`                 | Прошлые недели (на MVP пуст)                       |
+| `allWeeks` | `WeekFile[]`                 | Прошлые недели — **на MVP всегда `[]`**, не строй на нём фичи |
 | `widgets`  | `DashboardWidgets`           | Стабильное API виджетов (см. ниже)                 |
 
 **Запрещено:**
 
-- `import` — синтаксически невалидно. Если нужен `useState`, бери
-  его из контекста, не импортируй.
+- `import` — превратится в `require` и упадёт при выполнении. Если
+  нужен `useState`, бери из контекста.
 - Внешние библиотеки.
 - `fetch`, `XMLHttpRequest`, `WebSocket`.
 - Прямой доступ к Zustand-стору, `localStorage`, `window.app`.
 - Мутации `entities` / `schedule` / `config` (передаются by-reference,
   но это read-only данные).
 - `dangerouslySetInnerHTML` (XSS-риск даже в single-user).
+
+> **Trust model.** Дашборды выполняются в основном app-контексте,
+> без sandbox: технически у них есть доступ к `window`, `document`,
+> Tauri IPC. Это сознательный выбор для single-user app. **Не
+> вставляй чужой непроверенный JSX** — он может прочитать или
+> переписать любые данные приложения.
 
 ## 4. Design system: цвета
 
@@ -178,12 +184,19 @@ export default function MyDashboard({ entities, schedule, config, widgets }) {
 
 ### `Section({ title, action, children })`
 Секция с заголовком и опциональным действием справа. Снизу
-24px отступ.
+24px отступ. `action` — React-нода (обычно кнопка):
 
-### `KpiCard({ label, value, unit, delta, deltaLabel, accent })`
+```jsx
+<Section title="Метрики" action={<Pill variant="muted">обновлено вчера</Pill>}>
+  ...
+</Section>
+```
+
+### `KpiCard({ label, value, unit, delta, deltaLabel, accent, inverted })`
 Карточка с большим числом. `delta` — `+/-` число, цвет
 автоматически (зелёный/красный). `accent` — цвет числа
-(например, `var(--accent)`).
+(например, `var(--accent)`). `inverted: true` — для метрик где
+«меньше = лучше» (вес, баги): отрицательная дельта будет зелёной.
 
 ### `Stat({ label, value, hint, color })`
 Компактный label/value (моноширинное число), с опциональной
@@ -200,14 +213,22 @@ Children — обычно `<Stat>`.
 Pill/badge. `variant`: `default | accent | success | error | muted`.
 
 ### `Sparkline({ data, color, width=160, height=40, showDots=false })`
-SVG line chart. `data` — `number[]`. Минимум 2 точки.
+SVG line chart. `data` — `number[]`. При <2 точках рендерит
+плейсхолдер «нет данных» — но лучше заранее показать `EmptyState`.
 
 ### `BarChart({ bars, color, height=120 })`
 Vertical bar chart. `bars` — `{ label, value }[]`. Bars
-расходятся от floor (минимума), чтобы видеть разницу.
+масштабируются с 10% запасом ниже минимума, чтобы видеть разницу.
+Если все значения равны (включая все-нули) — рисуются плоские
+тонкие бары, чтобы не врать «100% во всём».
 
 ### `EmptyState({ title, hint, icon })`
 Empty state. Использовать всегда, когда «данных нет».
+
+### `Icon({ name, size=18, strokeWidth=1.5 })`
+Lucide-иконка по имени (`bar-chart`, `target`, `trending-up`,
+`calendar`, `users`, `pie-chart`, `line-chart`, `heart`, `zap`,
+`settings`, `database`). Неизвестное имя → `bar-chart` fallback.
 
 ## 8. Empty states (обязательно)
 
@@ -251,14 +272,29 @@ TypeError при пустых данных.
 - ❌ `style={{ background: '#0d0d0d' }}` — hex запрещён.
 - ❌ `style={{ fontFamily: 'JetBrains Mono' }}` для всего —
   только для чисел.
-- ❌ `import { useState } from 'react'` — `import` синтаксически
-  невалиден в нашем runtime.
+- ❌ `import { useState } from 'react'` — `import` будет переписан в
+  `require` и упадёт в рантайме. Бери `useState` из контекста.
+- ❌ `function Dash({ entities })` без `widgets` — обращение к
+  `widgets.Card` даст `widgets is not defined`. Всегда деструктурируй
+  `widgets` (или весь `props`).
 - ❌ `widgets.NotExistingThing` — runtime TypeError.
 - ❌ Мутация `entities.push(...)` или `schedule.blocks[0].title = '...'`.
-- ❌ Использование `widgets.Sparkline` с `data.length < 2` без
-  empty-state — отрисуется fallback, но визуально пусто.
 - ❌ `onClick={() => counter++}` где counter — внешняя переменная.
   Нужен `useState`.
+
+## 10a. Tip: цвет по категории
+
+Если дашборд про конкретную area (Здоровье / Работа / Развитие) —
+бери цвет из `config.areas`, а не `var(--accent)`:
+
+```jsx
+const area = config.areas.find((a) => a.id === "health");
+const color = area?.color ?? "var(--accent)";
+<BarChart bars={...} color={color} />
+```
+
+Так дашборд визуально соответствует тому, к какой области он
+относится — те же цвета, что и блоки этой категории в Планировщике.
 
 ## 11. Регистрация
 
@@ -286,10 +322,15 @@ TypeError при пустых данных.
 ## 12. Debugging
 
 - **Compile-time error** (синтаксис, отсутствует default export) —
-  экран `Не удалось загрузить дашборд` с stacktrace. Линии
-  совпадают с файлом.
-- **Runtime error** (исключение в render/useEffect) —
-  ErrorBoundary с кнопкой «Попробовать снова».
+  экран `Не удалось загрузить дашборд` с stacktrace. Имя файла в
+  стеке — `tuzov-dashboard:///<file.jsx>` (благодаря `sourceURL`).
+  Номера строк могут быть смещены на 1-2 из-за prelude от sucrase.
+- **Runtime error** (sync exception в render) — ErrorBoundary с
+  кнопкой «Попробовать снова», которая бампает reload-token и
+  рекомпилирует с актуальными props.
+- **Async error** (Promise rejection в `useEffect` или `setTimeout`) —
+  ловится `unhandledrejection` listener и показывается в том же
+  панели ошибок.
 - `console.log()` — работает, видно в DevTools (Cmd+Opt+I).
 - Кнопка `↻ Обновить` в шапке — перечитывает `.jsx` с диска и
   recompile. Использовать после каждой правки.

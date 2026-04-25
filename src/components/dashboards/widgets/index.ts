@@ -14,8 +14,13 @@ import { Pill } from "./Pill";
 import { Sparkline } from "./Sparkline";
 import { BarChart } from "./BarChart";
 import { EmptyState } from "./EmptyState";
+import { Icon } from "./Icon";
 
-export const DASHBOARD_WIDGETS = {
+// Object.freeze prevents a misbehaving (or hostile) dashboard from
+// monkey-patching a widget for the rest of the app's lifetime —
+// `as const` is type-only, so without freeze the runtime object is
+// still mutable.
+export const DASHBOARD_WIDGETS = Object.freeze({
   Card,
   Section,
   KpiCard,
@@ -26,8 +31,21 @@ export const DASHBOARD_WIDGETS = {
   Sparkline,
   BarChart,
   EmptyState,
-} as const;
+  Icon,
+} as const);
 
 export type DashboardWidgets = typeof DASHBOARD_WIDGETS;
 
-export { Card, Section, KpiCard, Stat, StatRow, ProgressBar, Pill, Sparkline, BarChart, EmptyState };
+export {
+  Card,
+  Section,
+  KpiCard,
+  Stat,
+  StatRow,
+  ProgressBar,
+  Pill,
+  Sparkline,
+  BarChart,
+  EmptyState,
+  Icon,
+};

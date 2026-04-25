@@ -7,39 +7,47 @@ export interface PillProps {
   variant?: PillVariant;
 }
 
-const VARIANT_STYLES: Record<
+// Per-variant colour token keys. Background and border are derived
+// at render time via color-mix so they always track the current
+// theme — no rgba duplication of CSS-var values.
+const VARIANT_TOKENS: Record<
   PillVariant,
-  { bg: string; color: string; border: string }
+  { color: string; mixVar: string | null; bg: string; border: string }
 > = {
   default: {
-    bg: "var(--bg-tint-2)",
     color: "var(--text-secondary)",
+    mixVar: null,
+    bg: "var(--bg-tint-2)",
     border: "var(--border)",
   },
   accent: {
-    bg: "rgba(224,184,96,.15)",
     color: "var(--accent)",
-    border: "rgba(224,184,96,.25)",
+    mixVar: "var(--accent)",
+    bg: "color-mix(in srgb, var(--accent) 15%, transparent)",
+    border: "color-mix(in srgb, var(--accent) 30%, transparent)",
   },
   success: {
-    bg: "rgba(48,216,136,.15)",
     color: "var(--success)",
-    border: "rgba(48,216,136,.25)",
+    mixVar: "var(--success)",
+    bg: "color-mix(in srgb, var(--success) 15%, transparent)",
+    border: "color-mix(in srgb, var(--success) 30%, transparent)",
   },
   error: {
-    bg: "rgba(224,104,120,.15)",
     color: "var(--error)",
-    border: "rgba(224,104,120,.25)",
+    mixVar: "var(--error)",
+    bg: "color-mix(in srgb, var(--error) 15%, transparent)",
+    border: "color-mix(in srgb, var(--error) 30%, transparent)",
   },
   muted: {
-    bg: "transparent",
     color: "var(--text-tertiary)",
+    mixVar: null,
+    bg: "transparent",
     border: "var(--border)",
   },
 };
 
 export function Pill({ children, variant = "default" }: PillProps) {
-  const s = VARIANT_STYLES[variant];
+  const t = VARIANT_TOKENS[variant];
   return (
     <span
       style={{
@@ -51,9 +59,9 @@ export function Pill({ children, variant = "default" }: PillProps) {
         textTransform: "uppercase",
         letterSpacing: ".05em",
         borderRadius: "var(--radius-pill)",
-        background: s.bg,
-        color: s.color,
-        border: `1px solid ${s.border}`,
+        background: t.bg,
+        color: t.color,
+        border: `1px solid ${t.border}`,
         whiteSpace: "nowrap",
       }}
     >
