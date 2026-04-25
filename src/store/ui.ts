@@ -3,7 +3,7 @@ import type { EntityType, Status } from "../schemas";
 
 export type Page = "planner" | "entities" | "dashboards";
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
-export type SettingsTab = "areas" | "template" | "pipeline" | "data";
+export type SettingsTab = "areas" | "template" | "pipeline" | "ai" | "data";
 
 export type EntityEditorState =
   | { open: false }
@@ -57,6 +57,12 @@ interface UIStore {
   selectedDashboardId: string | null;
   dashboardEditor: DashboardEditorState;
 
+  // CommandsLogPanel — opened from the executed/failed counters in
+  // the status bar. Two tabs: "done" lists commands/done/ (read-only
+  // log), "failed" lists commands/failed/ with retry/dismiss.
+  commandsPanelOpen: boolean;
+  commandsPanelTab: "done" | "failed";
+
   setPage: (page: Page) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
@@ -90,6 +96,10 @@ interface UIStore {
   openDashboardEditorRename: (id: string) => void;
   openDashboardEditorDelete: (id: string) => void;
   closeDashboardEditor: () => void;
+
+  openCommandsPanel: (tab?: "done" | "failed") => void;
+  closeCommandsPanel: () => void;
+  setCommandsPanelTab: (tab: "done" | "failed") => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -118,6 +128,8 @@ export const useUIStore = create<UIStore>((set) => ({
 
   selectedDashboardId: null,
   dashboardEditor: { open: false },
+  commandsPanelOpen: false,
+  commandsPanelTab: "done",
 
   setPage: (currentPage) => set({ currentPage }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
@@ -184,4 +196,12 @@ export const useUIStore = create<UIStore>((set) => ({
   openDashboardEditorDelete: (id) =>
     set({ dashboardEditor: { open: true, mode: "delete", id } }),
   closeDashboardEditor: () => set({ dashboardEditor: { open: false } }),
+
+  openCommandsPanel: (tab) =>
+    set((prev) => ({
+      commandsPanelOpen: true,
+      commandsPanelTab: tab ?? prev.commandsPanelTab,
+    })),
+  closeCommandsPanel: () => set({ commandsPanelOpen: false }),
+  setCommandsPanelTab: (commandsPanelTab) => set({ commandsPanelTab }),
 }));

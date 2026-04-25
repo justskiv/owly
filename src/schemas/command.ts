@@ -142,3 +142,34 @@ export const CommandSchema = z.discriminatedUnion("action", [
   BatchCommandSchema,
 ]);
 export type Command = z.infer<typeof CommandSchema>;
+
+// Snapshot written to commands/failed/<id>.json when execution
+// fails. Loose because we want to preserve whatever the agent
+// originally sent (even if malformed) so retry can re-emit it.
+export const FailedCommandFileSchema = z.looseObject({
+  id: z.string(),
+  action: z.string(),
+  timestamp: z.string().optional(),
+  data: z.unknown().optional(),
+  error: z.string(),
+  failed_at: z.string(),
+  // For batch: how many sub-commands ran before the failure.
+  partial: z
+    .object({
+      succeeded: z.number().int().nonnegative(),
+      failed_at_index: z.number().int().nonnegative(),
+    })
+    .optional(),
+});
+export type FailedCommandFile = z.infer<typeof FailedCommandFileSchema>;
+
+// Done file is the original command verbatim — written by moving
+// the pending file unchanged. Loose so the log can render even
+// commands that the schema picked up after a CommandSchema bump.
+export const DoneCommandFileSchema = z.looseObject({
+  id: z.string(),
+  action: z.string(),
+  timestamp: z.string().optional(),
+  data: z.unknown().optional(),
+});
+export type DoneCommandFile = z.infer<typeof DoneCommandFileSchema>;

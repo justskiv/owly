@@ -17,8 +17,8 @@
 --sidebar-w:52px;--row-h:40px;--time-w:44px;--pool-w:264px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:var(--font);background:var(--bg-base);color:var(--text-primary);font-size:var(--fs-md);line-height:1.5;overflow:hidden;height:100vh;-webkit-font-smoothing:antialiased;user-select:none}
-.edp-title,.edp-desc,.edp-val,.edp-cl li,.ct-item,.stat-num,.er-title,.note-body,.search-input,.fi{user-select:text}
+body{font-family:var(--font);background:var(--bg-base);color:var(--text-primary);font-size:var(--fs-md);line-height:1.5;overflow:hidden;height:100vh;-webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none}
+.edp-title,.edp-desc,.edp-val,.edp-cl li,.ct-item,.stat-num,.er-title,.note-body,.search-input,.fi{-webkit-user-select:text;user-select:text}
 ::selection{background:rgba(224,184,96,.25)}
 /* Suppress mouse-triggered focus rings (they noise up click-heavy UIs)
    but keep the keyboard-triggered ring on :focus-visible so tabbing is
@@ -198,7 +198,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--focus-ring
 .pool-items::-webkit-scrollbar-thumb:hover{background:var(--border-default)}
 .pg{font-size:var(--fs-2xs);font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--text-tertiary);padding:12px 4px 4px;display:flex;align-items:center;gap:4px}
 .pgd{width:4px;height:4px;border-radius:50%;display:inline-block;flex-shrink:0}
-.pi{padding:4px 8px;border-radius:var(--radius-md);margin-bottom:2px;cursor:grab;background:var(--bg-tint-1);transition:background var(--duration-fast),transform var(--duration-fast);touch-action:none;user-select:none}
+.pi{padding:4px 8px;border-radius:var(--radius-md);margin-bottom:2px;cursor:grab;background:var(--bg-tint-1);transition:background var(--duration-fast),transform var(--duration-fast);touch-action:none;-webkit-user-select:none;user-select:none}
 .pi:hover{background:var(--bg-tint-2);transform:translateX(2px)}
 .pi:active{cursor:grabbing}
 .pi.dragging-source{opacity:.3}
@@ -554,3 +554,69 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
 .hdr-bread-root:hover{color:var(--text-secondary)}
 .hdr-bread-sep{color:var(--text-disabled);font-size:var(--fs-sm)}
 .hdr-bread-curr{color:var(--text-primary);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+
+/* === status bar — command counters === */
+/* Native macOS menubar/Big Sur toolbar feel. The hover halo fills
+   most of the 26px bar (≈20px tall, 3px breathing room top/bottom)
+   so it reads as a proper interactive region, not a pinched pill.
+   Default state is invisible — only the icon+text betray it.
+   Press goes deeper (not lighter) for tactile feedback. */
+.sbar-cmd{display:inline-flex;align-items:center;gap:6px;background:transparent;border:0;color:inherit;cursor:default;font:inherit;font-size:inherit;padding:4px 8px;line-height:1;border-radius:var(--radius-sm);transition:background-color var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
+.sbar-cmd:hover{background:var(--bg-tint-1);color:var(--text-secondary)}
+.sbar-cmd:active{background:var(--bg-tint-2);color:var(--text-secondary)}
+.sbar-cmd svg{flex-shrink:0;opacity:.85}
+.sbar-cmd:hover svg{opacity:1}
+.sbar-failed{color:var(--error);opacity:.85}
+.sbar-failed:hover{color:var(--error);opacity:1;background:color-mix(in srgb,var(--error) 10%,transparent)}
+.sbar-failed:active{background:color-mix(in srgb,var(--error) 16%,transparent)}
+
+/* === commands log panel (Done | Failed tabs) === */
+.cmd-log-tabs{display:flex;gap:4px;padding:0 16px;border-bottom:1px solid var(--border)}
+.cmd-log-body{padding:12px 16px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:calc(85vh - 180px)}
+.cmd-log-empty{padding:32px 16px;text-align:center;color:var(--text-tertiary);font-size:var(--fs-sm)}
+.cmd-log-empty code{font-family:var(--mono);font-size:var(--fs-xs);color:var(--text-secondary)}
+.cmd-log-trunc{padding:8px 12px;text-align:center;color:var(--text-tertiary);font-size:var(--fs-xs);font-style:italic}
+.cmd-log-trunc code{font-family:var(--mono);font-style:normal}
+
+/* done log rows — compact one-line entries */
+.done-list{display:flex;flex-direction:column;gap:2px}
+.done-row{display:grid;grid-template-columns:14px 110px 1fr 52px 20px;gap:8px;align-items:center;padding:6px 8px;border-radius:var(--radius-sm);font-size:var(--fs-sm);color:var(--text-secondary)}
+.done-row:hover{background:var(--bg-tint-1)}
+.done-check{color:var(--success);font-family:var(--mono);text-align:center;font-size:var(--fs-sm)}
+.done-action{font-family:var(--mono);font-size:var(--fs-xs);color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.done-summary{color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.done-ts{font-family:var(--mono);font-size:var(--fs-xs);color:var(--text-tertiary);text-align:right}
+.done-dismiss{width:20px;height:20px;background:none;border:none;color:var(--text-disabled);cursor:pointer;border-radius:var(--radius-sm);font-size:var(--fs-md);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity var(--duration-fast)}
+.done-row:hover .done-dismiss{opacity:1}
+.done-dismiss:hover{background:var(--bg-tint-2);color:var(--text-secondary)}
+
+/* === failed commands rows === */
+.fail-list{display:flex;flex-direction:column;gap:8px}
+.fail-row{background:var(--bg-tint-1);border:1px solid var(--border);border-left:3px solid var(--error);border-radius:var(--radius-md);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.fail-row-head{display:flex;align-items:baseline;gap:8px;justify-content:space-between}
+.fail-action{font-family:var(--mono);font-size:var(--fs-xs);font-weight:500;color:var(--text-primary);background:var(--bg-tint-2);border-radius:var(--radius-sm);padding:2px 6px}
+.fail-ts{font-family:var(--mono);font-size:var(--fs-2xs);color:var(--text-tertiary)}
+.fail-row-error{color:var(--error);font-size:var(--fs-sm);line-height:1.4;font-family:var(--mono);word-break:break-word}
+.fail-row details{font-size:var(--fs-xs);color:var(--text-tertiary)}
+.fail-row details summary{cursor:pointer}
+.fail-row-data{font-family:var(--mono);font-size:var(--fs-2xs);background:var(--bg-deep);padding:8px;border-radius:var(--radius-sm);overflow-x:auto;white-space:pre-wrap;margin-top:6px;color:var(--text-secondary);max-height:240px;overflow-y:auto}
+.fail-row-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:4px}
+
+/* === scheduling tab === */
+.sched-form{gap:14px}
+.sched-section{display:grid;grid-template-columns:220px 1fr;gap:12px;align-items:center}
+.sched-label{font-size:var(--fs-sm);color:var(--text-primary)}
+.sched-hint{color:var(--text-tertiary);font-size:var(--fs-xs)}
+.sched-control{min-width:0}
+.sched-time{width:120px;font-family:var(--mono)}
+.sched-num{width:80px;font-family:var(--mono);text-align:right}
+.sched-select{width:200px}
+.sched-range{display:flex;align-items:center;gap:8px}
+.sched-range-sep{color:var(--text-tertiary)}
+.sched-check{display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--text-secondary);cursor:pointer}
+.sched-check input{accent-color:var(--accent)}
+
+/* === kv-table for prefs === */
+.kv-table{display:flex;flex-direction:column;gap:4px}
+.kv-head{display:grid;grid-template-columns:1fr 100px 24px;gap:6px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.04em;color:var(--text-tertiary);padding:0 4px}
+.kv-row{display:grid;grid-template-columns:1fr 100px 24px;gap:6px;align-items:center}

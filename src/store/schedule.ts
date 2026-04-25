@@ -4,6 +4,7 @@ import { WeekFileSchema } from "../schemas";
 import {
   fileExists,
   getDataPath,
+  listFiles,
   readJsonFile,
   readJsonFileOrCreate,
   writeJsonFile,
@@ -16,7 +17,8 @@ import {
   getWeekStartDate,
 } from "../services/time-utils";
 import { trackSave } from "../services/save-status";
-import { setCachedWeek } from "../services/week-cache";
+import { getCachedWeek, setCachedWeek } from "../services/week-cache";
+import { enqueueWeekWrite } from "../services/week-write-queue";
 import { useUIStore } from "./ui";
 
 interface LoadWeekOptions {
@@ -38,7 +40,7 @@ interface ScheduleStore {
   loadWeek: (week: string, opts?: LoadWeekOptions) => Promise<void>;
   saveWeek: () => Promise<void>;
 
-  addBlock: (block: Omit<Block, "id">) => Promise<Block>;
+  addBlock: (block: Omit<Block, "id"> & { id?: string }) => Promise<Block>;
   updateBlock: (id: string, updates: Partial<Block>) => Promise<void>;
   moveBlock: (id: string, date: string, start: string) => Promise<void>;
   resizeBlock: (id: string, duration: number) => Promise<void>;
@@ -172,16 +174,20 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
 
   saveWeek: async () => {
     const snap = get();
-    await trackSave(() => persistWeek(snap, snap.blocks));
+    await trackSave(() =>
+      enqueueWeekWrite(snap.currentWeek, () => persistWeek(snap, snap.blocks)),
+    );
   },
 
   addBlock: async (draft) => {
-    const block: Block = { ...draft, id: generateId("blk") };
+    const block: Block = { ...draft, id: draft.id ?? generateId("blk") };
     const snap = get();
     const next = [...snap.blocks, block];
     syncCache(snap, next);
     set({ blocks: next });
-    await trackSave(() => persistWeek(snap, next));
+    await trackSave(() =>
+      enqueueWeekWrite(snap.currentWeek, () => persistWeek(snap, next)),
+    );
     return block;
   },
 
@@ -192,7 +198,9 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     );
     syncCache(snap, next);
     set({ blocks: next });
-    await trackSave(() => persistWeek(snap, next));
+    await trackSave(() =>
+      enqueueWeekWrite(snap.currentWeek, () => persistWeek(snap, next)),
+    );
   },
 
   moveBlock: async (id, date, start) => {
@@ -208,7 +216,9 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     const next = snap.blocks.filter((b) => b.id !== id);
     syncCache(snap, next);
     set({ blocks: next });
-    await trackSave(() => persistWeek(snap, next));
+    await trackSave(() =>
+      enqueueWeekWrite(snap.currentWeek, () => persistWeek(snap, next)),
+    );
   },
 
   setBlockStatus: async (id, status) => {
@@ -225,3 +235,80 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     await get().loadWeek(getCurrentWeekId());
   },
 }));
+
+// Mutate any week's blocks. If the week is the active one, route
+// through the store so the UI updates reactively. Otherwise read
+// the file (via cache) and write directly through the per-week
+// queue. Used by the command executor when the agent targets a
+// week the user isn't currently viewing.
+export async function applyToWeek(
+  weekId: string,
+  mutate: (blocks: Block[]) => Block[],
+): Promise<void> {
+  const store = useScheduleStore.getState();
+  if (weekId === store.currentWeek) {
+    const snap: WeekSnapshot = {
+      currentWeek: store.currentWeek,
+      startDate: store.startDate,
+      templateApplied: store.templateApplied,
+    };
+    const next = mutate(store.blocks);
+    syncCache(snap, next);
+    useScheduleStore.setState({ blocks: next });
+    await trackSave(() =>
+      enqueueWeekWrite(weekId, () => persistWeek(snap, next)),
+    );
+    return;
+  }
+
+  const path = await getDataPath("schedule", `${weekId}.json`);
+  let file = await getCachedWeek(weekId);
+  if (!file) {
+    if (!(await fileExists(path))) {
+      throw new Error(`Week ${weekId} does not exist; create_week first`);
+    }
+    file = await readJsonFile(path, WeekFileSchema);
+    setCachedWeek(weekId, file);
+  }
+  const next = mutate(file.blocks);
+  const snap: WeekSnapshot = {
+    currentWeek: weekId,
+    startDate: file.start_date,
+    templateApplied: file.template_applied,
+  };
+  await trackSave(() =>
+    enqueueWeekWrite(weekId, () => persistWeek(snap, next)),
+  );
+}
+
+// Scan the cache for the week containing a given block id. Falls
+// back to the active week's in-memory blocks for the hot path.
+// Does NOT scan the disk — the week-cache is populated by every
+// loadWeek + getCachedWeek call, so well-trodden weeks are covered.
+// Agents targeting cold weeks should resolve the date themselves
+// and use create/move semantics that don't need this lookup.
+export async function findWeekContainingBlock(
+  blockId: string,
+): Promise<string | null> {
+  const cur = useScheduleStore.getState();
+  if (cur.blocks.some((b) => b.id === blockId)) return cur.currentWeek;
+
+  // Walk all schedule files on disk. With single-user data this is
+  // a few dozen files at most; the cost is acceptable for a fallback
+  // path that runs once per agent command. Using listFiles directly
+  // (not the cache) so freshly-written weeks are visible too.
+  const dir = await getDataPath("schedule");
+  let names: string[] = [];
+  try {
+    names = await listFiles(dir);
+  } catch {
+    return null;
+  }
+  for (const name of names) {
+    if (!name.endsWith(".json") || name.startsWith(".")) continue;
+    const weekId = name.replace(/\.json$/, "");
+    const file = await getCachedWeek(weekId);
+    if (file && file.blocks.some((b) => b.id === blockId)) return weekId;
+  }
+  return null;
+}

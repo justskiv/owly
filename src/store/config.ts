@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Area, ConfigFile } from "../schemas";
+import type { Area, ConfigFile, SchedulingPreferences } from "../schemas";
 import { ConfigFileSchema } from "../schemas";
 import {
   getDataPath,
@@ -17,6 +17,7 @@ interface ConfigStore {
   saveConfig: () => Promise<void>;
   setAreas: (areas: Area[]) => Promise<void>;
   setPipelineStages: (stages: string[]) => Promise<void>;
+  setSchedulingPrefs: (prefs: SchedulingPreferences) => Promise<void>;
 }
 
 async function persistConfig(config: ConfigFile) {
@@ -75,6 +76,14 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     const cfg = get().config;
     if (!cfg) return;
     const next: ConfigFile = { ...cfg, pipeline_stages: stages };
+    set({ config: next });
+    await trackSave(() => persistConfig(next));
+  },
+
+  setSchedulingPrefs: async (scheduling_preferences) => {
+    const cfg = get().config;
+    if (!cfg) return;
+    const next: ConfigFile = { ...cfg, scheduling_preferences };
     set({ config: next });
     await trackSave(() => persistConfig(next));
   },

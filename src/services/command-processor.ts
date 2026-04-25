@@ -1,0 +1,191 @@
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { CommandSchema } from "../schemas";
+import { toast } from "../components/shared/Toast";
+import { useCommandStore } from "../store/commands";
+import { batchPartialOf, executeCommand } from "./command-executor";
+import {
+  fileExists,
+  getCommandsPath,
+  listFiles,
+  writeJsonFile,
+} from "./file-io";
+import { nowISO } from "./time-utils";
+
+const ACTION_RU: Record<string, string> = {
+  create_block: "Блок создан",
+  update_block: "Блок обновлён",
+  move_block: "Блок перемещён",
+  resize_block: "Блок изменён",
+  delete_block: "Блок удалён",
+  set_block_status: "Статус обновлён",
+  create_entity: "Сущность создана",
+  update_entity: "Сущность обновлена",
+  delete_entity: "Сущность удалена",
+  create_week: "Неделя создана",
+  apply_template: "Шаблон применён",
+  batch: "Команды применены",
+};
+
+let started = false;
+const inflight = new Set<string>();
+let chain: Promise<unknown> = Promise.resolve();
+
+// Boot wires up the watcher listener and drains anything sitting in
+// commands/pending/ from the last session. Idempotent — guarded by
+// `started` so React StrictMode's double-mount can't install twice.
+export async function startCommandProcessor(): Promise<void> {
+  if (started) return;
+  started = true;
+
+  // Install the listener BEFORE drain. Anything that arrives between
+  // the listener install and the drain finishing is captured by both;
+  // the inflight Set dedupes so it runs exactly once.
+  await listen<string>("command-received", (e) => {
+    enqueue(e.payload);
+  });
+
+  await drainPending();
+}
+
+async function drainPending(): Promise<void> {
+  const dir = await getCommandsPath("pending");
+  let names: string[];
+  try {
+    names = await listFiles(dir);
+  } catch (e) {
+    console.warn("[commands] cannot list pending:", (e as Error).message);
+    return;
+  }
+  // Sort by name — convention is timestamp-prefixed, so this gives
+  // chronological order even after restart.
+  names.sort();
+  for (const name of names) {
+    if (shouldSkip(name)) continue;
+    const path = await getCommandsPath("pending", name);
+    enqueue(path);
+  }
+}
+
+function shouldSkip(name: string): boolean {
+  if (!name.endsWith(".json")) return true;
+  // Tauri's atomic write produces .tmp.<pid>.<nanos>.<n> sibling
+  // files; the watcher emits Create events for those too. Filter
+  // them so we never read half-written input.
+  if (name.startsWith(".tmp.")) return true;
+  if (name.startsWith(".")) return true;
+  return false;
+}
+
+function enqueue(path: string): void {
+  if (inflight.has(path)) return;
+  inflight.add(path);
+  chain = chain.then(async () => {
+    try {
+      await processOne(path);
+    } finally {
+      inflight.delete(path);
+    }
+  });
+}
+
+async function processOne(path: string): Promise<void> {
+  // A duplicate watcher event (FSEvents coalesces or fires twice)
+  // can land after the file was moved by the first run — silent skip.
+  if (!(await fileExists(path))) return;
+
+  let raw: unknown = null;
+  try {
+    const text = await invoke<string>("read_file", { path });
+    raw = JSON.parse(text);
+  } catch (e) {
+    await fail(path, raw, `Read/parse failed: ${(e as Error).message}`);
+    return;
+  }
+
+  const parsed = CommandSchema.safeParse(raw);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((i) => `${i.path.join(".")}: ${i.message}`)
+      .join("; ");
+    await fail(path, raw, `Schema rejected: ${issues}`);
+    return;
+  }
+
+  try {
+    await executeCommand(parsed.data);
+  } catch (e) {
+    await fail(path, raw, (e as Error).message, batchPartialOf(e));
+    return;
+  }
+
+  const donePath = await markDone(path);
+  useCommandStore.getState().bumpExecuted();
+  if (donePath) {
+    void useCommandStore.getState().addDone(donePath);
+  }
+  const label = ACTION_RU[parsed.data.action] ?? parsed.data.action;
+  toast.success(`✓ ${label}`);
+}
+
+async function markDone(path: string): Promise<string | null> {
+  const name = path.split("/").pop();
+  if (!name) return null;
+  const dest = await getCommandsPath("done", name);
+  try {
+    // moveFile auto-creates the parent if missing.
+    await invoke("move_file", { from: path, to: dest });
+    return dest;
+  } catch {
+    // Move can lose a race against a duplicate event that already
+    // moved the file — both cases mean the source is gone.
+    return null;
+  }
+}
+
+async function fail(
+  path: string,
+  raw: unknown,
+  error: string,
+  partial?: { succeeded: number; failed_at_index: number },
+): Promise<void> {
+  const name = path.split("/").pop() ?? "command.json";
+  const failedPath = await getCommandsPath("failed", name);
+
+  const base =
+    raw && typeof raw === "object"
+      ? (raw as Record<string, unknown>)
+      : { id: name, action: "unknown", data: raw };
+
+  const failed = {
+    id: typeof base.id === "string" ? base.id : name,
+    action: typeof base.action === "string" ? base.action : "unknown",
+    timestamp:
+      typeof base.timestamp === "string" ? base.timestamp : undefined,
+    data: base.data,
+    error,
+    failed_at: nowISO(),
+    ...(partial ? { partial } : {}),
+  };
+
+  try {
+    // Write the failed snapshot first — that way we keep a record
+    // even if the source delete loses its race against a watcher
+    // duplicate event.
+    await writeJsonFile(failedPath, failed);
+    if (await fileExists(path)) {
+      try {
+        await invoke("delete_file", { path });
+      } catch {
+        // already gone
+      }
+    }
+  } catch (e) {
+    console.error("[commands] failed to record failure:", e);
+  }
+
+  await useCommandStore.getState().addFailed(failedPath);
+  const action =
+    typeof base.action === "string" ? base.action : "command";
+  toast.error(`✗ ${action}: ${error}`);
+}

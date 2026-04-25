@@ -6,11 +6,13 @@ import { AreasTab } from "./AreasTab";
 import { PipelineTab } from "./PipelineTab";
 import { TemplateTab } from "./TemplateTab";
 import { DataTab } from "./DataTab";
+import { SchedulingTab } from "./SchedulingTab";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "areas", label: "Области" },
   { id: "template", label: "Шаблон" },
   { id: "pipeline", label: "Пайплайн" },
+  { id: "ai", label: "AI" },
   { id: "data", label: "Данные" },
 ];
 
@@ -78,6 +80,7 @@ export function SettingsModal() {
           {tab === "areas" && <AreasTab />}
           {tab === "template" && <TemplateTab />}
           {tab === "pipeline" && <PipelineTab />}
+          {tab === "ai" && <SchedulingTab />}
           {tab === "data" && <DataTab />}
         </div>
       </div>

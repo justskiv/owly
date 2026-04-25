@@ -73,6 +73,11 @@ export function getCurrentWeekId(): string {
   return formatWeekId(year, week);
 }
 
+export function dateToWeekId(date: string): string {
+  const { year, week } = isoWeekParts(parseDate(date));
+  return formatWeekId(year, week);
+}
+
 export function getWeekStartDate(weekId: string): string {
   return format(startOfWeek(weekId), "yyyy-MM-dd");
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addWeeks,
   dateForDayIndex,
+  dateToWeekId,
   dayIndexOfDate,
   fmtDur,
   getCurrentWeekId,
@@ -80,6 +81,43 @@ describe("ISO week math", () => {
         const date = dateForDayIndex(start, i);
         expect(dayIndexOfDate(date, start)).toBe(i);
       }
+    });
+  });
+
+  describe("DST edge cases", () => {
+    // The Sunday of a DST-week is still 6 days after that week's
+    // Monday — the missing/extra hour shouldn't shift the day index.
+    it.each([
+      // EU spring-forward: Sun Mar 31 2024 (week 13, Mon Mar 25)
+      ["2024-03-31", "2024-03-25", 6],
+      // EU fall-back: Sun Oct 27 2024
+      ["2024-10-27", "2024-10-21", 6],
+      // US spring-forward: Sun Mar 10 2024
+      ["2024-03-10", "2024-03-04", 6],
+      // US fall-back: Sun Nov 3 2024
+      ["2024-11-03", "2024-10-28", 6],
+    ])("dayIndexOfDate(%s, %s) = %i", (date, weekStart, expected) => {
+      expect(dayIndexOfDate(date, weekStart)).toBe(expected);
+    });
+
+    it("roundtrip across DST week stays consistent", () => {
+      const start = "2024-03-25";
+      for (let i = 0; i < 7; i++) {
+        const date = dateForDayIndex(start, i);
+        expect(dayIndexOfDate(date, start)).toBe(i);
+      }
+    });
+  });
+
+  describe("dateToWeekId", () => {
+    it.each([
+      ["2024-01-01", "2024-w01"],
+      ["2024-12-30", "2025-w01"],
+      ["2026-04-14", "2026-w16"],
+      ["2020-12-28", "2020-w53"],
+      ["2021-01-03", "2020-w53"],
+    ])("%s → %s", (date, expected) => {
+      expect(dateToWeekId(date)).toBe(expected);
     });
   });
 });

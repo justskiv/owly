@@ -11,6 +11,8 @@ import { useScheduleStore } from "./store/schedule";
 import { useUIStore } from "./store/ui";
 import { ensureDataDir, JsonReadError } from "./services/file-io";
 import { getCurrentWeekId } from "./services/time-utils";
+import { startCommandProcessor } from "./services/command-processor";
+import { installDashboardHotReload } from "./services/dashboard-hot-reload";
 
 function App() {
   useEffect(() => {
@@ -54,6 +56,11 @@ function App() {
             .loadWeek(getCurrentWeekId(), { silentCreate: true }),
           useDashboardStore.getState().loadRegistry(),
         ]);
+        // Watcher-driven processors only after stores are ready —
+        // a command landing during boot would otherwise see empty
+        // schedule/entities snapshots and fail with confusing errors.
+        await startCommandProcessor();
+        await installDashboardHotReload();
       } catch (e) {
         if (cancelled) return;
         window.clearTimeout(safety);

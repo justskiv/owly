@@ -1,12 +1,14 @@
 mod commands;
+mod watcher;
 
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use commands::files::{
     delete_file, ensure_dir, file_exists, list_files, move_file, read_file, write_file,
 };
 use commands::system::get_data_dir;
-use commands::AppRoot;
+use commands::{AppRoot, WatcherState};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::utils::config::Color;
 use tauri::{Emitter, Manager, WindowEvent};
@@ -42,7 +44,30 @@ pub fn run() {
                 app.path().app_data_dir()?
             };
             std::fs::create_dir_all(&root)?;
+
+            // Make sure the directories the watcher subscribes to
+            // exist before notify::watch (it errors on missing paths).
+            let pending_dir = root.join("commands").join("pending");
+            let done_dir = root.join("commands").join("done");
+            let failed_dir = root.join("commands").join("failed");
+            let dashboards_dir = root.join("data").join("dashboards");
+            watcher::ensure_dirs(&[
+                &pending_dir,
+                &done_dir,
+                &failed_dir,
+                &dashboards_dir,
+            ])?;
+
             app.manage(AppRoot(root));
+            app.manage(WatcherState(Mutex::new(None)));
+
+            if let Err(e) = watcher::start_watchers(
+                app.handle().clone(),
+                pending_dir,
+                dashboards_dir,
+            ) {
+                eprintln!("[watcher] failed to start: {e}");
+            }
 
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window

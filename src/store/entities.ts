@@ -25,7 +25,14 @@ const POOL_TYPES = new Set<EntityType>([
   "routine",
 ]);
 
-type EntityDraft = Omit<Entity, "id" | "created_at" | "updated_at">;
+type EntityDraft = Omit<Entity, "id" | "created_at" | "updated_at"> & {
+  // Optional overrides used by the command executor — agent-supplied
+  // commands carry their own id/timestamps. UI callers pass nothing
+  // and the store fills them in.
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
 
 // Persist-first: see schedule.ts for the same rationale.
 // Validates before write — any call path that drifts from the schema
@@ -114,9 +121,9 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
     const now = nowISO();
     const entity = {
       ...draft,
-      id: generateId("ent"),
-      created_at: now,
-      updated_at: now,
+      id: draft.id ?? generateId("ent"),
+      created_at: draft.created_at ?? now,
+      updated_at: draft.updated_at ?? now,
     } as Entity;
     const next = [...get().entities, entity];
     set({ entities: next });
