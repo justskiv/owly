@@ -82,6 +82,7 @@
 |---|------|----------------|----------------|
 | 1 | **Foundation v2** | Top Nav, 6 табов, Direction-сущность, новые stores и схемы для pool/horizon, миграция seed | Переключение табов, на 5 — заглушки, Plan — старый planner |
 | 2 | **Quick Add + Toast v2** | `Cmd+N` overlay с категориями и тогглами типов, inline-modifiers (`!завтра`), новый Toast | Cmd+N работает на всех экранах, создаёт task/project/direction |
+| 2.5 | **Quick Add polish** | Spotlight-якорь, segmented control, autocomplete popover на `!` с inline date picker'ом, live-подсветка модификаторов в input'е, preview-строка | Quick Add по уровню Raycast/Linear; ввод `!` открывает popover, дата подсвечивается на лету |
 | 3 | **Экран «Задачи»** | TasksPage (Task Bar, группы, sidebar, поиск, фильтры), Entity Popup | Полнофункциональный экран Tasks |
 | 4 | **Экран «Проекты»** | ProjectsPage (Kanban, board tabs, cat-filter, inline-create), drag-drop карточек | Полнофункциональный экран Projects |
 | 5 | **Экран «Контекст»** | ContextPage (карточки направлений, проекты внутри, каденции), inline editor проекта | Полнофункциональный экран Context |
@@ -94,16 +95,22 @@
 
 ```
 Phase 1 (Foundation)
-   ├── Phase 2 (Quick Add) ─┐
-   │                         ├── Phase 3 (Tasks) ───┐
-   │                         ├── Phase 4 (Projects) ┤
-   │                         └── Phase 5 (Context) ─┤
-   │                                                ├── Phase 6 (Planner+Pool)
-   │                                                ├── Phase 7 (Horizon)
-   │                                                └── Phase 8 (Review)
+   ├── Phase 2 (Quick Add)
+   │      └── Phase 2.5 (Quick Add polish) ─┐
+   │                                         ├── Phase 3 (Tasks) ───┐
+   │                                         ├── Phase 4 (Projects) ┤
+   │                                         └── Phase 5 (Context) ─┤
+   │                                                                ├── Phase 6 (Planner+Pool)
+   │                                                                ├── Phase 7 (Horizon)
+   │                                                                └── Phase 8 (Review)
    │
    └── Phase 9 (Cleanup) — после всех остальных
 ```
+
+Phase 2.5 — рекомендуется до Phase 3, потому что Tasks-экран будет
+интенсивно использовать Quick Add, и без полировки overlay это
+будет некомфортно. Технически 2.5 не блокирует 3 — можно пропустить
+и закрыть позже.
 
 Phase 1 — обязательна первая (закладывает навигацию, типы,
 storage). Phase 2 — обязательна перед 3, 4, 5 (Entity Popup и
@@ -176,6 +183,7 @@ union по `action`. Расширение распределяется по фа
 
 - `01-phase-1-foundation.md`
 - `02-phase-2-quick-add.md`
+- `02.5-phase-2.5-quick-add-polish.md`
 - `03-phase-3-tasks.md`
 - `04-phase-4-projects.md`
 - `05-phase-5-context.md`

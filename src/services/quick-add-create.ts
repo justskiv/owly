@@ -4,7 +4,7 @@ import {
 } from "../schemas/entity";
 import type { Entity } from "../schemas";
 import { useEntityStore } from "../store/entities";
-import type { ParsedQuickAdd } from "./quick-add-parser";
+import type { ParsedQuickAdd } from "./quick-add-tokenizer";
 
 export type QuickAddType = "task" | "project" | "direction";
 

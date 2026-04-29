@@ -5,6 +5,7 @@ import {
   getWeekOffsetFromCurrent,
   getWeekRangeLabel,
 } from "../../services/week-format";
+import { Tooltip } from "../shared/Tooltip";
 
 interface TabDef {
   page: Page;
@@ -80,15 +81,22 @@ export function TopNav() {
           ›
         </button>
       </div>
-      <button
-        type="button"
-        className="nav-add-btn"
-        onClick={() => openQuickAdd()}
-        title="Создать (Cmd+N)"
-        aria-label="Создать"
+      <Tooltip
+        content={
+          <>
+            Создать <span className="qa-kbd">⌘N</span>
+          </>
+        }
       >
-        <Plus size={14} strokeWidth={2} />
-      </button>
+        <button
+          type="button"
+          className="nav-add-btn"
+          onClick={() => openQuickAdd()}
+          aria-label="Создать"
+        >
+          <Plus size={14} strokeWidth={2} />
+        </button>
+      </Tooltip>
     </header>
   );
 }

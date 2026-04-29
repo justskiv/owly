@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type { EntityType, Status } from "../schemas";
 import { useConfigStore } from "./config";
+import { tokenize, type Token } from "../services/quick-add-tokenizer";
+import { buildPopoverItems } from "../services/quick-add-popover-items";
 
 export type Page =
   | "plan"
@@ -36,10 +38,17 @@ export interface QuickAddState {
   // Remembered across opens so the next Quick Add prefills the last
   // user choice. In-memory only — on app restart this resets.
   lastCategory: string | null;
-  // Frozen on open. Per spec §10.1 the hint stays stable when the
-  // user toggles type, communicating "by-context" while still allowing
-  // an override without UI churn.
-  hintLabel: string;
+  input: string;
+  tokens: Token[];
+  // Spans of date-modifier tokens the user explicitly clicked off.
+  // Stored as "start-end" strings; the entry survives only while the
+  // input span is unchanged (setQuickAddInput resets the set).
+  deactivatedSpans: string[];
+  popoverOpen: boolean;
+  popoverFilter: string;
+  popoverSelectedIndex: number;
+  pickerOpen: boolean;
+  pickerSelectedDate: string | null;
 }
 
 export type EntityPopupAnchor =
@@ -66,10 +75,16 @@ const TYPE_BY_PAGE: Record<Page, QAType> = {
   dashboards: "task",
 };
 
-const TYPE_LABEL_RU: Record<QAType, string> = {
-  task: "Задача",
-  project: "Проект",
-  direction: "Направление",
+const EMPTY_QUICK_ADD: Omit<QuickAddState, "type" | "category" | "lastCategory"> = {
+  open: false,
+  input: "",
+  tokens: [],
+  deactivatedSpans: [],
+  popoverOpen: false,
+  popoverFilter: "",
+  popoverSelectedIndex: 0,
+  pickerOpen: false,
+  pickerSelectedDate: null,
 };
 
 interface UIStore {
@@ -119,9 +134,9 @@ interface UIStore {
   commandsPanelOpen: boolean;
   commandsPanelTab: "done" | "failed";
 
-  // Quick Add overlay (Cmd+N). Replaces the legacy EntityEditor "new"
-  // path for the three primary types — task/project/direction. Other
-  // types still go through the debug Cmd+Shift+E flow.
+  // Quick Add overlay (Cmd+N). Spotlight-style command palette for
+  // the three primary types — task/project/direction. Other types
+  // still go through the debug Cmd+Shift+E flow.
   quickAdd: QuickAddState;
 
   // Compact popup over an anchor (e.g., a planner block). Phase 2
@@ -171,6 +186,17 @@ interface UIStore {
   closeQuickAdd: () => void;
   setQuickAddType: (t: QAType) => void;
   setQuickAddCategory: (cat: string) => void;
+  setQuickAddInput: (input: string) => void;
+  toggleTokenActive: (span: string) => void;
+  openPopover: (filter?: string) => void;
+  closePopover: () => void;
+  setPopoverFilter: (filter: string) => void;
+  setPopoverSelectedIndex: (i: number) => void;
+  applyPopoverItem: () => void;
+  openPicker: () => void;
+  closePicker: () => void;
+  setPickerSelectedDate: (iso: string | null) => void;
+  applyPickerDate: () => void;
 
   openEntityPopup: (
     entityId: string,
@@ -178,6 +204,21 @@ interface UIStore {
     position: "below" | "right",
   ) => void;
   closeEntityPopup: () => void;
+}
+
+function replaceLastBangFragment(input: string, replacement: string): string {
+  // Replaces "!<filter>" up to the next whitespace (or end) with
+  // `replacement`. Used when applying a popover item or picker date.
+  const lastBang = input.lastIndexOf("!");
+  if (lastBang === -1) {
+    const sep = input === "" || input.endsWith(" ") ? "" : " ";
+    return input + sep + replacement;
+  }
+  const before = input.slice(0, lastBang);
+  const after = input.slice(lastBang);
+  const wsIdx = after.search(/\s/);
+  const tail = wsIdx === -1 ? "" : after.slice(wsIdx);
+  return before + replacement + tail;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -210,11 +251,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
   commandsPanelTab: "done",
 
   quickAdd: {
-    open: false,
+    ...EMPTY_QUICK_ADD,
     type: "task",
     category: null,
     lastCategory: null,
-    hintLabel: TYPE_LABEL_RU.task,
   },
   entityPopup: { open: false },
 
@@ -300,11 +340,11 @@ export const useUIStore = create<UIStore>((set, get) => ({
     const category = lastCategory ?? cfg?.areas[0]?.id ?? null;
     set({
       quickAdd: {
+        ...EMPTY_QUICK_ADD,
         open: true,
         type,
         category,
         lastCategory,
-        hintLabel: TYPE_LABEL_RU[type],
       },
     });
   },
@@ -316,6 +356,116 @@ export const useUIStore = create<UIStore>((set, get) => ({
     set((s) => ({
       quickAdd: { ...s.quickAdd, category: cat, lastCategory: cat },
     })),
+  setQuickAddInput: (input) =>
+    set((s) => ({
+      quickAdd: {
+        ...s.quickAdd,
+        input,
+        tokens: tokenize(input),
+        deactivatedSpans: [],
+      },
+    })),
+  toggleTokenActive: (span) =>
+    set((s) => ({
+      quickAdd: {
+        ...s.quickAdd,
+        deactivatedSpans: s.quickAdd.deactivatedSpans.includes(span)
+          ? s.quickAdd.deactivatedSpans.filter((x) => x !== span)
+          : [...s.quickAdd.deactivatedSpans, span],
+      },
+    })),
+  openPopover: (filter = "") =>
+    set((s) => ({
+      quickAdd: {
+        ...s.quickAdd,
+        popoverOpen: true,
+        popoverFilter: filter,
+        popoverSelectedIndex: 0,
+        pickerOpen: false,
+      },
+    })),
+  closePopover: () =>
+    set((s) => ({
+      quickAdd: {
+        ...s.quickAdd,
+        popoverOpen: false,
+        popoverFilter: "",
+        popoverSelectedIndex: 0,
+      },
+    })),
+  setPopoverFilter: (filter) =>
+    set((s) => ({
+      quickAdd: { ...s.quickAdd, popoverFilter: filter, popoverSelectedIndex: 0 },
+    })),
+  setPopoverSelectedIndex: (i) =>
+    set((s) => ({ quickAdd: { ...s.quickAdd, popoverSelectedIndex: i } })),
+  applyPopoverItem: () => {
+    const { popoverFilter, popoverSelectedIndex, input } = get().quickAdd;
+    const items = buildPopoverItems(popoverFilter);
+    const item = items[popoverSelectedIndex];
+    if (!item) return;
+    if (item.isAction === "open-picker") {
+      set((s) => ({
+        quickAdd: {
+          ...s.quickAdd,
+          popoverOpen: false,
+          popoverFilter: "",
+          pickerOpen: true,
+          pickerSelectedDate: null,
+        },
+      }));
+      return;
+    }
+    const newInput = replaceLastBangFragment(input, item.apply);
+    set((s) => ({
+      quickAdd: {
+        ...s.quickAdd,
+        input: newInput,
+        tokens: tokenize(newInput),
+        deactivatedSpans: [],
+        popoverOpen: false,
+        popoverFilter: "",
+        popoverSelectedIndex: 0,
+      },
+    }));
+  },
+  openPicker: () =>
+    set((s) => ({
+      quickAdd: {
+        ...s.quickAdd,
+        pickerOpen: true,
+        popoverOpen: false,
+        popoverFilter: "",
+      },
+    })),
+  closePicker: () =>
+    set((s) => ({
+      quickAdd: {
+        ...s.quickAdd,
+        pickerOpen: false,
+        pickerSelectedDate: null,
+      },
+    })),
+  setPickerSelectedDate: (iso) =>
+    set((s) => ({
+      quickAdd: { ...s.quickAdd, pickerSelectedDate: iso },
+    })),
+  applyPickerDate: () => {
+    const { input, pickerSelectedDate } = get().quickAdd;
+    if (!pickerSelectedDate) return;
+    const fragment = `!${pickerSelectedDate}`;
+    const newInput = replaceLastBangFragment(input, fragment);
+    set((s) => ({
+      quickAdd: {
+        ...s.quickAdd,
+        input: newInput,
+        tokens: tokenize(newInput),
+        deactivatedSpans: [],
+        pickerOpen: false,
+        pickerSelectedDate: null,
+      },
+    }));
+  },
 
   openEntityPopup: (entityId, anchor, position) =>
     set({ entityPopup: { open: true, entityId, anchor, position } }),
