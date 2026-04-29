@@ -44,13 +44,13 @@ function useNowInWeek(weekDates: string[], tick: number) {
     const minutes = now.getHours() * 60 + now.getMinutes();
     const visible = minutes >= START_HOUR * 60 && minutes < END_HOUR * 60;
     return { todayIdx: idx, nowMinutes: visible ? minutes : null };
-    // tick принудительно инвалидирует мемо раз в минуту
+    // tick is the explicit dep that re-invalidates this memo every minute
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekDates, tick]);
 }
 
 export function PlannerPage() {
-  const active = useUIStore((s) => s.currentPage === "planner");
+  const active = useUIStore((s) => s.currentPage === "plan");
   const week = useScheduleStore((s) => s.currentWeek);
   const weekStart = useScheduleStore((s) => s.startDate);
   const blocks = useScheduleStore((s) => s.blocks);

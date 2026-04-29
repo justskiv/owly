@@ -31,6 +31,10 @@ function renderBody(entity: Entity) {
       return <MetricDetail entity={entity} />;
     case "note":
       return <NoteDetail entity={entity} />;
+    case "direction":
+      // Full DirectionDetail lands in Phase 5 (Context screen). On
+      // the debug Entities page we just render the base fields.
+      return null;
   }
 }
 

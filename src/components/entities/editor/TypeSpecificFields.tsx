@@ -1,6 +1,7 @@
 import type {
   ContactFields,
   DayOfWeek,
+  DirectionFields,
   Entity,
   EntityType,
   EventFields,
@@ -101,7 +102,102 @@ export function TypeSpecificFields(props: Props) {
           onChange={props.onChange as (f: NoteFields) => void}
         />
       );
+    case "direction":
+      return (
+        <DirectionFieldsEditor
+          fields={props.fields as DirectionFields}
+          onChange={props.onChange as (f: DirectionFields) => void}
+        />
+      );
   }
+}
+
+// ---- Direction (Phase 1: minimal editor; full UX in Phase 5) ------
+
+function DirectionFieldsEditor({
+  fields,
+  onChange,
+}: {
+  fields: DirectionFields;
+  onChange: (f: DirectionFields) => void;
+}) {
+  const setStr = (key: keyof DirectionFields, value: string) => {
+    onChange({ ...fields, [key]: value === "" ? null : value });
+  };
+  const setNum = (key: "progress" | "cadence", value: string) => {
+    if (value === "") onChange({ ...fields, [key]: null });
+    else {
+      const n = Number(value);
+      if (Number.isFinite(n)) onChange({ ...fields, [key]: n });
+    }
+  };
+  return (
+    <div className="type-specific">
+      <div className="f-row">
+        <div className="fg">
+          <label className="fl">Цель (target)</label>
+          <input
+            className="fi"
+            value={fields.target ?? ""}
+            onChange={(e) => setStr("target", e.target.value)}
+            placeholder="55K"
+          />
+        </div>
+        <div className="fg">
+          <label className="fl">Текущее (current)</label>
+          <input
+            className="fi"
+            value={fields.current ?? ""}
+            onChange={(e) => setStr("current", e.target.value)}
+            placeholder="33K"
+          />
+        </div>
+        <div className="fg">
+          <label className="fl">Прогресс, %</label>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            className="fi"
+            style={{ fontFamily: "var(--mono)" }}
+            value={fields.progress ?? ""}
+            onChange={(e) => setNum("progress", e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="f-row">
+        <div className="fg">
+          <label className="fl">Каденция (дни)</label>
+          <input
+            type="number"
+            min={1}
+            className="fi"
+            style={{ fontFamily: "var(--mono)" }}
+            value={fields.cadence ?? ""}
+            onChange={(e) => setNum("cadence", e.target.value)}
+          />
+        </div>
+        <div className="fg">
+          <label className="fl">Последнее действие</label>
+          <input
+            type="date"
+            className="fi"
+            value={fields.last_act ?? ""}
+            onChange={(e) => setStr("last_act", e.target.value)}
+          />
+        </div>
+        <div className="fg">
+          <label className="fl">Метка каденции</label>
+          <input
+            className="fi"
+            value={fields.cadence_label ?? ""}
+            onChange={(e) => setStr("cadence_label", e.target.value)}
+            placeholder="1×/нед"
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ---- Task -----------------------------------------------------------

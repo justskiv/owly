@@ -14,6 +14,7 @@ export const ENTITY_ICONS: Record<EntityType, string> = {
   goal: "🎯",
   metric: "📈",
   note: "📝",
+  direction: "🧭",
 };
 
 export const ENTITY_LABELS_RU: Record<EntityType, string> = {
@@ -25,6 +26,7 @@ export const ENTITY_LABELS_RU: Record<EntityType, string> = {
   goal: "Цель",
   metric: "Метрика",
   note: "Заметка",
+  direction: "Направление",
 };
 
 export const ENTITY_PLURAL_RU: Record<EntityType, string> = {
@@ -36,6 +38,7 @@ export const ENTITY_PLURAL_RU: Record<EntityType, string> = {
   goal: "Цели",
   metric: "Метрики",
   note: "Заметки",
+  direction: "Направления",
 };
 
 export const ENTITY_LABELS_ACC: Record<EntityType, string> = {
@@ -47,6 +50,7 @@ export const ENTITY_LABELS_ACC: Record<EntityType, string> = {
   goal: "цель",
   metric: "метрику",
   note: "заметку",
+  direction: "направление",
 };
 
 export const STATUS_LABELS_RU: Record<Status, string> = {
@@ -82,6 +86,7 @@ export const ENTITY_FILTER_TYPES: EntityType[] = [
   "goal",
   "metric",
   "note",
+  "direction",
 ];
 
 // All types shown in the "+ Создать" dropdown — here event IS included.
@@ -94,4 +99,5 @@ export const ENTITY_CREATE_TYPES: EntityType[] = [
   "goal",
   "metric",
   "note",
+  "direction",
 ];

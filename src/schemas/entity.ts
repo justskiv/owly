@@ -10,6 +10,7 @@ export const EntityTypeSchema = z.enum([
   "goal",
   "note",
   "metric",
+  "direction",
 ]);
 export type EntityType = z.infer<typeof EntityTypeSchema>;
 
@@ -49,6 +50,11 @@ export const ProjectFieldsSchema = z.object({
   description: z.string().default(""),
   pipeline_stage: z.string().default("research"),
   task_ids: z.array(z.string()).default([]),
+  // v2 fields
+  direction_id: z.string().nullable().default(null),
+  board_id: z.string().default("brd3"),
+  column_index: z.number().int().nonnegative().default(0),
+  last_activity_days: z.number().int().nonnegative().default(0),
 });
 export type ProjectFields = z.infer<typeof ProjectFieldsSchema>;
 
@@ -133,6 +139,18 @@ export const MetricFieldsSchema = z.object({
 });
 export type MetricFields = z.infer<typeof MetricFieldsSchema>;
 
+export const DirectionFieldsSchema = z.object({
+  // Measurable (optional)
+  target: z.string().nullable().default(null),
+  current: z.string().nullable().default(null),
+  progress: z.number().min(0).max(100).nullable().default(null),
+  // Cadence (optional)
+  cadence: z.number().int().positive().nullable().default(null),
+  last_act: isoDate().nullable().default(null),
+  cadence_label: z.string().nullable().default(null),
+});
+export type DirectionFields = z.infer<typeof DirectionFieldsSchema>;
+
 const baseEntityShape = {
   id: z.string(),
   title: z.string(),
@@ -187,6 +205,11 @@ export const EntitySchema = z.discriminatedUnion("type", [
     ...baseEntityShape,
     fields: MetricFieldsSchema,
   }),
+  z.object({
+    type: z.literal("direction"),
+    ...baseEntityShape,
+    fields: DirectionFieldsSchema,
+  }),
 ]);
 export type Entity = z.infer<typeof EntitySchema>;
 
@@ -198,6 +221,7 @@ export type ContactEntity = Extract<Entity, { type: "contact" }>;
 export type GoalEntity = Extract<Entity, { type: "goal" }>;
 export type NoteEntity = Extract<Entity, { type: "note" }>;
 export type MetricEntity = Extract<Entity, { type: "metric" }>;
+export type DirectionEntity = Extract<Entity, { type: "direction" }>;
 
 export const EntitiesFileSchema = z.object({
   version: z.literal(1),

@@ -6,7 +6,7 @@ import type {
   Priority,
   Status,
 } from "../../schemas";
-import { EntitySchema } from "../../schemas";
+import { DirectionFieldsSchema, EntitySchema } from "../../schemas";
 import { useConfigStore } from "../../store/config";
 import { useEntityStore } from "../../store/entities";
 import { useUIStore, type EntityEditorState } from "../../store/ui";
@@ -28,7 +28,15 @@ function defaultFieldsFor(type: EntityType): Entity["fields"] {
     case "task":
       return { parent_project_id: null, checklist: [] };
     case "project":
-      return { description: "", pipeline_stage: "research", task_ids: [] };
+      return {
+        description: "",
+        pipeline_stage: "research",
+        task_ids: [],
+        direction_id: null,
+        board_id: "brd3",
+        column_index: 0,
+        last_activity_days: 0,
+      };
     case "routine":
       return {
         frequency: "daily",
@@ -73,6 +81,8 @@ function defaultFieldsFor(type: EntityType): Entity["fields"] {
       };
     case "note":
       return { body: "" };
+    case "direction":
+      return DirectionFieldsSchema.parse({});
   }
 }
 
@@ -345,6 +355,7 @@ export function EntityEditor({ state }: Props) {
                 <option value="goal">Цель</option>
                 <option value="metric">Метрика</option>
                 <option value="note">Заметка</option>
+                <option value="direction">Направление</option>
               </select>
             </div>
           )}

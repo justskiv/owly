@@ -5,3 +5,5 @@ export * from "./template";
 export * from "./config";
 export * from "./command";
 export * from "./dashboard";
+export * from "./pool";
+export * from "./horizon";

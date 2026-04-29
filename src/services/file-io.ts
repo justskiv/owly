@@ -98,6 +98,17 @@ export async function writeJsonFile(
   await invoke("write_file", { path, content });
 }
 
+export async function readTextFile(path: string): Promise<string> {
+  return await invoke<string>("read_file", { path });
+}
+
+export async function writeTextFile(
+  path: string,
+  content: string,
+): Promise<void> {
+  await invoke("write_file", { path, content });
+}
+
 export async function readJsonFileOrCreate<T>(
   path: string,
   schema: z.ZodType<T>,
@@ -168,6 +179,7 @@ export async function ensureDataDir(): Promise<string> {
   const base = await getDataDir();
   await ensureDir(base);
   await ensureDir(normalizeJoin([base, "schedule"]));
+  await ensureDir(normalizeJoin([base, "pool"]));
   await ensureDir(normalizeJoin([base, "templates"]));
   await ensureDir(normalizeJoin([base, "dashboards"]));
   await ensureDir(normalizeJoin([base, "commands", "pending"]));

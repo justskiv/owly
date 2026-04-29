@@ -9,7 +9,7 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { id: "planner", icon: Calendar, label: "Планировщик" },
+  { id: "plan", icon: Calendar, label: "Планировщик" },
   { id: "entities", icon: Database, label: "Данные" },
   { id: "dashboards", icon: BarChart3, label: "Дашборды" },
 ];

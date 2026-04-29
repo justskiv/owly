@@ -1,9 +1,14 @@
 import { useEffect } from "react";
 import { Header } from "./Header";
-import { Sidebar } from "./Sidebar";
 import { StatusBar } from "./StatusBar";
+import { TopNav } from "./TopNav";
 import { Toast } from "../shared/Toast";
 import { PlannerPage } from "../../pages/PlannerPage";
+import { TasksPage } from "../../pages/TasksPage";
+import { ProjectsPage } from "../../pages/ProjectsPage";
+import { ContextPage } from "../../pages/ContextPage";
+import { HorizonPage } from "../../pages/HorizonPage";
+import { ReviewPage } from "../../pages/ReviewPage";
 import { EntitiesPage } from "../../pages/EntitiesPage";
 import { DashboardsPage } from "../../pages/DashboardsPage";
 import { EntityEditor } from "../entities/EntityEditor";
@@ -12,12 +17,16 @@ import { CommandsLogPanel } from "../commands/CommandsLogPanel";
 import { useUIStore, type Page } from "../../store/ui";
 
 const KEY_PAGE: Record<string, Page> = {
-  Digit1: "planner",
-  Digit2: "entities",
-  Digit3: "dashboards",
+  Digit1: "plan",
+  Digit2: "tasks",
+  Digit3: "projects",
+  Digit4: "context",
+  Digit5: "horizon",
+  Digit6: "review",
 };
 
 export function Shell() {
+  const currentPage = useUIStore((s) => s.currentPage);
   const setPage = useUIStore((s) => s.setPage);
   const entityEditor = useUIStore((s) => s.entityEditor);
   const settingsOpen = useUIStore((s) => s.settingsOpen);
@@ -46,6 +55,25 @@ export function Shell() {
       }
 
       if (isEditable) return;
+
+      // Cmd+Shift+E / Cmd+Shift+D — debug entry points to the legacy
+      // screens. Kept while phases 1..8 are in flight; Phase 9 decides
+      // their final fate.
+      if (e.metaKey && e.shiftKey && !e.altKey) {
+        if (e.code === "KeyE") {
+          e.preventDefault();
+          setPage("entities");
+          return;
+        }
+        if (e.code === "KeyD") {
+          e.preventDefault();
+          setPage("dashboards");
+          return;
+        }
+      }
+
+      // Digits 1..6 without modifiers — switch main tabs.
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       const next = KEY_PAGE[e.code];
       if (next) setPage(next);
     };
@@ -53,14 +81,22 @@ export function Shell() {
     return () => window.removeEventListener("keydown", handler);
   }, [setPage]);
 
+  const isDebugPage =
+    currentPage === "entities" || currentPage === "dashboards";
+
   return (
     <div className="app" onContextMenu={(e) => e.preventDefault()}>
-      <Sidebar />
-      <Header />
+      <TopNav />
+      {isDebugPage && <Header />}
       <main className="main">
-        <PlannerPage />
-        <EntitiesPage />
-        <DashboardsPage />
+        {currentPage === "plan" && <PlannerPage />}
+        {currentPage === "tasks" && <TasksPage />}
+        {currentPage === "projects" && <ProjectsPage />}
+        {currentPage === "context" && <ContextPage />}
+        {currentPage === "horizon" && <HorizonPage />}
+        {currentPage === "review" && <ReviewPage />}
+        {currentPage === "entities" && <EntitiesPage />}
+        {currentPage === "dashboards" && <DashboardsPage />}
       </main>
       <StatusBar />
       <Toast />

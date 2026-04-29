@@ -7,12 +7,15 @@ import { Shell } from "./components/layout/Shell";
 import { useConfigStore } from "./store/config";
 import { useDashboardStore } from "./store/dashboards";
 import { useEntityStore } from "./store/entities";
+import { useHorizonStore } from "./store/horizon";
+import { usePoolStore } from "./store/pool";
 import { useScheduleStore } from "./store/schedule";
 import { useUIStore } from "./store/ui";
 import { ensureDataDir, JsonReadError } from "./services/file-io";
 import { getCurrentWeekId } from "./services/time-utils";
 import { startCommandProcessor } from "./services/command-processor";
 import { installDashboardHotReload } from "./services/dashboard-hot-reload";
+import { maybeMigrateToV2 } from "./services/seed-migration";
 
 function App() {
   useEffect(() => {
@@ -42,19 +45,27 @@ function App() {
     void (async () => {
       try {
         await ensureDataDir();
+        // Seed migration runs BEFORE loadConfig — it reads config.json
+        // directly via readJsonFile to validate seed areas, and may
+        // copy seed-v2/* into data/ if entities.json is empty. The
+        // marker .v2-migrated guarantees this runs exactly once.
+        await maybeMigrateToV2();
         // Config must load first so entities can warn on unknown tags
         // — areas are passed in explicitly to keep the entity store
         // free of cross-store imports.
         await useConfigStore.getState().loadConfig();
         const areas = useConfigStore.getState().config?.areas;
+        const currentWeek = getCurrentWeekId();
         await Promise.all([
           useEntityStore.getState().loadEntities(areas),
           // First boot: create empty week file silently if none exists,
           // otherwise a dialog would pop before the UI even paints.
           useScheduleStore
             .getState()
-            .loadWeek(getCurrentWeekId(), { silentCreate: true }),
+            .loadWeek(currentWeek, { silentCreate: true }),
           useDashboardStore.getState().loadRegistry(),
+          usePoolStore.getState().loadWeek(currentWeek),
+          useHorizonStore.getState().load(),
         ]);
         // Watcher-driven processors only after stores are ready —
         // a command landing during boot would otherwise see empty
@@ -82,6 +93,19 @@ function App() {
     };
   }, []);
 
+  // Sync pool when the user navigates between weeks. The schedule
+  // store owns currentWeek; pool is a parallel per-week file. Without
+  // this subscription the pool sidebar would still show last week's
+  // items after the grid switched.
+  useEffect(() => {
+    const unsub = useScheduleStore.subscribe((state, prev) => {
+      if (state.currentWeek !== prev.currentWeek) {
+        void usePoolStore.getState().loadWeek(state.currentWeek);
+      }
+    });
+    return () => unsub();
+  }, []);
+
   // Native menu bar dispatches actions to the frontend over a single
   // "menu" event, payload is the menu item id.
   //
@@ -94,10 +118,19 @@ function App() {
     let unlisten: (() => void) | null = null;
     let cancelled = false;
     void listen<string>("menu", (e) => {
+      const ui = useUIStore.getState();
       switch (e.payload) {
         case "new-block":
-          useUIStore.getState().setPage("planner");
-          useUIStore.getState().requestNewBlock();
+          // On Plan, keep the legacy BlockEditor flow (Cmd+N opens the
+          // planner block editor inline). On any other tab, route to
+          // the entity editor with type=task — this matches the
+          // TopNav `+` button so Cmd+N is consistent everywhere and
+          // the user is not yanked to Plan unexpectedly.
+          if (ui.currentPage === "plan") {
+            ui.requestNewBlock();
+          } else {
+            ui.openEntityEditorNew("task");
+          }
           break;
         case "today":
           void useScheduleStore.getState().goToCurrentWeek();
@@ -109,8 +142,15 @@ function App() {
           void useScheduleStore.getState().goToNextWeek();
           break;
         case "toggle-pool":
-          useUIStore.getState().setPage("planner");
-          useUIStore.getState().togglePool();
+          // Pool only exists on Plan. From any other tab, navigate
+          // there without flipping the toggle so the user lands in a
+          // predictable state (rather than seeing the pool collapse on
+          // arrival).
+          if (ui.currentPage !== "plan") {
+            ui.setPage("plan");
+          } else {
+            ui.togglePool();
+          }
           break;
       }
     }).then((fn) => {

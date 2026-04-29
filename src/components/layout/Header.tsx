@@ -1,79 +1,21 @@
 import { useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useUIStore } from "../../store/ui";
-import { useScheduleStore } from "../../store/schedule";
 import { useDashboardStore } from "../../store/dashboards";
-import {
-  getWeekNumber,
-  formatWeekRange,
-} from "../../services/time-utils";
 import { CreateDropdown } from "../entities/CreateDropdown";
 
+// Header v2 — only rendered on the debug pages reached via
+// Cmd+Shift+E / Cmd+Shift+D. Week navigation and "+ Создать" for the
+// main tabs live in TopNav now. PlannerHeader was removed; its
+// function moved to TopNav.
 export function Header() {
   const currentPage = useUIStore((s) => s.currentPage);
-  
+
   return (
     <header className="hdr" data-tauri-drag-region>
-      {currentPage === "planner" && <PlannerHeader />}
       {currentPage === "entities" && <EntitiesHeader />}
       {currentPage === "dashboards" && <DashboardsHeader />}
     </header>
-  );
-}
-
-function PlannerHeader() {
-  const week = useScheduleStore((s) => s.currentWeek);
-  const goToPrev = useScheduleStore((s) => s.goToPrevWeek);
-  const goToNext = useScheduleStore((s) => s.goToNextWeek);
-  const goToCurrent = useScheduleStore((s) => s.goToCurrentWeek);
-  const setSelectedBlock = useUIStore((s) => s.setSelectedBlock);
-  const togglePool = useUIStore((s) => s.togglePool);
-
-  const navWeek = (fn: () => Promise<void> | void) => () => {
-    setSelectedBlock(null);
-    void fn();
-  };
-
-  return (
-    <>
-      <button
-        type="button"
-        className="nav-btn"
-        onClick={navWeek(goToPrev)}
-        aria-label="Предыдущая неделя"
-      >
-        <ChevronLeft />
-      </button>
-      <span className="hdr-week" data-tauri-drag-region>
-        Неделя {getWeekNumber(week)}
-        <span className="hdr-week-sub" data-tauri-drag-region>
-          {formatWeekRange(week)}
-        </span>
-      </span>
-      <button
-        type="button"
-        className="nav-btn"
-        onClick={navWeek(goToNext)}
-        aria-label="Следующая неделя"
-      >
-        <ChevronRight />
-      </button>
-      <button
-        type="button"
-        className="hdr-today"
-        onClick={navWeek(goToCurrent)}
-      >
-        Сегодня
-      </button>
-      <div className="hdr-spacer" data-tauri-drag-region />
-      <button
-        type="button"
-        className="hdr-btn hdr-btn-ghost"
-        onClick={togglePool}
-      >
-        Пул<span className="hkbd">T</span>
-      </button>
-    </>
   );
 }
 

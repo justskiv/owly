@@ -1,7 +1,17 @@
 import { create } from "zustand";
 import type { EntityType, Status } from "../schemas";
 
-export type Page = "planner" | "entities" | "dashboards";
+export type Page =
+  | "plan"
+  | "tasks"
+  | "projects"
+  | "context"
+  | "horizon"
+  | "review"
+  // Hidden debug entry points reached via Cmd+Shift+E / Cmd+Shift+D.
+  // Their final fate is decided in Phase 9.
+  | "entities"
+  | "dashboards";
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 export type SettingsTab = "areas" | "template" | "pipeline" | "ai" | "data";
 
@@ -103,7 +113,7 @@ interface UIStore {
 }
 
 export const useUIStore = create<UIStore>((set) => ({
-  currentPage: "planner",
+  currentPage: "plan",
   selectedEntityId: null,
   selectedBlockId: null,
   saveStatus: "idle",
