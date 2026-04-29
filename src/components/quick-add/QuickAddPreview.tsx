@@ -8,7 +8,7 @@ export function QuickAddPreview() {
 
   if (isConflict(tokens, deactivatedSet)) {
     return (
-      <div className="qa-preview invalid">
+      <div className="qa-preview invalid" aria-live="polite">
         Несколько дат — оставьте одну
       </div>
     );
@@ -29,11 +29,23 @@ export function QuickAddPreview() {
   if (!active) return null;
 
   if (active.type === "date-modifier-invalid") {
-    return <div className="qa-preview invalid">Не похоже на дату</div>;
+    return (
+      <div className="qa-preview invalid" aria-live="polite">
+        Не похоже на дату
+      </div>
+    );
   }
   const human = active.humanLabel ?? "";
   if (active.type === "date-modifier-past") {
-    return <div className="qa-preview past">Прошло: {human}</div>;
+    return (
+      <div className="qa-preview past" aria-live="polite">
+        Прошло: {human}
+      </div>
+    );
   }
-  return <div className="qa-preview">Дедлайн: {human}</div>;
+  return (
+    <div className="qa-preview" aria-live="polite">
+      Дедлайн: {human}
+    </div>
+  );
 }

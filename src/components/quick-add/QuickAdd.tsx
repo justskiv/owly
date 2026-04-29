@@ -11,6 +11,7 @@ import { QuickAddInput } from "./QuickAddInput";
 import { QuickAddPopover } from "./QuickAddPopover";
 import { QuickAddDatePicker } from "./QuickAddDatePicker";
 import { QuickAddPreview } from "./QuickAddPreview";
+import { Tooltip } from "../shared/Tooltip";
 
 const TYPE_LABEL_RU: Record<QAType, string> = {
   task: "Задача",
@@ -115,6 +116,9 @@ export function QuickAdd() {
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    // IME composition (Chinese/Japanese/Korean): swallow Enter/Escape
+    // so the IME's own commit/cancel keystroke isn't hijacked.
+    if (e.nativeEvent.isComposing) return;
     if (state.popoverOpen) {
       const items = buildPopoverItems(state.popoverFilter);
       const len = items.length;
@@ -193,9 +197,9 @@ export function QuickAdd() {
       void submit();
       return;
     }
-    if (e.key === "Tab") {
-      e.preventDefault();
-    }
+    // Tab outside the popover falls through to native focus navigation
+    // (input → category dots → segment items). Inside the popover Tab
+    // applies the selected item — handled in the popover branch above.
   };
 
   return (
@@ -249,18 +253,32 @@ export function QuickAdd() {
             </span>
           ) : (
             <div className="qa-cats">
-              {areas.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  className={`qa-cat-dot${state.category === a.id ? " on" : ""}`}
-                  style={{ background: a.color }}
-                  onClick={() => setCategory(a.id)}
-                  title={a.label}
-                  aria-label={a.label}
-                  aria-pressed={state.category === a.id}
-                />
-              ))}
+              <div className="qa-cats-row">
+                {areas.map((a) => (
+                  <Tooltip
+                    key={a.id}
+                    content={a.label}
+                    delay={0}
+                    placement="above"
+                  >
+                    <button
+                      type="button"
+                      className={`qa-cat-dot${state.category === a.id ? " on" : ""}`}
+                      style={{ background: a.color }}
+                      onClick={() => setCategory(a.id)}
+                      aria-label={a.label}
+                      aria-pressed={state.category === a.id}
+                    />
+                  </Tooltip>
+                ))}
+              </div>
+              {(() => {
+                const active = areas.find((a) => a.id === state.category);
+                if (!active) return null;
+                return (
+                  <span className="qa-cat-active-label">{active.label}</span>
+                );
+              })()}
             </div>
           )}
           <div className="qa-segment">

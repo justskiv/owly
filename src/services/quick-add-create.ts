@@ -1,6 +1,7 @@
 import {
   DirectionFieldsSchema,
   ProjectFieldsSchema,
+  TaskFieldsSchema,
 } from "../schemas/entity";
 import type { Entity } from "../schemas";
 import { useEntityStore } from "../store/entities";
@@ -31,7 +32,7 @@ export async function createFromQuickAdd(opts: {
         ...base,
         type: "task",
         priority: "medium",
-        fields: { parent_project_id: null, checklist: [] },
+        fields: TaskFieldsSchema.parse({ parent_project_id: null }),
       });
     case "project":
       return add({

@@ -1,4 +1,9 @@
-import { forwardRef, type KeyboardEvent } from "react";
+import {
+  forwardRef,
+  useRef,
+  type KeyboardEvent,
+  type UIEvent,
+} from "react";
 import type { Token } from "../../services/quick-add-tokenizer";
 
 interface QuickAddInputProps {
@@ -45,9 +50,20 @@ export const QuickAddInput = forwardRef<HTMLInputElement, QuickAddInputProps>(
     },
     ref,
   ) {
+    const overlayRef = useRef<HTMLDivElement>(null);
+
+    // Keep the overlay's horizontal scroll synced with the input so token
+    // highlights stay aligned with the actual text once content exceeds
+    // the visible width.
+    const handleScroll = (e: UIEvent<HTMLInputElement>) => {
+      if (overlayRef.current) {
+        overlayRef.current.scrollLeft = e.currentTarget.scrollLeft;
+      }
+    };
+
     return (
       <div className="qa-input-wrap">
-        <div className="qa-input-overlay" aria-hidden="true">
+        <div ref={overlayRef} className="qa-input-overlay" aria-hidden="true">
           {tokens.length === 0 ? (
             <span>{value}</span>
           ) : (
@@ -82,6 +98,7 @@ export const QuickAddInput = forwardRef<HTMLInputElement, QuickAddInputProps>(
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
+          onScroll={handleScroll}
           placeholder={placeholder}
           maxLength={200}
           autoComplete="off"

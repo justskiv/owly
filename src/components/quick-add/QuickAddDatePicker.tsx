@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useUIStore } from "../../store/ui";
 import { formatDate, getStartOfDay } from "../../services/time-utils";
 
+// Re-derive on each render so the picker's "today" highlight stays
+// correct across midnight rollovers.
+function todayIsoNow(): string {
+  return formatDate(getStartOfDay());
+}
+
 const MONTH_NAMES_RU = [
   "Январь",
   "Февраль",
@@ -56,21 +62,17 @@ export function QuickAddDatePicker() {
   const setSelected = useUIStore((s) => s.setPickerSelectedDate);
   const apply = useUIStore((s) => s.applyPickerDate);
 
-  const todayIso = useMemo(() => formatDate(getStartOfDay()), []);
+  const todayIso = todayIsoNow();
 
   // viewMonth tracks which month grid is rendered. Auto-syncs to the
   // currently-selected day so arrow-key nav across month boundaries
-  // shifts the calendar without explicit handling here.
+  // shifts the calendar without explicit handling here. The store
+  // primes pickerSelectedDate to today inside openPicker, so `selected`
+  // is non-null on first render.
   const [viewMonth, setViewMonth] = useState(() => {
     const seed = selected ? parseIso(selected) : getStartOfDay();
     return { y: seed.getFullYear(), m: seed.getMonth() };
   });
-
-  useEffect(() => {
-    if (selected === null) {
-      setSelected(todayIso);
-    }
-  }, [selected, setSelected, todayIso]);
 
   useEffect(() => {
     if (!selected) return;

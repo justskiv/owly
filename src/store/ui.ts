@@ -3,6 +3,7 @@ import type { EntityType, Status } from "../schemas";
 import { useConfigStore } from "./config";
 import { tokenize, type Token } from "../services/quick-add-tokenizer";
 import { buildPopoverItems } from "../services/quick-add-popover-items";
+import { formatDate, getStartOfDay } from "../services/time-utils";
 
 export type Page =
   | "plan"
@@ -206,6 +207,41 @@ interface UIStore {
   closeEntityPopup: () => void;
 }
 
+// Carry user's deactivation choices over to the new tokenization. We
+// match by `raw` text and ordinal within tokens with that raw — typing
+// one extra letter must not silently re-activate a modifier the user
+// just clicked off.
+function migrateDeactivated(
+  oldTokens: Token[],
+  oldDeactivated: string[],
+  newTokens: Token[],
+): string[] {
+  if (oldDeactivated.length === 0) return [];
+  const descriptors: Array<{ raw: string; ordinal: number }> = [];
+  for (const span of oldDeactivated) {
+    const idx = oldTokens.findIndex((t) => `${t.start}-${t.end}` === span);
+    if (idx < 0) continue;
+    const tok = oldTokens[idx];
+    const ordinal = oldTokens
+      .slice(0, idx)
+      .filter((t) => t.raw === tok.raw).length;
+    descriptors.push({ raw: tok.raw, ordinal });
+  }
+  const result: string[] = [];
+  for (const d of descriptors) {
+    let count = 0;
+    for (const t of newTokens) {
+      if (t.raw !== d.raw) continue;
+      if (count === d.ordinal) {
+        result.push(`${t.start}-${t.end}`);
+        break;
+      }
+      count++;
+    }
+  }
+  return result;
+}
+
 function replaceLastBangFragment(input: string, replacement: string): string {
   // Replaces "!<filter>" up to the next whitespace (or end) with
   // `replacement`. Used when applying a popover item or picker date.
@@ -357,14 +393,21 @@ export const useUIStore = create<UIStore>((set, get) => ({
       quickAdd: { ...s.quickAdd, category: cat, lastCategory: cat },
     })),
   setQuickAddInput: (input) =>
-    set((s) => ({
-      quickAdd: {
-        ...s.quickAdd,
-        input,
-        tokens: tokenize(input),
-        deactivatedSpans: [],
-      },
-    })),
+    set((s) => {
+      const newTokens = tokenize(input);
+      return {
+        quickAdd: {
+          ...s.quickAdd,
+          input,
+          tokens: newTokens,
+          deactivatedSpans: migrateDeactivated(
+            s.quickAdd.tokens,
+            s.quickAdd.deactivatedSpans,
+            newTokens,
+          ),
+        },
+      };
+    }),
   toggleTokenActive: (span) =>
     set((s) => ({
       quickAdd: {
@@ -434,6 +477,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
       quickAdd: {
         ...s.quickAdd,
         pickerOpen: true,
+        pickerSelectedDate:
+          s.quickAdd.pickerSelectedDate ?? formatDate(getStartOfDay()),
         popoverOpen: false,
         popoverFilter: "",
       },

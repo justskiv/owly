@@ -69,8 +69,5 @@ export function buildPopoverItems(
   const all = buildAll(baseDate);
   const f = filter.trim().toLowerCase();
   if (!f) return all;
-  return all.filter((it) => {
-    const lbl = it.label.toLowerCase();
-    return lbl.startsWith(f) || lbl.includes(f);
-  });
+  return all.filter((it) => it.label.toLowerCase().includes(f));
 }

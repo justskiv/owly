@@ -1,4 +1,12 @@
-import { useRef, useState, type ReactElement, type ReactNode } from "react";
+import {
+  cloneElement,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 
 interface TooltipProps {
   content: ReactNode;
@@ -13,6 +21,7 @@ export function Tooltip({
   delay = 600,
   placement = "below",
 }: TooltipProps) {
+  const id = useId();
   const [open, setOpen] = useState(false);
   const timerRef = useRef<number | null>(null);
 
@@ -28,6 +37,24 @@ export function Tooltip({
     setOpen(false);
   };
 
+  // Clear any pending open-timer if the component unmounts mid-hover
+  // (e.g. user closes the window while a tooltip is about to appear).
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
+  // Wire aria-describedby on the trigger so screen readers announce the
+  // tooltip content alongside the trigger's own aria-label.
+  const child = cloneElement(
+    children as ReactElement<{ "aria-describedby"?: string }>,
+    {
+      "aria-describedby": open ? id : undefined,
+    },
+  );
+
   return (
     <span
       className="tooltip-wrap"
@@ -36,9 +63,13 @@ export function Tooltip({
       onFocus={handleEnter}
       onBlur={handleLeave}
     >
-      {children}
+      {child}
       {open && (
-        <span className={`tooltip tooltip-${placement}`} role="tooltip">
+        <span
+          id={id}
+          className={`tooltip tooltip-${placement}`}
+          role="tooltip"
+        >
           {content}
         </span>
       )}
