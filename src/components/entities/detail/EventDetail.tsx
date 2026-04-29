@@ -6,12 +6,6 @@ export function EventDetail({ entity }: { entity: EventEntity }) {
   const f = entity.fields;
   return (
     <>
-      {entity.description && (
-        <section className="edp-sec">
-          <div className="edp-sec-title">Описание</div>
-          <div className="edp-desc">{entity.description}</div>
-        </section>
-      )}
       <section className="edp-sec">
         <div className="edp-sec-title">Время</div>
         <div className="edp-row">

@@ -175,6 +175,10 @@ export function EntityEditor({ state }: Props) {
       toast.error("Название не может быть пустым");
       return;
     }
+    if (form.estimatedMinutes != null && form.estimatedMinutes < 30) {
+      toast.error("Минимальная оценка — 30 минут");
+      return;
+    }
     // We build a throwaway created_at/updated_at — addEntity will
     // override them. For edit, updateEntity will refresh updated_at.
     const nowStub = "1970-01-01T00:00:00";
@@ -399,13 +403,14 @@ export function EntityEditor({ state }: Props) {
               <label className="fl">Оценка (мин)</label>
               <input
                 type="number"
+                min={1}
                 className="fi"
                 style={{ fontFamily: "var(--mono)" }}
                 value={form.estimatedMinutes ?? ""}
                 onChange={(e) =>
                   patch({
                     estimatedMinutes: e.target.value
-                      ? Math.max(5, Number(e.target.value))
+                      ? Number(e.target.value)
                       : null,
                   })
                 }

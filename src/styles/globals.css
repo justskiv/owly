@@ -121,6 +121,14 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--focus-ring
 .tb{position:absolute;left:2px;right:2px;border-radius:var(--radius-md);padding:4px 8px;cursor:grab;overflow:hidden;z-index:5;border:1px solid transparent;transition:border-color var(--duration-fast),background var(--duration-fast);touch-action:none}
 .tb:hover{z-index:6}
 .tb.selected{z-index:7;box-shadow:0 0 0 1.5px var(--accent)}
+/* Block keyboard nav goes through the planner-level hotkeys (window
+   listener), and the selected state is already shown by an accent
+   box-shadow. The global [tabindex]:focus-visible outline would
+   otherwise stick to the block after the context menu closes —
+   right-click focuses the block in WebKit, useRestoreFocus puts
+   focus back, and outline-radius:inherit pulls 0 from the .gr
+   parent so the ring renders as a square. */
+.tb:focus,.tb:focus-visible{outline:none}
 .tb.dragging{opacity:.4;pointer-events:none}
 .tb.overlap{border:1px dashed var(--error)!important}
 .tb.overlap::after{content:'⚠';position:absolute;top:2px;right:4px;font-size:var(--fs-xs);color:var(--error)}
@@ -395,7 +403,7 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
 .goal-target{font-size:var(--fs-lg);font-weight:500;color:var(--text-tertiary);font-family:var(--mono)}
 .goal-sub{margin-top:8px;font-size:var(--fs-sm);color:var(--text-tertiary);display:flex;gap:4px;flex-wrap:wrap}
 .goal-sub span{color:var(--text-secondary)}
-.stat-footer{display:flex;gap:0;border-top:1px solid var(--border);margin-top:12px}
+.stat-footer{display:flex;gap:0;border-top:1px solid var(--border)}
 .stat-f-item{flex:1;padding:12px 0}
 .stat-f-item:not(:first-child){border-left:1px solid var(--border);padding-left:16px}
 .stat-f-label{font-size:var(--fs-2xs);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.04em}

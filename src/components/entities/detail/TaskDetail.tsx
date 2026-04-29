@@ -32,12 +32,6 @@ export function TaskDetail({ entity }: { entity: TaskEntity }) {
 
   return (
     <>
-      {entity.description && (
-        <section className="edp-sec">
-          <div className="edp-sec-title">Заметки</div>
-          <div className="edp-desc">{entity.description}</div>
-        </section>
-      )}
       {total > 0 && (
         <section className="edp-sec">
           <div className="edp-sec-title">

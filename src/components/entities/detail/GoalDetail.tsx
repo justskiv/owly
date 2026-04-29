@@ -3,7 +3,7 @@ import type { GoalEntity, MetricEntity } from "../../../schemas";
 import { useConfigStore } from "../../../store/config";
 import { useEntityStore } from "../../../store/entities";
 import { useUIStore } from "../../../store/ui";
-import { getAreaColor, getAreaLabel } from "../../../services/categories";
+import { getAreaColor } from "../../../services/categories";
 import { fmtShortDate } from "../../../services/format";
 import { ENTITY_ICONS } from "../../../services/entity-icons";
 import { computeMetricStats } from "../../../services/metric-stats";
@@ -132,52 +132,65 @@ export function GoalDetail({ entity }: { entity: GoalEntity }) {
     : null;
 
   const firstTag = entity.tags[0];
-  const goalType = firstTag
-    ? getAreaLabel(firstTag, areas)
-    : "—";
   const { pace, forecast } = computeForecast(sparkMetric, f.target_date);
   const lineColor = getAreaColor(firstTag ?? "work", areas);
 
+  const subParts: string[] = [];
+  if (progress != null) subParts.push(`${progress}%`);
+  if (remain) subParts.push(remain);
+  if (f.target_date) subParts.push(`дедлайн ${fmtShortDate(f.target_date)}`);
+
+  const hasNums = f.current_value !== "" || f.target !== "";
+  const hasGoalBlock = hasNums || subParts.length > 0;
+  const hasForecast = pace !== "—" || forecast !== "—";
+
   return (
     <>
-      <section className="edp-sec">
-        <div className="goal-block">
-          <div className="goal-nums">
-            <span className="goal-cur">{f.current_value}</span>
-            <span className="goal-target">{f.target}</span>
-          </div>
-          <div className="edp-pbar" style={{ height: 8 }}>
-            <div
-              className="edp-pfill"
-              style={{
-                width: `${progress ?? 0}%`,
-                background: "var(--accent)",
-              }}
-            />
-          </div>
-          <div className="goal-sub">
-            {progress != null && <span>{progress}%</span>}
-            {remain && <span>· {remain}</span>}
-            {f.target_date && (
-              <span>· дедлайн {fmtShortDate(f.target_date)}</span>
+      {hasGoalBlock && (
+        <section className="edp-sec">
+          <div className="goal-block">
+            {hasNums && (
+              <div className="goal-nums">
+                <span className="goal-cur">{f.current_value}</span>
+                <span className="goal-target">{f.target}</span>
+              </div>
+            )}
+            {progress != null && (
+              <div className="edp-pbar" style={{ height: 8 }}>
+                <div
+                  className="edp-pfill"
+                  style={{
+                    width: `${progress}%`,
+                    background: "var(--accent)",
+                  }}
+                />
+              </div>
+            )}
+            {subParts.length > 0 && (
+              <div className="goal-sub">
+                {subParts.map((p, i) => (
+                  <span key={i}>{i === 0 ? p : `· ${p}`}</span>
+                ))}
+              </div>
             )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      <section className="edp-sec">
-        <StatFooter
-          items={[
-            { label: "Тип цели", value: goalType },
-            {
-              label: "Темп",
-              value: pace,
-              color: pace.startsWith("+") ? "success" : undefined,
-            },
-            { label: "Прогноз", value: forecast },
-          ]}
-        />
-      </section>
+      {hasForecast && (
+        <section className="edp-sec">
+          <StatFooter
+            items={[
+              {
+                label: "Темп",
+                value: pace,
+                color: pace.startsWith("+") ? "success" : undefined,
+              },
+              { label: "Прогноз", value: forecast },
+            ]}
+          />
+        </section>
+      )}
 
       {linkedMetrics.length > 0 && (
         <section className="edp-sec">

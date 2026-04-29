@@ -225,7 +225,15 @@ export function PlannerPage() {
 
   const actions = useMemo<WeekActions>(
     () => ({
-      onEmptyClick: (date, minute) => overlay.openInline(date, minute),
+      onEmptyClick: (date, minute) => {
+        // Open context menu intercepts the click — user wanted to
+        // dismiss the menu, not start a new block. Just close it.
+        if (overlay.overlay?.kind === "context") {
+          overlay.close();
+          return;
+        }
+        overlay.openInline(date, minute);
+      },
       onBlockDblClick: (id) => overlay.openEditorEdit(id),
       onBlockContext: (e, id) => {
         setSelected(id);

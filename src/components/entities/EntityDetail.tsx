@@ -52,6 +52,12 @@ export function EntityDetail() {
   return (
     <div className="edp">
       <DetailHeader entity={entity} />
+      {entity.description && (
+        <section className="edp-sec">
+          <div className="edp-sec-title">Описание</div>
+          <div className="edp-desc">{entity.description}</div>
+        </section>
+      )}
       {renderBody(entity)}
       <DetailActions entity={entity} />
     </div>
