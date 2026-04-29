@@ -16,7 +16,7 @@ interface TimeBlockProps {
   dragging: boolean;
   resizeDuration: number | null;
   onPointerDown: (e: ReactPointerEvent<HTMLDivElement>, block: Block) => void;
-  onDblClick: () => void;
+  onDblClick: (rect: DOMRect) => void;
   onContext: (e: MouseEvent) => void;
 }
 
@@ -73,7 +73,7 @@ export function TimeBlock({
       onDoubleClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onDblClick();
+        onDblClick(e.currentTarget.getBoundingClientRect());
       }}
       onContextMenu={(e) => {
         e.preventDefault();

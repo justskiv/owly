@@ -24,7 +24,7 @@ const TABS: TabDef[] = [
 export function TopNav() {
   const currentPage = useUIStore((s) => s.currentPage);
   const setPage = useUIStore((s) => s.setPage);
-  const openEntityEditorNew = useUIStore((s) => s.openEntityEditorNew);
+  const openQuickAdd = useUIStore((s) => s.openQuickAdd);
   const week = useScheduleStore((s) => s.currentWeek);
   const goToPrev = useScheduleStore((s) => s.goToPrevWeek);
   const goToNext = useScheduleStore((s) => s.goToNextWeek);
@@ -83,7 +83,7 @@ export function TopNav() {
       <button
         type="button"
         className="nav-add-btn"
-        onClick={() => openEntityEditorNew("task")}
+        onClick={() => openQuickAdd()}
         title="Создать (Cmd+N)"
         aria-label="Создать"
       >

@@ -121,16 +121,12 @@ function App() {
       const ui = useUIStore.getState();
       switch (e.payload) {
         case "new-block":
-          // On Plan, keep the legacy BlockEditor flow (Cmd+N opens the
-          // planner block editor inline). On any other tab, route to
-          // the entity editor with type=task — this matches the
-          // TopNav `+` button so Cmd+N is consistent everywhere and
-          // the user is not yanked to Plan unexpectedly.
-          if (ui.currentPage === "plan") {
-            ui.requestNewBlock();
-          } else {
-            ui.openEntityEditorNew("task");
-          }
+          // Toggle so a second Cmd+N closes the overlay. The native
+          // menu accelerator is consumed by Tauri before reaching the
+          // browser keydown listener in Shell, so without toggling
+          // here the close-on-repeat shortcut would not work in prod.
+          if (ui.quickAdd.open) ui.closeQuickAdd();
+          else ui.openQuickAdd();
           break;
         case "today":
           void useScheduleStore.getState().goToCurrentWeek();

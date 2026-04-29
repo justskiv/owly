@@ -53,6 +53,12 @@ export function formatDate(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
+export function getStartOfDay(d: Date = new Date()): Date {
+  const r = new Date(d);
+  r.setHours(0, 0, 0, 0);
+  return r;
+}
+
 function parseDate(s: string): Date {
   const [y, m, d] = s.split("-").map((p) => parseInt(p, 10));
   return new Date(y, m - 1, d);

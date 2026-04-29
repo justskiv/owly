@@ -230,7 +230,7 @@ export function EntityEditor({ state }: Props) {
           description: form.description,
           fields: form.fields,
         } as Partial<Entity>);
-        toast.success(`✓ Обновлено: ${title}`);
+        toast.success(`✓ Обновлено: ${title}`, { category: form.tags[0] });
       } else {
         const { id: _id, created_at: _c, updated_at: _u, ...rest } = parsed.data;
         void _id;
@@ -239,7 +239,7 @@ export function EntityEditor({ state }: Props) {
         const created = await useEntityStore
           .getState()
           .addEntity(rest as Omit<Entity, "id" | "created_at" | "updated_at">);
-        toast.success(`✓ Создано: ${title}`);
+        toast.success(`✓ Создано: ${title}`, { category: created.tags[0] });
         setSelected(created.id);
         setPage("entities");
       }
@@ -265,7 +265,7 @@ export function EntityEditor({ state }: Props) {
       const title = existing?.title ?? form.title;
       await useEntityStore.getState().deleteEntity(state.entityId);
       setSelected(null);
-      toast.success(`✕ Удалён: ${title}`);
+      toast.success(`✕ Удалён: ${title}`, { category: form.tags[0] });
       close();
     } catch (e) {
       toast.error(`Не удалось удалить: ${(e as Error).message}`);

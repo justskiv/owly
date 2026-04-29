@@ -1,11 +1,20 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Block } from "../../schemas";
 import { SNAP_MIN, START_HOUR, END_HOUR, timeToMinutes } from "../../services/time-utils";
+import { useEntityStore } from "../../store/entities";
+import { useUIStore } from "../../store/ui";
 import { InlineCreate } from "./InlineCreate";
 import { NowLine } from "./NowLine";
 import { SnapPreview } from "./SnapPreview";
 import { TimeBlock } from "./TimeBlock";
 import type { WeekActions, WeekDayModel } from "./WeekGrid";
+
+// Phase 2 ships an EntityPopup skeleton; only the three v2 types
+// (task/project/direction) will receive proper popup content in
+// phases 3–5. Blocks linked to other entity kinds (events, contacts,
+// goals, etc.) keep the legacy BlockEditor flow so users do not lose
+// their edit path mid-rollout.
+const POPUP_ENABLED_TYPES = new Set(["task", "project", "direction"]);
 
 interface GridRow {
   hour: number;
@@ -95,7 +104,25 @@ export function DayColumn({
               resizingBlockId === b.id ? resizeDuration : null
             }
             onPointerDown={onBlockPointerDown}
-            onDblClick={() => actions.onBlockDblClick(b.id)}
+            onDblClick={(rect) => {
+              const entityId = b.source_entity_id;
+              if (entityId) {
+                const entity = useEntityStore
+                  .getState()
+                  .entities.find((e) => e.id === entityId);
+                if (entity && POPUP_ENABLED_TYPES.has(entity.type)) {
+                  useUIStore
+                    .getState()
+                    .openEntityPopup(
+                      entityId,
+                      { type: "rect", rect },
+                      "right",
+                    );
+                  return;
+                }
+              }
+              actions.onBlockDblClick(b.id);
+            }}
             onContext={(e) => actions.onBlockContext(e, b.id)}
           />
         );

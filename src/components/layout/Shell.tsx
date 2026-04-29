@@ -14,6 +14,8 @@ import { DashboardsPage } from "../../pages/DashboardsPage";
 import { EntityEditor } from "../entities/EntityEditor";
 import { SettingsModal } from "../settings/SettingsModal";
 import { CommandsLogPanel } from "../commands/CommandsLogPanel";
+import { QuickAdd } from "../quick-add/QuickAdd";
+import { EntityPopupHost } from "../shared/EntityPopup";
 import { useUIStore, type Page } from "../../store/ui";
 
 const KEY_PAGE: Record<string, Page> = {
@@ -72,6 +74,22 @@ export function Shell() {
         }
       }
 
+      // Cmd+N / Ctrl+N — toggle Quick Add. The Tauri menu sends the
+      // same accelerator via emit("menu", "new-block"); duplicate
+      // firing is benign because both paths land on the same toggle.
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        !e.altKey &&
+        e.code === "KeyN"
+      ) {
+        e.preventDefault();
+        const ui = useUIStore.getState();
+        if (ui.quickAdd.open) ui.closeQuickAdd();
+        else ui.openQuickAdd();
+        return;
+      }
+
       // Digits 1..6 without modifiers — switch main tabs.
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       const next = KEY_PAGE[e.code];
@@ -100,6 +118,8 @@ export function Shell() {
       </main>
       <StatusBar />
       <Toast />
+      <QuickAdd />
+      <EntityPopupHost />
       {entityEditor.open && <EntityEditor state={entityEditor} />}
       {settingsOpen && <SettingsModal />}
       {commandsPanelOpen && <CommandsLogPanel />}

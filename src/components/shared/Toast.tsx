@@ -1,76 +1,74 @@
 import { create } from "zustand";
+import { useConfigStore } from "../../store/config";
 
-type ToastType = "success" | "error";
+type ToastKind = "success" | "error";
 
 interface ToastItem {
   id: string;
-  type: ToastType;
+  kind: ToastKind;
   text: string;
+  category: string | null;
 }
 
 interface ToastStore {
-  toasts: ToastItem[];
-  push: (type: ToastType, text: string) => void;
-  remove: (id: string) => void;
+  current: ToastItem | null;
+  show: (item: Omit<ToastItem, "id">) => void;
+  dismiss: (id: string) => void;
 }
 
-const DISMISS_MS = 2500;
+const DISMISS_MS = 2200;
 
 function genId(): string {
   return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
 const useToastStore = create<ToastStore>((set, get) => ({
-  toasts: [],
-  push: (type, text) => {
+  current: null,
+  show: (item) => {
     const id = genId();
-    set((s) => ({ toasts: [...s.toasts, { id, type, text }] }));
-    window.setTimeout(() => get().remove(id), DISMISS_MS);
+    set({ current: { id, ...item } });
+    window.setTimeout(() => get().dismiss(id), DISMISS_MS);
   },
-  remove: (id) =>
-    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  dismiss: (id) =>
+    set((s) => (s.current?.id === id ? { current: null } : s)),
 }));
 
 export const toast = {
-  success: (text: string) => useToastStore.getState().push("success", text),
-  error: (text: string) => useToastStore.getState().push("error", text),
+  success: (text: string, opts?: { category?: string }) =>
+    useToastStore
+      .getState()
+      .show({ kind: "success", text, category: opts?.category ?? null }),
+  error: (text: string) =>
+    useToastStore.getState().show({ kind: "error", text, category: null }),
 };
 
 export function Toast() {
-  const toasts = useToastStore((s) => s.toasts);
-  if (toasts.length === 0) return null;
-  const success = toasts.filter((t) => t.type === "success");
-  const errors = toasts.filter((t) => t.type === "error");
+  const item = useToastStore((s) => s.current);
+  // Select the stable `config` reference; deriving `areas` inline
+  // would return a fresh `[]` on every render and trip the React
+  // infinite-loop guard via getSnapshot.
+  const config = useConfigStore((s) => s.config);
+  if (!item) return null;
+  const areas = config?.areas;
+  const dotColor =
+    item.category != null && areas
+      ? areas.find((a) => a.id === item.category)?.color ?? null
+      : null;
   return (
-    <>
-      {success.length > 0 && (
-        <div
-          className="toast-c"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          {success.map((t) => (
-            <div key={t.id} className={`toast ${t.type}`}>
-              {t.text}
-            </div>
-          ))}
-        </div>
+    <div
+      className={`toast toast-${item.kind}`}
+      role={item.kind === "error" ? "alert" : "status"}
+      aria-live={item.kind === "error" ? "assertive" : "polite"}
+      aria-atomic="true"
+    >
+      {dotColor && (
+        <span
+          className="toast-dot"
+          style={{ background: dotColor }}
+          aria-hidden="true"
+        />
       )}
-      {errors.length > 0 && (
-        <div
-          className="toast-c"
-          role="alert"
-          aria-live="assertive"
-          aria-atomic="true"
-        >
-          {errors.map((t) => (
-            <div key={t.id} className={`toast ${t.type}`}>
-              {t.text}
-            </div>
-          ))}
-        </div>
-      )}
-    </>
+      <span className="toast-text">{item.text}</span>
+    </div>
   );
 }

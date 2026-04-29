@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { EntityType, Status } from "../schemas";
+import { useConfigStore } from "./config";
 
 export type Page =
   | "plan"
@@ -25,6 +26,51 @@ export type DashboardEditorState =
   | { open: true; mode: "add" }
   | { open: true; mode: "rename"; id: string }
   | { open: true; mode: "delete"; id: string };
+
+export type QAType = "task" | "project" | "direction";
+
+export interface QuickAddState {
+  open: boolean;
+  type: QAType;
+  category: string | null;
+  // Remembered across opens so the next Quick Add prefills the last
+  // user choice. In-memory only — on app restart this resets.
+  lastCategory: string | null;
+  // Frozen on open. Per spec §10.1 the hint stays stable when the
+  // user toggles type, communicating "by-context" while still allowing
+  // an override without UI churn.
+  hintLabel: string;
+}
+
+export type EntityPopupAnchor =
+  | { type: "rect"; rect: DOMRect }
+  | { type: "point"; x: number; y: number };
+
+export type EntityPopupState =
+  | { open: false }
+  | {
+      open: true;
+      entityId: string;
+      anchor: EntityPopupAnchor;
+      position: "below" | "right";
+    };
+
+const TYPE_BY_PAGE: Record<Page, QAType> = {
+  plan: "task",
+  tasks: "task",
+  projects: "project",
+  context: "direction",
+  horizon: "project",
+  review: "task",
+  entities: "task",
+  dashboards: "task",
+};
+
+const TYPE_LABEL_RU: Record<QAType, string> = {
+  task: "Задача",
+  project: "Проект",
+  direction: "Направление",
+};
 
 interface UIStore {
   currentPage: Page;
@@ -73,6 +119,16 @@ interface UIStore {
   commandsPanelOpen: boolean;
   commandsPanelTab: "done" | "failed";
 
+  // Quick Add overlay (Cmd+N). Replaces the legacy EntityEditor "new"
+  // path for the three primary types — task/project/direction. Other
+  // types still go through the debug Cmd+Shift+E flow.
+  quickAdd: QuickAddState;
+
+  // Compact popup over an anchor (e.g., a planner block). Phase 2
+  // ships only the skeleton; phases 3–5 fill it with type-specific
+  // fields.
+  entityPopup: EntityPopupState;
+
   setPage: (page: Page) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
@@ -110,9 +166,21 @@ interface UIStore {
   openCommandsPanel: (tab?: "done" | "failed") => void;
   closeCommandsPanel: () => void;
   setCommandsPanelTab: (tab: "done" | "failed") => void;
+
+  openQuickAdd: (defaultType?: QAType) => void;
+  closeQuickAdd: () => void;
+  setQuickAddType: (t: QAType) => void;
+  setQuickAddCategory: (cat: string) => void;
+
+  openEntityPopup: (
+    entityId: string,
+    anchor: EntityPopupAnchor,
+    position: "below" | "right",
+  ) => void;
+  closeEntityPopup: () => void;
 }
 
-export const useUIStore = create<UIStore>((set) => ({
+export const useUIStore = create<UIStore>((set, get) => ({
   currentPage: "plan",
   selectedEntityId: null,
   selectedBlockId: null,
@@ -140,6 +208,15 @@ export const useUIStore = create<UIStore>((set) => ({
   dashboardEditor: { open: false },
   commandsPanelOpen: false,
   commandsPanelTab: "done",
+
+  quickAdd: {
+    open: false,
+    type: "task",
+    category: null,
+    lastCategory: null,
+    hintLabel: TYPE_LABEL_RU.task,
+  },
+  entityPopup: { open: false },
 
   setPage: (currentPage) => set({ currentPage }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
@@ -214,4 +291,33 @@ export const useUIStore = create<UIStore>((set) => ({
     })),
   closeCommandsPanel: () => set({ commandsPanelOpen: false }),
   setCommandsPanelTab: (commandsPanelTab) => set({ commandsPanelTab }),
+
+  openQuickAdd: (defaultType) => {
+    const page = get().currentPage;
+    const type = defaultType ?? TYPE_BY_PAGE[page];
+    const lastCategory = get().quickAdd.lastCategory;
+    const cfg = useConfigStore.getState().config;
+    const category = lastCategory ?? cfg?.areas[0]?.id ?? null;
+    set({
+      quickAdd: {
+        open: true,
+        type,
+        category,
+        lastCategory,
+        hintLabel: TYPE_LABEL_RU[type],
+      },
+    });
+  },
+  closeQuickAdd: () =>
+    set((s) => ({ quickAdd: { ...s.quickAdd, open: false } })),
+  setQuickAddType: (t) =>
+    set((s) => ({ quickAdd: { ...s.quickAdd, type: t } })),
+  setQuickAddCategory: (cat) =>
+    set((s) => ({
+      quickAdd: { ...s.quickAdd, category: cat, lastCategory: cat },
+    })),
+
+  openEntityPopup: (entityId, anchor, position) =>
+    set({ entityPopup: { open: true, entityId, anchor, position } }),
+  closeEntityPopup: () => set({ entityPopup: { open: false } }),
 }));
