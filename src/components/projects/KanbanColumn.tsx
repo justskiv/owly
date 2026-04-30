@@ -1,5 +1,6 @@
+import { memo } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import type { Area, ProjectEntity } from "../../schemas";
+import type { Area, PoolItem, ProjectEntity } from "../../schemas";
 import { KanbanCard } from "./KanbanCard";
 import { InlineAdd } from "./InlineAdd";
 
@@ -17,9 +18,10 @@ interface Props {
     project: ProjectEntity,
     open: () => void,
   ) => void;
+  poolByProjectId: Map<string, PoolItem>;
 }
 
-export function KanbanColumn({
+function KanbanColumnImpl({
   boardId,
   columnIndex,
   title,
@@ -29,6 +31,7 @@ export function KanbanColumn({
   draggingProjectId,
   dropColumnIndex,
   onCardPointerDown,
+  poolByProjectId,
 }: Props) {
   const isOver = dropColumnIndex === columnIndex;
   return (
@@ -47,6 +50,8 @@ export function KanbanColumn({
             key={p.id}
             project={p}
             dragging={draggingProjectId === p.id}
+            poolItem={poolByProjectId.get(p.id)}
+            areas={areas}
             onPointerDown={onCardPointerDown}
           />
         ))}
@@ -60,3 +65,5 @@ export function KanbanColumn({
     </div>
   );
 }
+
+export const KanbanColumn = memo(KanbanColumnImpl);

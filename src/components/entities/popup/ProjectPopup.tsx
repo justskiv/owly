@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import type { DirectionEntity, ProjectEntity } from "../../../schemas";
 import { useEntityStore } from "../../../store/entities";
-import { useConfigStore } from "../../../store/config";
+import { useAreas } from "../../../store/config";
 import { BOARDS, getBoardById } from "../../../services/boards";
-
-const EMPTY_AREAS: never[] = [];
 
 interface Props {
   project: ProjectEntity;
@@ -14,7 +12,7 @@ interface Props {
 export function ProjectPopup({ project, onClose }: Props) {
   const updateEntity = useEntityStore((s) => s.updateEntity);
   const entities = useEntityStore((s) => s.entities);
-  const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
+  const areas = useAreas();
   const [titleDraft, setTitleDraft] = useState(project.title);
 
   // Reset only when the popup is reused for a different project.
@@ -34,29 +32,46 @@ export function ProjectPopup({ project, onClose }: Props) {
   );
 
   const tags = project.tags;
-  const areaIds = new Set(areas.map((a) => a.id));
+  const areaIds = useMemo(() => new Set(areas.map((a) => a.id)), [areas]);
   const activeCat = tags.find((t) => areaIds.has(t)) ?? null;
 
+  // Read fresh entity at write time. The popup's `project` prop is a
+  // closure snapshot; if the user changes board AND immediately changes
+  // direction, the second writer would otherwise spread stale fields
+  // and clobber the board change.
+  const fresh = (): ProjectEntity | null => {
+    const e = useEntityStore
+      .getState()
+      .entities.find((x) => x.id === project.id);
+    return e && e.type === "project" ? e : null;
+  };
+
   const setCategory = (id: string) => {
-    const nonArea = tags.filter((t) => !areaIds.has(t));
+    const cur = fresh();
+    if (!cur) return;
+    const nonArea = cur.tags.filter((t) => !areaIds.has(t));
     void updateEntity(project.id, { tags: [...nonArea, id] });
   };
 
   const setBoard = (newBoardId: string) => {
+    const cur = fresh();
+    if (!cur) return;
     const newBoard = getBoardById(newBoardId);
     if (!newBoard) return;
     const col =
-      project.fields.column_index >= newBoard.columns.length
+      cur.fields.column_index >= newBoard.columns.length
         ? 0
-        : project.fields.column_index;
+        : cur.fields.column_index;
     void updateEntity(project.id, {
-      fields: { ...project.fields, board_id: newBoardId, column_index: col },
+      fields: { ...cur.fields, board_id: newBoardId, column_index: col },
     });
   };
 
   const setDirection = (id: string) => {
+    const cur = fresh();
+    if (!cur) return;
     void updateEntity(project.id, {
-      fields: { ...project.fields, direction_id: id || null },
+      fields: { ...cur.fields, direction_id: id || null },
     });
   };
 

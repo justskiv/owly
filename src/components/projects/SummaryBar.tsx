@@ -7,6 +7,7 @@ export function SummaryBar({
   total: number;
   stale: number;
 }) {
+  const staleFilter = useUIStore((s) => s.staleFilter);
   const toggleStale = useUIStore((s) => s.toggleStaleFilter);
   return (
     <div className="summary-bar">
@@ -15,9 +16,10 @@ export function SummaryBar({
         <>
           {" · "}
           <span
-            className="stale-link"
+            className={`stale-link${staleFilter ? " active" : ""}`}
             role="button"
             tabIndex={0}
+            aria-pressed={staleFilter}
             onClick={toggleStale}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {

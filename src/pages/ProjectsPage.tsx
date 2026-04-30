@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useEntityStore } from "../store/entities";
-import { useConfigStore } from "../store/config";
+import { useAreas } from "../store/config";
 import { useUIStore } from "../store/ui";
 import {
   applyProjectFilters,
@@ -11,11 +11,9 @@ import { BoardBar } from "../components/projects/BoardBar";
 import { SummaryBar } from "../components/projects/SummaryBar";
 import { Kanban } from "../components/projects/Kanban";
 
-const EMPTY_AREAS: never[] = [];
-
 export function ProjectsPage() {
   const entities = useEntityStore((s) => s.entities);
-  const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
+  const areas = useAreas();
   const activeBoard = useUIStore((s) => s.activeBoard);
   const catFilter = useUIStore((s) => s.catFilter);
   const staleFilter = useUIStore((s) => s.staleFilter);
@@ -24,16 +22,23 @@ export function ProjectsPage() {
     () => projectsForBoard(entities, activeBoard),
     [entities, activeBoard],
   );
+  // Cat-filtered set is the basis for both the summary number and the
+  // stale count — staleFilter only narrows the *visible* kanban, not
+  // what the user thinks of as "active on this board".
+  const visibleByCat = useMemo(
+    () => applyProjectFilters(projectsOnBoard, catFilter, false),
+    [projectsOnBoard, catFilter],
+  );
   const filtered = useMemo(
-    () => applyProjectFilters(projectsOnBoard, catFilter, staleFilter),
-    [projectsOnBoard, catFilter, staleFilter],
+    () => (staleFilter ? applyProjectFilters(visibleByCat, null, true) : visibleByCat),
+    [visibleByCat, staleFilter],
   );
   const staleCount = useMemo(
     () =>
-      projectsOnBoard.filter(
+      visibleByCat.filter(
         (p) => p.fields.last_activity_days >= STALE_THRESHOLD_DAYS,
       ).length,
-    [projectsOnBoard],
+    [visibleByCat],
   );
 
   if (areas.length === 0) {
@@ -52,7 +57,7 @@ export function ProjectsPage() {
   return (
     <div className="projects-page">
       <BoardBar areas={areas} />
-      <SummaryBar total={filtered.length} stale={staleCount} />
+      <SummaryBar total={visibleByCat.length} stale={staleCount} />
       <Kanban
         boardId={activeBoard}
         projects={filtered}

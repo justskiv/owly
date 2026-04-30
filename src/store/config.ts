@@ -9,6 +9,16 @@ import {
 import { DEFAULT_CONFIG } from "../services/defaults";
 import { trackSave } from "../services/save-status";
 
+// Stable empty array used by selectors during the brief boot window
+// before config loads (and as a defensive fallback). Returning a fresh
+// `[]` from a Zustand selector breaks identity comparisons and triggers
+// downstream re-renders / infinite loops with `getSnapshot` caching.
+export const EMPTY_AREAS: readonly Area[] = Object.freeze([]);
+
+export function useAreas(): readonly Area[] {
+  return useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
+}
+
 interface ConfigStore {
   config: ConfigFile | null;
   loading: boolean;
