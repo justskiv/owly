@@ -4,6 +4,7 @@ import { useConfigStore } from "./config";
 import { tokenize, type Token } from "../services/quick-add-tokenizer";
 import { buildPopoverItems } from "../services/quick-add-popover-items";
 import { formatDate, getStartOfDay } from "../services/time-utils";
+import type { BoardId } from "../services/boards";
 
 export type Page =
   | "plan"
@@ -159,6 +160,11 @@ interface UIStore {
   taskSearch: string;
   taskFilter: TaskFilter | null;
 
+  // Projects page state (Phase 4). All ephemeral — no persist.
+  activeBoard: BoardId;
+  catFilter: string | null;
+  staleFilter: boolean;
+
   setPage: (page: Page) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
@@ -223,6 +229,10 @@ interface UIStore {
   setTaskAddCat: (cat: string | null) => void;
   setTaskSearch: (q: string) => void;
   setTaskFilter: (f: TaskFilter | null) => void;
+
+  setActiveBoard: (id: BoardId) => void;
+  setCatFilter: (val: string | null) => void;
+  toggleStaleFilter: () => void;
 }
 
 // Carry user's deactivation choices over to the new tokenization. We
@@ -315,6 +325,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
   taskAddCat: null,
   taskSearch: "",
   taskFilter: null,
+
+  activeBoard: "brd1",
+  catFilter: null,
+  staleFilter: false,
 
   setPage: (currentPage) => set({ currentPage }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
@@ -541,4 +555,12 @@ export const useUIStore = create<UIStore>((set, get) => ({
   setTaskAddCat: (taskAddCat) => set({ taskAddCat }),
   setTaskSearch: (taskSearch) => set({ taskSearch }),
   setTaskFilter: (taskFilter) => set({ taskFilter }),
+
+  // Switching board or category resets staleFilter; toggling stale
+  // resets catFilter. The mock (renderProjects in pool-planner-demo-v2)
+  // does the same so the active filter is always exactly one selection.
+  setActiveBoard: (activeBoard) => set({ activeBoard, staleFilter: false }),
+  setCatFilter: (catFilter) => set({ catFilter, staleFilter: false }),
+  toggleStaleFilter: () =>
+    set((prev) => ({ staleFilter: !prev.staleFilter, catFilter: null })),
 }));

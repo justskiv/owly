@@ -6,6 +6,7 @@ import {
 import { useEntityStore } from "../../store/entities";
 import { useEscape } from "../../hooks/useEscape";
 import { TaskPopup } from "../entities/popup/TaskPopup";
+import { ProjectPopup } from "../entities/popup/ProjectPopup";
 
 interface EntityPopupProps {
   anchor: EntityPopupAnchor;
@@ -165,6 +166,9 @@ function EntityPopupContent({
   if (entity.type === "task") {
     return <TaskPopup task={entity} onClose={onClose} />;
   }
+  if (entity.type === "project") {
+    return <ProjectPopup project={entity} onClose={onClose} />;
+  }
   return (
     <div className="ep-stub">
       <button
@@ -176,9 +180,7 @@ function EntityPopupContent({
         ×
       </button>
       <div className="ep-title">{entity.title}</div>
-      <div className="ep-hint">
-        Phase {entity.type === "project" ? 4 : 5} наполнит для {entity.type}
-      </div>
+      <div className="ep-hint">Phase 5 наполнит для {entity.type}</div>
     </div>
   );
 }
