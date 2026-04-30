@@ -278,10 +278,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--focus-ring
 .ep-prio-seg.on .ep-prio-icon{opacity:1}
 .ep-prio-label{white-space:nowrap}
 
-.ep-dl-pill{display:flex;align-items:center;gap:6px;width:100%;background:var(--bg-tint-1);border:1px solid var(--border);border-radius:var(--radius-md);padding:6px 6px 6px 10px;font:var(--fs-sm) var(--font);color:var(--accent);cursor:pointer;transition:border-color .12s,background .12s;text-align:left}
-.ep-dl-pill:hover{border-color:var(--border-hover);background:var(--bg-tint-2)}
-.ep-dl-pill-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ep-dl-pill-clear{display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:var(--radius-xs);color:var(--text-tertiary);font-size:14px;line-height:1;cursor:pointer;flex-shrink:0}
+.ep-dl-pill{display:flex;align-items:center;gap:4px;width:100%;background:var(--bg-tint-1);border:1px solid var(--border);border-radius:var(--radius-md);padding:2px 4px 2px 6px;transition:border-color .12s,background .12s}
+.ep-dl-pill:focus-within,.ep-dl-pill:hover{border-color:var(--border-hover);background:var(--bg-tint-2)}
+.ep-dl-pill-label{flex:1;min-width:0;background:transparent;border:0;padding:4px;font:var(--fs-sm) var(--font);color:var(--accent);cursor:pointer;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ep-dl-pill-clear{display:flex;align-items:center;justify-content:center;width:22px;height:22px;background:transparent;border:0;border-radius:var(--radius-xs);color:var(--text-tertiary);font-size:14px;line-height:1;cursor:pointer;flex-shrink:0}
 .ep-dl-pill-clear:hover{background:var(--bg-tint-2);color:var(--text-primary)}
 .ep-dl-add{width:100%;background:transparent;border:1px dashed var(--border-hover);border-radius:var(--radius-md);padding:6px 10px;font:var(--fs-sm) var(--font);color:var(--text-tertiary);cursor:pointer;transition:border-color .12s,color .12s;text-align:left}
 .ep-dl-add:hover{border-color:var(--accent);color:var(--text-primary)}

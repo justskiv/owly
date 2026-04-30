@@ -14,6 +14,7 @@ const EMPTY_GROUPS: TaskGroups = {
   burning: [],
   urgent: [],
   soon: [],
+  notSoon: [],
   someday: [],
   done: [],
 };

@@ -31,6 +31,7 @@ describe("groupTasks", () => {
     expect(g.burning).toEqual([]);
     expect(g.urgent).toEqual([]);
     expect(g.soon).toEqual([]);
+    expect(g.notSoon).toEqual([]);
     expect(g.someday).toEqual([]);
     expect(g.done).toEqual([]);
   });
@@ -57,11 +58,18 @@ describe("groupTasks", () => {
     expect(g.soon.map((t) => t.id)).toEqual(["t1", "t2"]);
   });
 
-  it("places null deadline and >30 in someday", () => {
+  it("places null deadline in someday only", () => {
     const t1 = makeTask({ id: "t1", deadline: null });
-    const t2 = makeTask({ id: "t2", deadline: "2026-07-01" });
-    const g = groupTasks([t1, t2], [], APR29);
-    expect(g.someday.map((t) => t.id).sort()).toEqual(["t1", "t2"]);
+    const g = groupTasks([t1], [], APR29);
+    expect(g.someday.map((t) => t.id)).toEqual(["t1"]);
+    expect(g.notSoon).toEqual([]);
+  });
+
+  it("places >30 days in notSoon, not someday", () => {
+    const t = makeTask({ id: "t", deadline: "2026-07-01" });
+    const g = groupTasks([t], [], APR29);
+    expect(g.notSoon.map((x) => x.id)).toEqual(["t"]);
+    expect(g.someday).toEqual([]);
   });
 
   it("done tasks go to done group regardless of deadline", () => {
@@ -79,9 +87,9 @@ describe("groupTasks", () => {
     expect(g.burning.map((t) => t.id)).toEqual(["t3", "t2", "t1"]);
   });
 
-  it("nulls go after non-nulls in same priority bucket", () => {
+  it("nulls in someday sort by deadline (only nulls land here)", () => {
     const t1 = makeTask({ id: "t1", deadline: null, priority: null });
-    const t2 = makeTask({ id: "t2", deadline: "2026-08-01", priority: null });
+    const t2 = makeTask({ id: "t2", deadline: null, priority: "high" });
     const g = groupTasks([t1, t2], [], APR29);
     expect(g.someday.map((t) => t.id)).toEqual(["t2", "t1"]);
   });

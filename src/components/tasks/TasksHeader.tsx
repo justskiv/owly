@@ -17,11 +17,13 @@ const FILTER_LABEL: Record<"overdue" | "week" | "done", string> = {
   done: "Выполнено",
 };
 
+const EMPTY_AREAS: never[] = [];
+
 export function TasksHeader() {
   const entities = useEntityStore((s) => s.entities);
   const filter = useUIStore((s) => s.taskFilter);
   const setFilter = useUIStore((s) => s.setTaskFilter);
-  const areas = useConfigStore((s) => s.config?.areas ?? []);
+  const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
 
   const activeCount = useMemo(
     () =>

@@ -35,17 +35,21 @@ interface Props {
   onClose: () => void;
 }
 
+const EMPTY_AREAS: never[] = [];
+
 export function TaskPopup({ task, onClose }: Props) {
   const updateEntity = useEntityStore((s) => s.updateEntity);
   const deleteEntity = useEntityStore((s) => s.deleteEntity);
-  const areas = useConfigStore((s) => s.config?.areas ?? []);
+  const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
   const [titleDraft, setTitleDraft] = useState(task.title);
 
-  // Re-sync the local draft when the task title is edited from another
-  // surface (e.g. EntityEditor) while this popup is open.
+  // Reset only when the popup is reused for a different task. Resetting
+  // on every `task.title` change would clobber in-flight typing during
+  // the persist round-trip (state → save → store update → re-render).
   useEffect(() => {
     setTitleDraft(task.title);
-  }, [task.title]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task.id]);
 
   const tags = task.tags;
   const areaIds = new Set(areas.map((a) => a.id));
@@ -126,16 +130,22 @@ export function TaskPopup({ task, onClose }: Props) {
       </div>
 
       <div className="ep-field">
-        <div className="ep-label">Приоритет</div>
-        <div className="ep-prio" role="radiogroup" aria-label="Приоритет">
+        <div className="ep-label" id={`prio-label-${task.id}`}>
+          Приоритет
+        </div>
+        <div
+          className="ep-prio"
+          role="group"
+          aria-labelledby={`prio-label-${task.id}`}
+        >
           {PRIOS.map((p) => (
             <button
               key={p.key}
               type="button"
               className={`ep-prio-seg${task.priority === p.key ? " on" : ""}`}
               onClick={() => setPrio(p.key)}
-              role="radio"
-              aria-checked={task.priority === p.key}
+              aria-pressed={task.priority === p.key}
+              aria-label={p.label}
             >
               <span className="ep-prio-icon" aria-hidden>
                 {p.icon}

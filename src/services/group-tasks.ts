@@ -5,11 +5,12 @@ export interface TaskGroups {
   burning: TaskEntity[];
   urgent: TaskEntity[];
   soon: TaskEntity[];
+  notSoon: TaskEntity[];
   someday: TaskEntity[];
   done: TaskEntity[];
 }
 
-const PRIO_ORDER: Record<string, number> = {
+const PRIO_ORDER: Record<"high" | "medium" | "low", number> = {
   high: 0,
   medium: 1,
   low: 2,
@@ -33,15 +34,17 @@ export function groupTasks(
     burning: [],
     urgent: [],
     soon: [],
+    notSoon: [],
     someday: [],
     done: [],
   };
   for (const t of active) {
     const d = daysUntil(t.deadline, today);
-    if (d === null || d > 30) groups.someday.push(t);
+    if (d === null) groups.someday.push(t);
     else if (d <= 2) groups.burning.push(t);
     else if (d <= 7) groups.urgent.push(t);
-    else groups.soon.push(t);
+    else if (d <= 30) groups.soon.push(t);
+    else groups.notSoon.push(t);
   }
   groups.done = [...done];
   for (const k of Object.keys(groups) as Array<keyof TaskGroups>) {

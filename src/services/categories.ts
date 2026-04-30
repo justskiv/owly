@@ -37,7 +37,7 @@ export function getAreaColor(
   areas: readonly { id: string; color: string }[],
 ): string {
   const a = areas.find((x) => x.id === tag);
-  return a?.color ?? "#707070";
+  return a?.color ?? "var(--text-tertiary)";
 }
 
 export function getAreaLabel(

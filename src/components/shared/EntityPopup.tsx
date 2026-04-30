@@ -28,6 +28,17 @@ export function EntityPopup({
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(
     null,
   );
+  // Bumping this triggers the layout effect to recompute when the
+  // viewport size changes — keeps the popup clamped to the visible
+  // area even after a resize.
+  const [viewportKey, setViewportKey] = useState(0);
+
+  useEffect(() => {
+    const onResize = () => setViewportKey((k) => k + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   // Two-pass layout: render hidden first to measure own size, then
   // compute position with flip + clamp. Without measuring we cannot
   // know whether `below` overflows the viewport bottom.
@@ -66,14 +77,16 @@ export function EntityPopup({
       Math.min(left, vw - popup.width - VIEWPORT_MARGIN),
     );
     setCoords({ top, left });
-  }, [anchor, position]);
+  }, [anchor, position, viewportKey]);
 
   useEscape(onClose);
 
   // Click-outside listener installs on the next tick so the click that
   // *opened* the popup does not immediately close it. Sub-popovers
   // (e.g. the deadline picker portalled to body) whitelist themselves
-  // via `.ep-subpopover` so clicking inside one keeps the popup open.
+  // via `.ep-subpopover`; the cat picker uses `.cat-popup`. Both must
+  // be treated as "inside" so picking a value doesn't dismiss the
+  // parent popup.
   useEffect(() => {
     let detach: (() => void) | undefined;
     const id = window.setTimeout(() => {
@@ -81,7 +94,7 @@ export function EntityPopup({
         const target = e.target as Element | null;
         if (!target) return;
         if (ref.current?.contains(target as Node)) return;
-        if (target.closest?.(".ep-subpopover")) return;
+        if (target.closest?.(".ep-subpopover, .cat-popup")) return;
         onClose();
       };
       document.addEventListener("mousedown", handler);

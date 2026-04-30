@@ -23,9 +23,11 @@ function eq(a: TaskFilter | null, b: TaskFilter): boolean {
   return true;
 }
 
+const EMPTY_AREAS: never[] = [];
+
 export function TasksSidebar() {
   const entities = useEntityStore((s) => s.entities);
-  const areas = useConfigStore((s) => s.config?.areas ?? []);
+  const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
   const filter = useUIStore((s) => s.taskFilter);
   const setFilter = useUIStore((s) => s.setTaskFilter);
 

@@ -6,12 +6,14 @@ import { getAreaColor } from "../../services/categories";
 import { CatPickerPopup } from "../shared/CatPickerPopup";
 import { toast } from "../shared/Toast";
 
+const EMPTY_AREAS: never[] = [];
+
 export function TaskBar() {
   const taskAddCat = useUIStore((s) => s.taskAddCat);
   const setTaskAddCat = useUIStore((s) => s.setTaskAddCat);
   const taskSearch = useUIStore((s) => s.taskSearch);
   const setTaskSearch = useUIStore((s) => s.setTaskSearch);
-  const areas = useConfigStore((s) => s.config?.areas ?? []);
+  const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
 
   const [mode, setMode] = useState<"search" | "add">("search");
   const [addText, setAddText] = useState("");
@@ -28,14 +30,16 @@ export function TaskBar() {
 
   // Click-outside returns to search mode. Cat picker lives in a portal,
   // so explicitly whitelist it here — otherwise picking a category would
-  // dismiss the bar before the selection lands.
+  // dismiss the bar before the selection lands. `.ep-subpopover` is
+  // whitelisted for symmetry with EntityPopup; future task-bar pickers
+  // (e.g. an inline date picker) won't dismiss the bar either.
   useEffect(() => {
     if (mode !== "add") return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Element | null;
       if (!target) return;
       if (wrapRef.current?.contains(target as Node)) return;
-      if (target.closest?.(".cat-popup")) return;
+      if (target.closest?.(".cat-popup, .ep-subpopover")) return;
       setMode("search");
       setAddText("");
     };

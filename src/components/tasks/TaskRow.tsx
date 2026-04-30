@@ -21,10 +21,12 @@ const PRIO_LABEL: Record<NonNullable<TaskEntity["priority"]>, string> = {
   low: "○ Низкий",
 };
 
+const EMPTY_AREAS: never[] = [];
+
 export function TaskRow({ task }: { task: TaskEntity }) {
   const updateEntity = useEntityStore((s) => s.updateEntity);
   const openPopup = useUIStore((s) => s.openEntityPopup);
-  const areas = useConfigStore((s) => s.config?.areas ?? []);
+  const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
   const rowRef = useRef<HTMLDivElement>(null);
 
   const done = task.status === "done";
@@ -63,20 +65,14 @@ export function TaskRow({ task }: { task: TaskEntity }) {
       ref={rowRef}
       className={`task-row${done ? " done" : ""}`}
       onClick={onRowClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onRowClick();
-        }
-      }}
     >
       <button
         type="button"
         className={`tr-check${done ? " checked" : ""}`}
         onClick={toggleDone}
-        aria-label={done ? "Снять отметку" : "Выполнено"}
+        aria-label={
+          (done ? "Снять отметку: " : "Отметить выполненной: ") + task.title
+        }
       >
         {done ? "✓" : ""}
       </button>

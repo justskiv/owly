@@ -1,4 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { useEscape } from "../../../hooks/useEscape";
 import {
@@ -27,6 +32,14 @@ export function DeadlineField({ value, onChange }: DeadlineFieldProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<PopoverCoords | null>(null);
+  const [viewportKey, setViewportKey] = useState(0);
+
+  useEffect(() => {
+    if (!open) return;
+    const onResize = () => setViewportKey((k) => k + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [open]);
 
   // Two-pass placement: render the popover hidden, measure, then place
   // with flip preference right → below → above → left. Tries each
@@ -60,7 +73,7 @@ export function DeadlineField({ value, onChange }: DeadlineFieldProps) {
       Math.min(chosen.left, vw - p.width - VIEWPORT_MARGIN),
     );
     setCoords({ top, left, placement: chosen.p });
-  }, [open, value]);
+  }, [open, value, viewportKey]);
 
   // Outside-click on the picker only — closes the picker, not the
   // entity popup. Trigger pill is whitelisted so re-clicking it
@@ -85,39 +98,29 @@ export function DeadlineField({ value, onChange }: DeadlineFieldProps) {
 
   useEscape(() => setOpen(false), open);
 
-  const clearInline = (e: MouseEvent) => {
-    e.stopPropagation();
-    onChange(null);
-  };
-
   return (
     <>
       {value ? (
-        <button
-          ref={triggerRef}
-          type="button"
-          className="ep-dl-pill"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-haspopup="dialog"
-        >
-          <span className="ep-dl-pill-label">{formatDeadlinePill(value)}</span>
-          <span
+        <div className="ep-dl-pill">
+          <button
+            ref={triggerRef}
+            type="button"
+            className="ep-dl-pill-label"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-haspopup="dialog"
+          >
+            {formatDeadlinePill(value)}
+          </button>
+          <button
+            type="button"
             className="ep-dl-pill-clear"
-            role="button"
-            tabIndex={0}
+            onClick={() => onChange(null)}
             aria-label="Убрать дедлайн"
-            onClick={clearInline}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.stopPropagation();
-                onChange(null);
-              }
-            }}
           >
             ×
-          </span>
-        </button>
+          </button>
+        </div>
       ) : (
         <button
           ref={triggerRef}

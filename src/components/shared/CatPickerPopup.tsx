@@ -24,6 +24,13 @@ export function CatPickerPopup({
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(
     null,
   );
+  const [viewportKey, setViewportKey] = useState(0);
+
+  useEffect(() => {
+    const onResize = () => setViewportKey((k) => k + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useLayoutEffect(() => {
     if (!ref.current) return;
@@ -39,7 +46,7 @@ export function CatPickerPopup({
       Math.min(anchor.x, vw - rect.width - VIEWPORT_MARGIN),
     );
     setCoords({ top, left });
-  }, [anchor]);
+  }, [anchor, viewportKey]);
 
   useEscape(onClose);
 
