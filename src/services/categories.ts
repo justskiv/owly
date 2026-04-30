@@ -47,3 +47,17 @@ export function getAreaLabel(
   const a = areas.find((x) => x.id === tag);
   return a?.label ?? tag;
 }
+
+// First tag from the entity that resolves to a configured area. Returns
+// null when no tag matches — non-area tags (legacy / future free tags)
+// are ignored. Callers fall back to a neutral grey dot.
+export function pickAreaTag(
+  tags: readonly string[],
+  areas: readonly { id: string }[],
+): string | null {
+  const ids = new Set(areas.map((a) => a.id));
+  for (const t of tags) {
+    if (ids.has(t)) return t;
+  }
+  return null;
+}

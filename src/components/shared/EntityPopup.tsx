@@ -5,6 +5,7 @@ import {
 } from "../../store/ui";
 import { useEntityStore } from "../../store/entities";
 import { useEscape } from "../../hooks/useEscape";
+import { TaskPopup } from "../entities/popup/TaskPopup";
 
 interface EntityPopupProps {
   anchor: EntityPopupAnchor;
@@ -27,7 +28,6 @@ export function EntityPopup({
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(
     null,
   );
-
   // Two-pass layout: render hidden first to measure own size, then
   // compute position with flip + clamp. Without measuring we cannot
   // know whether `below` overflows the viewport bottom.
@@ -71,14 +71,18 @@ export function EntityPopup({
   useEscape(onClose);
 
   // Click-outside listener installs on the next tick so the click that
-  // *opened* the popup does not immediately close it.
+  // *opened* the popup does not immediately close it. Sub-popovers
+  // (e.g. the deadline picker portalled to body) whitelist themselves
+  // via `.ep-subpopover` so clicking inside one keeps the popup open.
   useEffect(() => {
     let detach: (() => void) | undefined;
     const id = window.setTimeout(() => {
       const handler = (e: MouseEvent) => {
-        if (ref.current && !ref.current.contains(e.target as Node)) {
-          onClose();
-        }
+        const target = e.target as Element | null;
+        if (!target) return;
+        if (ref.current?.contains(target as Node)) return;
+        if (target.closest?.(".ep-subpopover")) return;
+        onClose();
       };
       document.addEventListener("mousedown", handler);
       detach = () => document.removeEventListener("mousedown", handler);
@@ -115,12 +119,12 @@ export function EntityPopupHost() {
       position={state.position}
       onClose={close}
     >
-      <EntityPopupStub entityId={state.entityId} onClose={close} />
+      <EntityPopupContent entityId={state.entityId} onClose={close} />
     </EntityPopup>
   );
 }
 
-function EntityPopupStub({
+function EntityPopupContent({
   entityId,
   onClose,
 }: {
@@ -130,6 +134,24 @@ function EntityPopupStub({
   const entity = useEntityStore((s) =>
     s.entities.find((e) => e.id === entityId),
   );
+  if (!entity) {
+    return (
+      <div className="ep-stub">
+        <button
+          type="button"
+          className="ep-close"
+          onClick={onClose}
+          aria-label="Закрыть"
+        >
+          ×
+        </button>
+        <div className="ep-hint">Сущность не найдена</div>
+      </div>
+    );
+  }
+  if (entity.type === "task") {
+    return <TaskPopup task={entity} onClose={onClose} />;
+  }
   return (
     <div className="ep-stub">
       <button
@@ -140,16 +162,10 @@ function EntityPopupStub({
       >
         ×
       </button>
-      {entity ? (
-        <>
-          <div className="ep-title">{entity.title}</div>
-          <div className="ep-hint">
-            Phase 3 наполнит для {entity.type}
-          </div>
-        </>
-      ) : (
-        <div className="ep-hint">Сущность не найдена</div>
-      )}
+      <div className="ep-title">{entity.title}</div>
+      <div className="ep-hint">
+        Phase {entity.type === "project" ? 4 : 5} наполнит для {entity.type}
+      </div>
     </div>
   );
 }

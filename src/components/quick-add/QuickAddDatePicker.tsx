@@ -1,61 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useUIStore } from "../../store/ui";
-import { formatDate, getStartOfDay } from "../../services/time-utils";
-
-// Re-derive on each render so the picker's "today" highlight stays
-// correct across midnight rollovers.
-function todayIsoNow(): string {
-  return formatDate(getStartOfDay());
-}
-
-const MONTH_NAMES_RU = [
-  "Январь",
-  "Февраль",
-  "Март",
-  "Апрель",
-  "Май",
-  "Июнь",
-  "Июль",
-  "Август",
-  "Сентябрь",
-  "Октябрь",
-  "Ноябрь",
-  "Декабрь",
-];
-const DOW_HEADERS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
-
-interface GridDay {
-  iso: string;
-  day: number;
-  outOfMonth: boolean;
-  isToday: boolean;
-}
-
-function parseIso(iso: string): Date {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function buildMonthGrid(y: number, m: number, todayIso: string): GridDay[] {
-  const first = new Date(y, m, 1);
-  // ISO week starts on Monday — JS getDay returns 0 for Sunday, so we
-  // shift by +6 mod 7 to land Monday at 0.
-  const offsetMon = (first.getDay() + 6) % 7;
-  const start = new Date(y, m, 1 - offsetMon);
-  const days: GridDay[] = [];
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    const iso = formatDate(d);
-    days.push({
-      iso,
-      day: d.getDate(),
-      outOfMonth: d.getMonth() !== m,
-      isToday: iso === todayIso,
-    });
-  }
-  return days;
-}
+import { getStartOfDay } from "../../services/time-utils";
+import {
+  buildMonthGrid,
+  DOW_HEADERS_RU,
+  MONTH_NAMES_RU,
+  parseIso,
+  todayIso as todayIsoNow,
+} from "../../services/calendar-i18n";
 
 export function QuickAddDatePicker() {
   const selected = useUIStore((s) => s.quickAdd.pickerSelectedDate);
@@ -126,7 +78,7 @@ export function QuickAddDatePicker() {
         </button>
       </header>
       <div className="qa-picker-grid">
-        {DOW_HEADERS.map((h) => (
+        {DOW_HEADERS_RU.map((h) => (
           <span key={h} className="qa-picker-dow">
             {h}
           </span>

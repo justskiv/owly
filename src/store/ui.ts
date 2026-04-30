@@ -65,6 +65,13 @@ export type EntityPopupState =
       position: "below" | "right";
     };
 
+export type TaskFilter =
+  | { type: "cat"; val: string }
+  | { type: "prio"; val: "high" | "medium" | "low" }
+  | { type: "overdue" }
+  | { type: "week" }
+  | { type: "done" };
+
 const TYPE_BY_PAGE: Record<Page, QAType> = {
   plan: "task",
   tasks: "task",
@@ -145,6 +152,13 @@ interface UIStore {
   // fields.
   entityPopup: EntityPopupState;
 
+  // Tasks page state (Phase 3). `taskAddCat` is null until the first
+  // render of TasksPage, which initialises it from config.areas — at
+  // store-construction time the config store is still loading.
+  taskAddCat: string | null;
+  taskSearch: string;
+  taskFilter: TaskFilter | null;
+
   setPage: (page: Page) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
@@ -205,6 +219,10 @@ interface UIStore {
     position: "below" | "right",
   ) => void;
   closeEntityPopup: () => void;
+
+  setTaskAddCat: (cat: string | null) => void;
+  setTaskSearch: (q: string) => void;
+  setTaskFilter: (f: TaskFilter | null) => void;
 }
 
 // Carry user's deactivation choices over to the new tokenization. We
@@ -293,6 +311,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
     lastCategory: null,
   },
   entityPopup: { open: false },
+
+  taskAddCat: null,
+  taskSearch: "",
+  taskFilter: null,
 
   setPage: (currentPage) => set({ currentPage }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
@@ -515,4 +537,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
   openEntityPopup: (entityId, anchor, position) =>
     set({ entityPopup: { open: true, entityId, anchor, position } }),
   closeEntityPopup: () => set({ entityPopup: { open: false } }),
+
+  setTaskAddCat: (taskAddCat) => set({ taskAddCat }),
+  setTaskSearch: (taskSearch) => set({ taskSearch }),
+  setTaskFilter: (taskFilter) => set({ taskFilter }),
 }));
