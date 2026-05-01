@@ -24,11 +24,16 @@ export function InlineProjectEditor({ project }: Props) {
   };
 
   const persistTitle = () => {
+    const cur = fresh();
+    if (!cur) return;
     const t = titleDraft.trim();
-    if (t && t !== project.title) {
+    // Compare against the FRESH current title, not the prop snapshot —
+    // a background rename would otherwise be reverted by an unchanged
+    // (relative to mount-time) draft.
+    if (t && t !== cur.title) {
       void updateEntity(project.id, { title: t });
     } else {
-      setTitleDraft(project.title);
+      setTitleDraft(cur.title);
     }
   };
 

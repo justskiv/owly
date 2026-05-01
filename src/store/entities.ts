@@ -5,7 +5,6 @@ import type {
   EntitiesFile,
   Entity,
   EntityType,
-  ProjectEntity,
 } from "../schemas";
 import { EntitiesFileSchema } from "../schemas";
 import {
@@ -149,27 +148,26 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
     await trackSave(() => persistEntities(next));
   },
 
-  // Atomic across multiple file writes is not achievable here, so the
-  // cascade is best-effort: each linked project's `direction_id` is
-  // cleared sequentially, then the direction itself is deleted. A
-  // failure on one unlink logs and continues — the remaining projects
-  // and the direction-delete still complete, leaving the data set
-  // recoverable rather than half-rolled-back.
+  // Single-transaction cascade: rebuild the entities array in one
+  // pass — clear `direction_id` on every linked project AND drop the
+  // direction itself — then `set` once and `persistEntities` once.
+  // Avoids the N+1 file writes and intermediate UI flicker the prior
+  // sequential implementation produced.
   deleteDirectionWithCascade: async (directionId) => {
-    const linked = get().entities.filter(
-      (e): e is ProjectEntity =>
-        e.type === "project" && e.fields.direction_id === directionId,
-    );
-    for (const p of linked) {
-      try {
-        await get().updateEntity(p.id, {
-          fields: { ...p.fields, direction_id: null },
-        });
-      } catch (e) {
-        console.error("[direction-cascade] unlink failed", p.id, e);
-      }
-    }
-    await get().deleteEntity(directionId);
+    const now = nowISO();
+    const next = get()
+      .entities.map((e) =>
+        e.type === "project" && e.fields.direction_id === directionId
+          ? ({
+              ...e,
+              fields: { ...e.fields, direction_id: null },
+              updated_at: now,
+            } as Entity)
+          : e,
+      )
+      .filter((e) => e.id !== directionId);
+    set({ entities: next });
+    await trackSave(() => persistEntities(next));
   },
 
   getByType: (type) => get().entities.filter((e) => e.type === type),

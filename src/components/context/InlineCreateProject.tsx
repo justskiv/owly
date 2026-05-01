@@ -3,6 +3,7 @@ import type { Area, DirectionEntity } from "../../schemas";
 import { ProjectFieldsSchema } from "../../schemas/entity";
 import { useEntityStore } from "../../store/entities";
 import { pickAreaTag } from "../../services/categories";
+import { FALLBACK_BOARD_ID } from "../../services/boards";
 import { toast } from "../shared/Toast";
 
 interface Props {
@@ -46,7 +47,7 @@ export function InlineCreateProject({ direction, areas, open, onClose }: Props) 
         estimated_minutes: null,
         deadline: null,
         fields: ProjectFieldsSchema.parse({
-          board_id: "brd3",
+          board_id: FALLBACK_BOARD_ID,
           column_index: 0,
           direction_id: direction.id,
         }),

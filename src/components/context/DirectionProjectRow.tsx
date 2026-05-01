@@ -73,7 +73,20 @@ export function DirectionProjectRow({
   };
   return (
     <>
-      <div className="dc-proj" onClick={onToggle}>
+      <div
+        className="dc-proj"
+        onClick={onToggle}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+        aria-expanded={isOpen}
+        aria-label={`Проект: ${project.title}`}
+      >
         <span>{project.title}</span>
         <span
           className={`dc-days ${freshClass(la)}`}

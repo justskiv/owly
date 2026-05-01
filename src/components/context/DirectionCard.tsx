@@ -94,12 +94,28 @@ export function DirectionCard({ direction, areas }: Props) {
     poolInFlightRef.current = true;
     try {
       const pool = usePoolStore.getState();
-      if (directionPoolItem) {
-        await pool.removeItem(directionPoolItem.id);
+      // Re-read pool items live: the memoised `directionPoolItem` /
+      // `linkedPoolItem` are render-time snapshots, and a sibling
+      // card (e.g. same direction surfaced from a second area tag)
+      // could have toggled state between renders. Without this, two
+      // rapid clicks on the same source can both add a duplicate.
+      const liveItems = pool.items;
+      const liveDir = liveItems.find(
+        (i) =>
+          i.source_kind === "direction" &&
+          i.source_entity_id === direction.id,
+      );
+      const liveLinked = liveItems.find(
+        (i) =>
+          i.source_kind === "project" &&
+          linked.some((p) => p.id === i.source_entity_id),
+      );
+      if (liveDir) {
+        await pool.removeItem(liveDir.id);
         toast.success(`Убрано из пула: ${direction.title}`);
-      } else if (linkedPoolItem) {
-        await pool.removeItem(linkedPoolItem.id);
-        toast.success(`Убрано из пула: ${linkedPoolItem.title}`);
+      } else if (liveLinked) {
+        await pool.removeItem(liveLinked.id);
+        toast.success(`Убрано из пула: ${liveLinked.title}`);
       } else if (linked.length === 0) {
         await pool.addItem({
           title: direction.title,
@@ -151,7 +167,13 @@ export function DirectionCard({ direction, areas }: Props) {
   };
 
   const unlink = async (projectId: string) => {
-    const p = entities.find((e) => e.id === projectId);
+    // Re-read fresh entity at write time — the render-time `entities`
+    // snapshot may be stale by the time the user clicks unlink (e.g.
+    // a background board change), and spreading stale fields would
+    // revert it.
+    const p = useEntityStore
+      .getState()
+      .entities.find((e) => e.id === projectId);
     if (!p || p.type !== "project") return;
     try {
       await updateEntity(projectId, {
@@ -183,9 +205,10 @@ export function DirectionCard({ direction, areas }: Props) {
 
   const handleMouseLeave = () => {
     setPeekOpen(false);
-    // Also close any open inline editor when leaving the card —
-    // otherwise the editor stays open under a hidden peek.
-    setOpenedProjectId(null);
+    // Don't reset openedProjectId here — slipping the cursor out of
+    // the card while editing would destroy the user's in-progress
+    // draft. The doc-level mousedown listener (above) already handles
+    // explicit click-outside.
   };
 
   return (
@@ -195,11 +218,26 @@ export function DirectionCard({ direction, areas }: Props) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div className="dc-top" onClick={onTopClick}>
+      <div
+        className="dc-top"
+        onClick={onTopClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onTopClick();
+          }
+        }}
+        aria-label={`Открыть направление: ${direction.title}`}
+      >
         <span className="dc-dot" style={{ background: color }} />
         <span className="dc-title">{direction.title}</span>
         {linked.length > 0 && (
-          <span className="dc-count" aria-label={projectsPlural(linked.length)}>
+          <span
+            className="dc-count"
+            aria-label={projectsPlural(linked.length)}
+          >
             {linked.length}
           </span>
         )}
@@ -231,7 +269,7 @@ export function DirectionCard({ direction, areas }: Props) {
           >
             {inPool ? "✓ В пуле" : "→ В пул"}
           </button>
-          {f.cadence !== null && f.last_act && (
+          {f.cadence !== null && (
             <button
               type="button"
               className="btn-cadence"

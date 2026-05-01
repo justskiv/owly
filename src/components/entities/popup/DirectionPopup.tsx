@@ -78,14 +78,21 @@ export function DirectionPopup({ direction, onClose }: Props) {
   };
 
   const persistTitle = () => {
+    const cur = fresh();
+    if (!cur) return;
     const t = titleDraft.trim();
-    if (t && t !== direction.title) {
+    if (t && t !== cur.title) {
       void updateEntity(direction.id, { title: t });
     } else {
-      setTitleDraft(direction.title);
+      setTitleDraft(cur.title);
     }
   };
 
+  // Each persist* compares the parsed draft against the *fresh*
+  // current value before writing. Without this, blurring an
+  // unchanged field would re-write `cur.fields.X` and clobber a
+  // background update that landed while the popup was open.
+  //
   // Cadence transitions:
   //   "" / 0  → cadence:null, last_act:null      (disable)
   //   N>0     → cadence:N; if last_act was null, set today (avoid
@@ -100,17 +107,25 @@ export function DirectionPopup({ direction, onClose }: Props) {
       return;
     }
     if (parsed <= 0) {
+      if (cur.fields.cadence === null && cur.fields.last_act === null) return;
       void updateEntity(direction.id, {
         fields: { ...cur.fields, cadence: null, last_act: null },
       });
       return;
     }
     const today = formatDate(getStartOfDay());
+    const nextLastAct = cur.fields.last_act ?? today;
+    if (
+      cur.fields.cadence === parsed &&
+      cur.fields.last_act === nextLastAct
+    ) {
+      return;
+    }
     void updateEntity(direction.id, {
       fields: {
         ...cur.fields,
         cadence: parsed,
-        last_act: cur.fields.last_act ?? today,
+        last_act: nextLastAct,
       },
     });
   };
@@ -118,27 +133,30 @@ export function DirectionPopup({ direction, onClose }: Props) {
   const persistLabel = () => {
     const cur = fresh();
     if (!cur) return;
-    const v = labelDraft.trim();
+    const v = labelDraft.trim() || null;
+    if (cur.fields.cadence_label === v) return;
     void updateEntity(direction.id, {
-      fields: { ...cur.fields, cadence_label: v || null },
+      fields: { ...cur.fields, cadence_label: v },
     });
   };
 
   const persistTarget = () => {
     const cur = fresh();
     if (!cur) return;
-    const v = targetDraft.trim();
+    const v = targetDraft.trim() || null;
+    if (cur.fields.target === v) return;
     void updateEntity(direction.id, {
-      fields: { ...cur.fields, target: v || null },
+      fields: { ...cur.fields, target: v },
     });
   };
 
   const persistCurrent = () => {
     const cur = fresh();
     if (!cur) return;
-    const v = currentDraft.trim();
+    const v = currentDraft.trim() || null;
+    if (cur.fields.current === v) return;
     void updateEntity(direction.id, {
-      fields: { ...cur.fields, current: v || null },
+      fields: { ...cur.fields, current: v },
     });
   };
 

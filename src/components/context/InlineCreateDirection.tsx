@@ -48,6 +48,14 @@ export function InlineCreateDirection({ area }: Props) {
       if (opts.keepOpen) {
         justCreatedRef.current = true;
         inputRef.current?.focus();
+        // Clear the flag after the synchronous focus()-triggered blur
+        // (if any) has been processed. Without this auto-clear the
+        // ref stayed `true` until the user's next genuine blur, which
+        // was then silently ignored — the next typed entry would not
+        // commit on click-away.
+        window.setTimeout(() => {
+          justCreatedRef.current = false;
+        }, 0);
       }
     } catch (e) {
       toast.error((e as Error).message);
