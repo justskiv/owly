@@ -165,6 +165,9 @@ interface UIStore {
   catFilter: string | null;
   staleFilter: boolean;
 
+  // Context page state (Phase 5). Default {} = all sections expanded.
+  contextCollapsed: Record<string, boolean>;
+
   setPage: (page: Page) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
@@ -233,6 +236,8 @@ interface UIStore {
   setActiveBoard: (id: BoardId) => void;
   setCatFilter: (val: string | null) => void;
   toggleStaleFilter: () => void;
+
+  toggleContextSection: (areaId: string) => void;
 }
 
 // Carry user's deactivation choices over to the new tokenization. We
@@ -329,6 +334,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
   activeBoard: "brd1",
   catFilter: null,
   staleFilter: false,
+
+  contextCollapsed: {},
 
   setPage: (currentPage) => set({ currentPage }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
@@ -563,4 +570,12 @@ export const useUIStore = create<UIStore>((set, get) => ({
   setCatFilter: (catFilter) => set({ catFilter, staleFilter: false }),
   toggleStaleFilter: () =>
     set((prev) => ({ staleFilter: !prev.staleFilter, catFilter: null })),
+
+  toggleContextSection: (areaId) =>
+    set((prev) => ({
+      contextCollapsed: {
+        ...prev.contextCollapsed,
+        [areaId]: !prev.contextCollapsed[areaId],
+      },
+    })),
 }));

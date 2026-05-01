@@ -5,6 +5,7 @@ import type {
   EntitiesFile,
   Entity,
   EntityType,
+  ProjectEntity,
 } from "../schemas";
 import { EntitiesFileSchema } from "../schemas";
 import {
@@ -65,6 +66,7 @@ interface EntityStore {
   addEntity: (draft: EntityDraft) => Promise<Entity>;
   updateEntity: (id: string, updates: Partial<Entity>) => Promise<void>;
   deleteEntity: (id: string) => Promise<void>;
+  deleteDirectionWithCascade: (directionId: string) => Promise<void>;
 
   getByType: (type: EntityType) => Entity[];
   getByTag: (tag: string) => Entity[];
@@ -145,6 +147,29 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
     const next = get().entities.filter((e) => e.id !== id);
     set({ entities: next });
     await trackSave(() => persistEntities(next));
+  },
+
+  // Atomic across multiple file writes is not achievable here, so the
+  // cascade is best-effort: each linked project's `direction_id` is
+  // cleared sequentially, then the direction itself is deleted. A
+  // failure on one unlink logs and continues — the remaining projects
+  // and the direction-delete still complete, leaving the data set
+  // recoverable rather than half-rolled-back.
+  deleteDirectionWithCascade: async (directionId) => {
+    const linked = get().entities.filter(
+      (e): e is ProjectEntity =>
+        e.type === "project" && e.fields.direction_id === directionId,
+    );
+    for (const p of linked) {
+      try {
+        await get().updateEntity(p.id, {
+          fields: { ...p.fields, direction_id: null },
+        });
+      } catch (e) {
+        console.error("[direction-cascade] unlink failed", p.id, e);
+      }
+    }
+    await get().deleteEntity(directionId);
   },
 
   getByType: (type) => get().entities.filter((e) => e.type === type),

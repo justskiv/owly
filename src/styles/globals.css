@@ -930,3 +930,87 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
 
 .ep-board,.ep-direction{width:100%;background:var(--bg-tint-1);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 8px;font:var(--fs-sm) var(--font);color:var(--text-primary);color-scheme:dark;cursor:pointer}
 .ep-board:focus,.ep-direction:focus{outline:none;border-color:var(--border-hover)}
+
+/* Context page (Phase 5) — mirrors mock pool-planner-demo-v2.html
+   §«Context view» (CSS lines 207–237 + extensions 433–453). */
+.context-page{display:flex;flex-direction:column;padding:16px 20px;height:100%;overflow-y:auto}
+
+.cat-section{margin-bottom:16px}
+.cat-section-head{display:flex;align-items:center;gap:8px;padding:6px 0;margin-bottom:8px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition:border-color .12s}
+.cat-section-head:hover{border-bottom-color:var(--border-hover)}
+.cat-section-head:focus-visible{outline:1px solid var(--accent);outline-offset:2px}
+.cat-section-head .cs-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cat-section-head .cs-label{font-size:var(--fs-xs);font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary)}
+.cat-section-head .cs-arrow{font-size:9px;color:var(--text-disabled);transition:transform .15s}
+.cat-section-head .cs-count{font-size:var(--fs-2xs);color:var(--text-disabled)}
+
+.dir-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+
+/* Compact uniform tile (~130px). One semantic signal line + optional
+   progress bar + actions. The full project list lives in `.dir-peek`,
+   shown on hover (180ms delay) so the grid stays geometrically
+   perfect regardless of how many projects a direction has. */
+.dir-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;transition:border-color .12s,box-shadow .12s;display:flex;flex-direction:column;gap:6px;height:130px;position:relative}
+.dir-card:hover{border-color:var(--border-hover)}
+.dir-card .dc-top{display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0;min-width:0}
+.dir-card .dc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dir-card .dc-title{font-size:var(--fs-md);font-weight:600;color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dir-card .dc-count{flex-shrink:0;font:600 var(--fs-2xs) var(--mono);color:var(--text-disabled);background:var(--bg-tint-2);padding:1px 6px;border-radius:8px;min-width:18px;text-align:center}
+.dir-card .dc-signal{font-size:var(--fs-xs);color:var(--text-tertiary);flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dir-card .dc-signal.urgency-bad{color:var(--error)}
+.dir-card .dc-signal.urgency-warn{color:var(--warning)}
+.dir-card .dc-signal.urgency-ok{color:var(--success)}
+.dir-card .dc-signal.empty{font-style:italic;opacity:.5}
+.dir-card .dc-progress{height:4px;background:var(--bg-tint-1);border-radius:2px;flex-shrink:0;overflow:hidden}
+.dir-card .dc-progress span{display:block;height:100%;border-radius:2px;transition:width .2s var(--ease-out)}
+.dir-card .dc-actions{display:flex;gap:6px;margin-top:auto;flex-shrink:0}
+
+/* Peek overlay — anchored to the card, drops below it. Shows the
+   full project list (the part that doesn't fit on the compact tile).
+   Position absolute inside the relatively-positioned card, so the
+   overlay layout doesn't disturb the surrounding grid. */
+.dir-peek{position:absolute;top:calc(100% + 6px);left:-1px;right:-1px;z-index:120;background:var(--bg-surface);border:1px solid var(--border-hover);border-radius:var(--radius-md);padding:10px 12px;box-shadow:0 12px 28px rgba(0,0,0,.45)}
+/* Invisible bridge over the 6px gap between card and peek so the
+   cursor stays within the card's hover zone while transitioning. */
+.dir-peek::before{content:'';position:absolute;top:-6px;left:0;right:0;height:6px}
+.dir-peek-head{font:600 var(--fs-2xs) var(--font);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+/* No overflow:auto here — it clips tooltips that pop above the first
+   row. Peek can grow tall; with the typical 0–7 projects it stays
+   reasonable. */
+.dir-peek-body{display:flex;flex-direction:column;gap:1px}
+
+/* Project rows inside the peek (and optionally inside the card if
+   needed). Same visual contract as before. */
+.dc-proj{font-size:var(--fs-xs);color:var(--text-secondary);padding:2px 4px;margin:0 -4px;border-radius:var(--radius-sm);display:flex;align-items:center;gap:6px;cursor:pointer;transition:background .1s;position:relative}
+.dc-proj:hover{background:var(--bg-tint-1)}
+.dc-proj > span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dc-proj .dc-days{flex-shrink:0;width:48px;text-align:left;font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;gap:3px;position:relative}
+.dc-proj .dc-days.fresh{color:var(--success)}
+.dc-proj .dc-days.normal{color:var(--text-disabled)}
+.dc-proj .dc-days.stale{color:var(--error)}
+.dc-proj .dc-days[data-tooltip]:hover::before{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);right:0;background:#1a1a1a;border:1px solid var(--border-hover);color:var(--text-primary);font-size:var(--fs-2xs);padding:2px 6px;border-radius:var(--radius-sm);white-space:nowrap;pointer-events:none;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.dc-proj .dc-unlink{opacity:0;border:none;background:none;color:var(--text-disabled);cursor:pointer;padding:0 2px;font-size:11px;transition:all .1s;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;position:relative}
+.dc-proj:hover .dc-unlink{opacity:1}
+.dc-proj .dc-unlink:hover{color:var(--error)}
+.dc-proj .dc-unlink[data-tooltip]:hover::before{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);right:0;background:#1a1a1a;border:1px solid var(--border-hover);color:var(--text-primary);font-size:var(--fs-2xs);padding:2px 6px;border-radius:var(--radius-sm);white-space:nowrap;pointer-events:none;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+
+.btn-cadence{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:var(--radius-sm);border:1px solid var(--success);background:none;color:var(--success);font-size:var(--fs-xs);font-weight:600;cursor:pointer;transition:all .12s}
+.btn-cadence:hover{background:rgba(48,216,136,.1)}
+
+/* Inline editor expanding under a project row inside a direction card. */
+.dc-proj-edit{background:var(--bg-tint-1);border:1px solid var(--border-hover);border-radius:var(--radius-sm);padding:8px 10px;margin:2px -4px 4px;animation:popIn .1s ease-out}
+.dc-proj-edit .dpe-title{width:100%;padding:3px 0;border:none;border-bottom:1px solid transparent;background:none;color:var(--text-primary);font-size:var(--fs-xs);outline:none;font-weight:500}
+.dc-proj-edit .dpe-title:focus{border-bottom-color:var(--accent)}
+.dc-proj-edit .dpe-tags{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.dc-proj-edit .dpe-tag{padding:2px 8px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-tertiary);font-size:var(--fs-2xs);cursor:pointer;transition:all .12s;white-space:nowrap}
+.dc-proj-edit .dpe-tag:hover{border-color:var(--border-hover);color:var(--text-secondary)}
+.dc-proj-edit .dpe-tag.on{border-color:var(--accent);background:rgba(212,168,67,.12);color:var(--accent)}
+
+/* "+ Направление" trigger — compact, dashed border on hover. */
+.add-trigger{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text-disabled);font-size:var(--fs-2xs);transition:all .1s;border:1px dashed transparent;background:none}
+.add-trigger:hover{color:var(--text-tertiary);border-color:var(--border)}
+.add-trigger .at-plus{font-size:var(--fs-sm);line-height:1}
+
+/* DirectionPopup inputs (numeric / text). */
+.ep-input{width:100%;background:var(--bg-tint-1);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 8px;font:var(--fs-sm) var(--font);color:var(--text-primary);outline:none}
+.ep-input:focus{border-color:var(--border-hover)}

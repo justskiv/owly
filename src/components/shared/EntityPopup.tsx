@@ -7,6 +7,7 @@ import { useEntityStore } from "../../store/entities";
 import { useEscape } from "../../hooks/useEscape";
 import { TaskPopup } from "../entities/popup/TaskPopup";
 import { ProjectPopup } from "../entities/popup/ProjectPopup";
+import { DirectionPopup } from "../entities/popup/DirectionPopup";
 
 interface EntityPopupProps {
   anchor: EntityPopupAnchor;
@@ -169,6 +170,9 @@ function EntityPopupContent({
   if (entity.type === "project") {
     return <ProjectPopup project={entity} onClose={onClose} />;
   }
+  if (entity.type === "direction") {
+    return <DirectionPopup direction={entity} onClose={onClose} />;
+  }
   return (
     <div className="ep-stub">
       <button
@@ -180,7 +184,7 @@ function EntityPopupContent({
         ×
       </button>
       <div className="ep-title">{entity.title}</div>
-      <div className="ep-hint">Phase 5 наполнит для {entity.type}</div>
+      <div className="ep-hint">Нет редактора для {entity.type}</div>
     </div>
   );
 }
