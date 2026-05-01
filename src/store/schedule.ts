@@ -40,7 +40,12 @@ interface ScheduleStore {
   loadWeek: (week: string, opts?: LoadWeekOptions) => Promise<void>;
   saveWeek: () => Promise<void>;
 
-  addBlock: (block: Omit<Block, "id"> & { id?: string }) => Promise<Block>;
+  addBlock: (
+    block: Omit<Block, "id" | "pool_item_id"> & {
+      id?: string;
+      pool_item_id?: string | null;
+    },
+  ) => Promise<Block>;
   updateBlock: (id: string, updates: Partial<Block>) => Promise<void>;
   moveBlock: (id: string, date: string, start: string) => Promise<void>;
   resizeBlock: (id: string, duration: number) => Promise<void>;
@@ -180,7 +185,11 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   },
 
   addBlock: async (draft) => {
-    const block: Block = { ...draft, id: draft.id ?? generateId("blk") };
+    const block: Block = {
+      ...draft,
+      id: draft.id ?? generateId("blk"),
+      pool_item_id: draft.pool_item_id ?? null,
+    };
     const snap = get();
     const next = [...snap.blocks, block];
     syncCache(snap, next);

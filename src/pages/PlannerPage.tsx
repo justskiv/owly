@@ -1,39 +1,34 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Block, Entity } from "../schemas";
 import { BlockContextMenu } from "../components/planner/BlockContextMenu";
-import { BlockEditor } from "../components/planner/BlockEditor";
 import { DurationTip } from "../components/planner/DurationTip";
-import { TaskPool } from "../components/planner/TaskPool";
+import { PoolSidebar } from "../components/planner/PoolSidebar";
+import { WeekGrid } from "../components/planner/WeekGrid";
 import { WeekNotFoundDialog } from "../components/planner/WeekNotFoundDialog";
-import {
-  WeekGrid,
-  type WeekActions,
-  type WeekModel,
-} from "../components/planner/WeekGrid";
-import { WeekSummary } from "../components/planner/WeekSummary";
-import {
-  dayBalance,
-  dayFreeMinutes,
-  overlappingIds,
-  weekBalance,
-  weekFreeMinutes,
-} from "../services/balance";
 import {
   END_HOUR,
   START_HOUR,
   formatDate,
   getWeekDates,
 } from "../services/time-utils";
-import type { Block } from "../schemas";
 import { useBlockGesture } from "../hooks/useBlockGesture";
-import { usePlannerCommands } from "../hooks/usePlannerCommands";
-import { usePlannerHotkeys } from "../hooks/usePlannerHotkeys";
-import { usePlannerOverlay } from "../hooks/usePlannerOverlay";
-import { useConfigStore } from "../store/config";
 import { useScheduleStore } from "../store/schedule";
 import { useUIStore } from "../store/ui";
+import { useEntityStore } from "../store/entities";
+import { toast } from "../components/shared/Toast";
 
 const NOW_TICK_MS = 60_000;
-const EMPTY_AREAS: never[] = [];
+const POPUP_ENABLED_TYPES = new Set<Entity["type"]>([
+  "task",
+  "project",
+  "direction",
+]);
+
+interface CtxMenuState {
+  x: number;
+  y: number;
+  blockId: string;
+}
 
 function useNowInWeek(weekDates: string[], tick: number) {
   return useMemo(() => {
@@ -52,24 +47,23 @@ function useNowInWeek(weekDates: string[], tick: number) {
 export function PlannerPage() {
   const active = useUIStore((s) => s.currentPage === "plan");
   const week = useScheduleStore((s) => s.currentWeek);
-  const weekStart = useScheduleStore((s) => s.startDate);
   const blocks = useScheduleStore((s) => s.blocks);
 
   const selectedId = useUIStore((s) => s.selectedBlockId);
   const setSelected = useUIStore((s) => s.setSelectedBlock);
-  const newBlockTrigger = useUIStore((s) => s.newBlockTrigger);
   const weekPromptId = useUIStore((s) => s.weekPromptId);
+  const openEntityPopup = useUIStore((s) => s.openEntityPopup);
+  const openBlockPopup = useUIStore((s) => s.openBlockPopup);
+  const poolModalOpen = useUIStore((s) => s.poolModalOpen);
+  const blockPopupOpen = useUIStore(
+    (s) => s.blockPopup.open || s.entityPopup.open,
+  );
 
-  const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
-  const areaIds = useMemo(() => areas.map((a) => a.id), [areas]);
   const weekDates = useMemo(() => getWeekDates(week), [week]);
 
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
     let interval: number | null = null;
-    // Align first tick to the next :00 minute boundary so the now-line
-    // jumps right when the wall clock changes minutes; otherwise it
-    // would lag by up to NOW_TICK_MS depending on launch time.
     const msToNextMinute = NOW_TICK_MS - (Date.now() % NOW_TICK_MS);
     const start = window.setTimeout(() => {
       setNowTick((t) => t + 1);
@@ -85,225 +79,166 @@ export function PlannerPage() {
   }, []);
   const { todayIdx, nowMinutes } = useNowInWeek(weekDates, nowTick);
 
-  const overlay = usePlannerOverlay();
-  const commands = usePlannerCommands({ weekDates, weekStart, todayIdx });
-
-  // External (menu bar) request to open the new-block editor.
-  useEffect(() => {
-    if (newBlockTrigger === 0) return;
-    overlay.openEditorNew(commands.buildNewDefaults());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newBlockTrigger]);
-
-  const selectedBlock = useMemo(
-    () => blocks.find((b) => b.id === selectedId) ?? null,
-    [blocks, selectedId],
-  );
-
-  const onClearSelection = useCallback(
-    () => setSelected(null),
-    [setSelected],
-  );
-  const onOpenNew = useCallback(
-    () => overlay.openEditorNew(commands.buildNewDefaults()),
-    [overlay, commands],
-  );
-  const onOpenEdit = useCallback(
-    (b: Block) => overlay.openEditorEdit(b.id),
-    [overlay],
-  );
-  const onOpenContext = useCallback(
-    (b: Block) => {
-      const el = document.querySelector<HTMLElement>(
-        `.tb[data-block-id="${CSS.escape(b.id)}"]`,
-      );
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      overlay.openContext(r.left + r.width / 2, r.top + r.height / 2, b.id);
-    },
-    [overlay],
-  );
-  const onTogglePool = useCallback(
-    () => useUIStore.getState().togglePool(),
-    [],
-  );
-
   const gesture = useBlockGesture();
 
-  usePlannerHotkeys({
-    active,
-    overlayOpen: overlay.overlay !== null,
-    gesturing: gesture.gesturing,
-    selectedBlock,
-    onCloseOverlay: overlay.close,
-    onClearSelection,
-    onCancelGesture: gesture.cancelGesture,
-    onOpenNew,
-    onTogglePool,
-    onOpenEdit,
-    onOpenContext,
-    onComplete: commands.completeBlock,
-    onSkip: commands.skipBlock,
-    onDelete: commands.deleteBlock,
-    onNudge: commands.nudgeBlock,
-  });
+  const blocksByDate = useMemo(() => {
+    const map = new Map<string, Block[]>();
+    for (const b of blocks) {
+      const list = map.get(b.date);
+      if (list) list.push(b);
+      else map.set(b.date, [b]);
+    }
+    return map;
+  }, [blocks]);
 
-  // Outside-click drops selection + closes inline-create.
+  const [ctxMenu, setCtxMenu] = useState<CtxMenuState | null>(null);
+  const closeCtxMenu = useCallback(() => setCtxMenu(null), []);
+
+  const onBlockDoubleClick = useCallback(
+    (block: Block, rect: DOMRect) => {
+      const entityId = block.source_entity_id;
+      if (entityId) {
+        const entity = useEntityStore
+          .getState()
+          .entities.find((e) => e.id === entityId);
+        if (entity && POPUP_ENABLED_TYPES.has(entity.type)) {
+          openEntityPopup(entityId, { type: "rect", rect }, "right");
+          return;
+        }
+      }
+      openBlockPopup(block.id, { type: "rect", rect }, "right");
+    },
+    [openEntityPopup, openBlockPopup],
+  );
+
+  const onBlockContextMenu = useCallback(
+    (e: { clientX: number; clientY: number }, block: Block) => {
+      setSelected(block.id);
+      setCtxMenu({ x: e.clientX, y: e.clientY, blockId: block.id });
+    },
+    [setSelected],
+  );
+
+  // Selected-block hotkeys: Delete/Backspace removes; Escape clears
+  // selection or cancels the active drag. Cmd+N is global (Quick Add)
+  // and not handled here.
+  useEffect(() => {
+    if (!active) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && gesture.gesturing) {
+        gesture.cancelGesture();
+        return;
+      }
+      const t = e.target as HTMLElement | null;
+      const isInput =
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        (t != null && t.isContentEditable);
+      if (isInput) {
+        if (e.key === "Escape") (t as HTMLElement).blur();
+        return;
+      }
+      if (e.key === "Escape") {
+        if (ctxMenu) {
+          setCtxMenu(null);
+          return;
+        }
+        if (selectedId !== null) setSelected(null);
+        return;
+      }
+      if (poolModalOpen || blockPopupOpen || gesture.gesturing) return;
+      if (selectedId === null) return;
+      const noMod = !e.metaKey && !e.ctrlKey && !e.altKey;
+      if (noMod && (e.key === "Delete" || e.key === "Backspace")) {
+        e.preventDefault();
+        const sb = blocks.find((b) => b.id === selectedId);
+        if (!sb) return;
+        const t2 = sb.title;
+        void useScheduleStore
+          .getState()
+          .deleteBlock(selectedId)
+          .then(() => {
+            setSelected(null);
+            toast.success(`Удалён: ${t2}`);
+          })
+          .catch((err) => toast.error((err as Error).message));
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    active,
+    gesture,
+    ctxMenu,
+    selectedId,
+    setSelected,
+    poolModalOpen,
+    blockPopupOpen,
+    blocks,
+  ]);
+
+  // Outside-click drops selection. Doesn't close popups (they manage
+  // their own outside-click), doesn't fire while a gesture is active.
   useEffect(() => {
     if (!active) return;
     const onDocMouseDown = (e: globalThis.MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
       if (
-        target.closest(".tb") ||
-        target.closest(".ctx") ||
-        target.closest(".modal-bg") ||
-        target.closest(".inline-block") ||
-        target.closest(".drag-ghost")
+        target.closest(".block") ||
+        target.closest(".block-ctx") ||
+        target.closest(".entity-popup") ||
+        target.closest(".modal-overlay") ||
+        target.closest(".drag-ghost") ||
+        target.closest(".pool-sidebar")
       ) {
         return;
       }
-      const ui = useUIStore.getState();
-      if (ui.selectedBlockId !== null) {
-        setSelected(null);
-      }
-      if (!target.closest(".gr") && overlay.overlay?.kind === "inline-create") {
-        overlay.close();
-      }
+      if (selectedId !== null) setSelected(null);
     };
     document.addEventListener("mousedown", onDocMouseDown);
     return () => document.removeEventListener("mousedown", onDocMouseDown);
-  }, [active, setSelected, overlay]);
+  }, [active, selectedId, setSelected]);
 
-  const ov = overlay.overlay;
-  const inlineForGrid =
-    ov?.kind === "inline-create"
-      ? { date: ov.date, minute: ov.minute }
-      : null;
-
-  const weekModel = useMemo<WeekModel>(() => {
-    const blocksByDate = new Map<string, typeof blocks>();
-    for (const b of blocks) {
-      const list = blocksByDate.get(b.date);
-      if (list) list.push(b);
-      else blocksByDate.set(b.date, [b]);
-    }
-    return {
-      weekKey: week,
-      days: weekDates.map((date, idx) => ({
-        date,
-        isToday: todayIdx === idx,
-        blocks: blocksByDate.get(date) ?? [],
-        balance: dayBalance(blocks, date, areaIds),
-        free: dayFreeMinutes(blocks, date),
-        inline:
-          inlineForGrid?.date === date
-            ? { minute: inlineForGrid.minute }
-            : null,
-        nowMinutes: todayIdx === idx ? nowMinutes : null,
-      })),
-      selectedId,
-      overlapping: overlappingIds(blocks),
-      todayIdx,
-    };
-  }, [
-    blocks,
-    week,
-    weekDates,
-    todayIdx,
-    nowMinutes,
-    selectedId,
-    areaIds,
-    inlineForGrid,
-  ]);
-
-  const weekBal = useMemo(
-    () => weekBalance(blocks, areaIds),
-    [blocks, areaIds],
+  const ctxBlock = useMemo(
+    () => (ctxMenu ? blocks.find((b) => b.id === ctxMenu.blockId) : null),
+    [ctxMenu, blocks],
   );
-  const freeWk = useMemo(() => weekFreeMinutes(blocks), [blocks]);
-
-  const actions = useMemo<WeekActions>(
-    () => ({
-      onEmptyClick: (date, minute) => {
-        // Open context menu intercepts the click — user wanted to
-        // dismiss the menu, not start a new block. Just close it.
-        if (overlay.overlay?.kind === "context") {
-          overlay.close();
-          return;
-        }
-        overlay.openInline(date, minute);
-      },
-      onBlockDblClick: (id) => overlay.openEditorEdit(id),
-      onBlockContext: (e, id) => {
-        setSelected(id);
-        overlay.openContext(e.clientX, e.clientY, id);
-      },
-      onInlineCancel: () => overlay.close(),
-      onInlineSubmit: async (date, minute, title) => {
-        const created = await commands.createInline(date, minute, title);
-        if (created) overlay.close();
-      },
-    }),
-    [overlay, setSelected, commands],
-  );
-
-  const editBlock =
-    ov?.kind === "editor-edit"
-      ? (blocks.find((b) => b.id === ov.blockId) ?? null)
-      : null;
-  const ctxBlock =
-    ov?.kind === "context"
-      ? (blocks.find((b) => b.id === ov.blockId) ?? null)
-      : null;
 
   return (
-    <div className={`page${active ? " active" : ""}`}>
-      <WeekSummary balance={weekBal} freeMinutes={freeWk} />
-      <div className="planner-body">
-        <WeekGrid
-          model={weekModel}
-          actions={actions}
-          dropTarget={gesture.dropTarget}
-          draggingBlockId={gesture.activeDragBlockId}
-          resizingBlockId={gesture.resizeState?.blockId ?? null}
-          resizeDuration={gesture.resizeState?.duration ?? null}
-          onBlockPointerDown={gesture.onBlockPointerDown}
-        />
-        <TaskPool onPoolItemPointerDown={gesture.onPoolItemPointerDown} />
-      </div>
-      {gesture.resizeState ? (
+    <div className={`plan-view${active ? " active" : ""}`}>
+      <WeekGrid
+        weekKey={week}
+        weekDates={weekDates}
+        blocksByDate={blocksByDate}
+        selectedId={selectedId}
+        draggingId={gesture.activeDragBlockId}
+        resizingId={gesture.resizeState?.blockId ?? null}
+        resizeDuration={gesture.resizeState?.duration ?? null}
+        dropTarget={gesture.dropTarget}
+        todayIdx={todayIdx}
+        nowMinutes={nowMinutes}
+        onBlockPointerDown={gesture.onBlockPointerDown}
+        onBlockDoubleClick={onBlockDoubleClick}
+        onBlockContextMenu={onBlockContextMenu}
+      />
+      <PoolSidebar
+        onPoolItemDragStart={gesture.onPoolItemDragStart}
+        onEntityDragStart={gesture.onPoolItemPointerDown}
+      />
+      {gesture.resizeState && (
         <DurationTip
           x={gesture.resizeState.tipX}
           y={gesture.resizeState.tipY}
           duration={gesture.resizeState.duration}
         />
-      ) : null}
-      {ov?.kind === "editor-new" && (
-        <BlockEditor
-          mode={{ kind: "new", defaults: ov.defaults }}
-          weekStart={weekStart}
-          areas={areas}
-          onClose={overlay.close}
-        />
       )}
-      {ov?.kind === "editor-edit" && editBlock && (
-        <BlockEditor
-          key={`edit:${editBlock.id}`}
-          mode={{ kind: "edit", block: editBlock }}
-          weekStart={weekStart}
-          areas={areas}
-          onClose={overlay.close}
-        />
-      )}
-      {ov?.kind === "context" && ctxBlock && (
+      {ctxMenu && ctxBlock && (
         <BlockContextMenu
-          x={ov.x}
-          y={ov.y}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
           block={ctxBlock}
-          areas={areas}
-          onEdit={() => overlay.openEditorEdit(ov.blockId)}
-          onClose={overlay.close}
+          onClose={closeCtxMenu}
         />
       )}
       {weekPromptId && <WeekNotFoundDialog weekId={weekPromptId} />}

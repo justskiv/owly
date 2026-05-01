@@ -1,3 +1,4 @@
+// LEGACY — phase 6 backup, removed in phase 9
 import { ROW_H, minToY } from "../../services/time-utils";
 
 interface SnapPreviewProps {

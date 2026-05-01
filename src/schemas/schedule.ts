@@ -17,6 +17,7 @@ export const BlockSchema = z.object({
   duration: z.number().int().min(15),
   category: z.string(),
   source_entity_id: z.string().nullable(),
+  pool_item_id: z.string().nullable().default(null),
   status: BlockStatusSchema,
   notes: z.string(),
 });

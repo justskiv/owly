@@ -16,6 +16,7 @@ import { SettingsModal } from "../settings/SettingsModal";
 import { CommandsLogPanel } from "../commands/CommandsLogPanel";
 import { QuickAdd } from "../quick-add/QuickAdd";
 import { EntityPopupHost } from "../shared/EntityPopup";
+import { BlockPopupHost } from "../planner/BlockPopup";
 import { useUIStore, type Page } from "../../store/ui";
 
 const KEY_PAGE: Record<string, Page> = {
@@ -120,6 +121,7 @@ export function Shell() {
       <Toast />
       <QuickAdd />
       <EntityPopupHost />
+      <BlockPopupHost />
       {entityEditor.open && <EntityEditor state={entityEditor} />}
       {settingsOpen && <SettingsModal />}
       {commandsPanelOpen && <CommandsLogPanel />}

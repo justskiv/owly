@@ -66,6 +66,21 @@ export type EntityPopupState =
       position: "below" | "right";
     };
 
+// Phase 6: ad-hoc blocks (no source_entity_id) get their own popup —
+// EntityPopup only knows about entity ids, so we keep block-id state
+// in a separate slot to avoid overloading the entity union.
+export type BlockPopupState =
+  | { open: false }
+  | {
+      open: true;
+      blockId: string;
+      anchor: EntityPopupAnchor;
+      position: "below" | "right";
+    };
+
+export type SideTab = "pool" | "tasks" | "projects" | "dirs";
+export type PoolModal = null | "new-task" | "new-pool-item";
+
 export type TaskFilter =
   | { type: "cat"; val: string }
   | { type: "prio"; val: "high" | "medium" | "low" }
@@ -168,6 +183,11 @@ interface UIStore {
   // Context page state (Phase 5). Default {} = all sections expanded.
   contextCollapsed: Record<string, boolean>;
 
+  // Phase 6: Pool Sidebar active tab + Pool Add modal kind.
+  sideTab: SideTab;
+  poolModalOpen: PoolModal;
+  blockPopup: BlockPopupState;
+
   setPage: (page: Page) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
@@ -238,6 +258,16 @@ interface UIStore {
   toggleStaleFilter: () => void;
 
   toggleContextSection: (areaId: string) => void;
+
+  setSideTab: (t: SideTab) => void;
+  openPoolModal: (kind: Exclude<PoolModal, null>) => void;
+  closePoolModal: () => void;
+  openBlockPopup: (
+    blockId: string,
+    anchor: EntityPopupAnchor,
+    position: "below" | "right",
+  ) => void;
+  closeBlockPopup: () => void;
 }
 
 // Carry user's deactivation choices over to the new tokenization. We
@@ -336,6 +366,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
   staleFilter: false,
 
   contextCollapsed: {},
+
+  sideTab: "pool",
+  poolModalOpen: null,
+  blockPopup: { open: false },
 
   setPage: (currentPage) => set({ currentPage }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
@@ -578,4 +612,11 @@ export const useUIStore = create<UIStore>((set, get) => ({
         [areaId]: !prev.contextCollapsed[areaId],
       },
     })),
+
+  setSideTab: (sideTab) => set({ sideTab }),
+  openPoolModal: (kind) => set({ poolModalOpen: kind }),
+  closePoolModal: () => set({ poolModalOpen: null }),
+  openBlockPopup: (blockId, anchor, position) =>
+    set({ blockPopup: { open: true, blockId, anchor, position } }),
+  closeBlockPopup: () => set({ blockPopup: { open: false } }),
 }));

@@ -61,6 +61,7 @@ export async function createWeekFromTemplate(
     duration: b.duration,
     category: b.category,
     source_entity_id: null,
+    pool_item_id: null,
     status: "planned" as const,
     notes: "",
   }));

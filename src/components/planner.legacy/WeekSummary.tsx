@@ -1,3 +1,4 @@
+// LEGACY — phase 6 backup, removed in phase 9
 import { WEEK_CAPACITY_MIN, fmtDur } from "../../services/time-utils";
 import type { CategoryBalance } from "../../services/balance";
 

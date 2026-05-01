@@ -1,4 +1,4 @@
-import type { Block, Command, Entity } from "../schemas";
+import type { Block, Command, Entity, PoolItem } from "../schemas";
 import { EntitySchema } from "../schemas";
 import {
   applyToWeek,
@@ -6,6 +6,10 @@ import {
   findWeekContainingBlock,
 } from "../store/schedule";
 import { useEntityStore } from "../store/entities";
+import {
+  applyToPoolWeek,
+  deletePoolItemCascade,
+} from "./pool-actions";
 import {
   createEmptyWeek,
   createWeekFromTemplate,
@@ -51,6 +55,7 @@ export async function executeCommand(cmd: Command): Promise<void> {
         duration: cmd.data.duration,
         category: cmd.data.category,
         source_entity_id: cmd.data.source_entity_id,
+        pool_item_id: null,
         status: "planned",
         notes: cmd.data.notes ?? "",
       };
@@ -197,6 +202,57 @@ export async function executeCommand(cmd: Command): Promise<void> {
       } else {
         await createEmptyWeek(week);
       }
+      return;
+    }
+
+    case "create_pool_item": {
+      const { week, ...payload } = cmd.data;
+      const now = nowISO();
+      const item: PoolItem = {
+        id: generateId("pool"),
+        title: payload.title,
+        hours: payload.hours,
+        category: payload.category,
+        splittable: payload.splittable,
+        source_entity_id: payload.source_entity_id,
+        source_kind: payload.source_kind,
+        placed: false,
+        created_at: now,
+        updated_at: now,
+      };
+      await applyToPoolWeek(week, (items) => [...items, item]);
+      return;
+    }
+
+    case "update_pool_item": {
+      const data = cmd.data as Record<string, unknown> & {
+        week: string;
+        pool_item_id: string;
+      };
+      const {
+        week,
+        pool_item_id,
+        id: _ignoreId,
+        created_at: _ignoreCreated,
+        updated_at: _ignoreUpdated,
+        ...patch
+      } = data;
+      void _ignoreId;
+      void _ignoreCreated;
+      void _ignoreUpdated;
+      await applyToPoolWeek(week, (items) =>
+        items.map((it) =>
+          it.id === pool_item_id
+            ? ({ ...it, ...patch, updated_at: nowISO() } as PoolItem)
+            : it,
+        ),
+      );
+      return;
+    }
+
+    case "delete_pool_item": {
+      const { week, pool_item_id } = cmd.data;
+      await deletePoolItemCascade(week, pool_item_id);
       return;
     }
 

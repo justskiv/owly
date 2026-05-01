@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import type { Block, Entity } from "../schemas";
+import type { Block, Entity, PoolItem } from "../schemas";
 import { toast } from "../components/shared/Toast";
 import { useScheduleStore } from "../store/schedule";
 import { useUIStore } from "../store/ui";
 import {
+  DAY_CAPACITY_MIN,
   DEFAULT_BLOCK_DURATION_MIN,
   END_HOUR,
   MIN_BLOCK_MIN,
@@ -39,12 +40,14 @@ export interface ResizeState {
 type GestureKind = "drag" | "resize" | "pool-drag";
 
 interface Active {
-  // For pool-drag, blockId/block/originalDuration/pendingResize are
-  // unused — the entity is the source and addBlock creates a fresh
-  // one. For drag/resize, entity is unused.
+  // For pool-drag from a Tasks tab entity, `entity` is set; for
+  // pool-drag from a PoolItem (Pool tab), `poolItem` is set; the
+  // resulting block differs (entity sets source_entity_id, pool item
+  // sets pool_item_id). For drag/resize, both are null.
   blockId: string | null;
   block: Block | null;
   entity: Entity | null;
+  poolItem: PoolItem | null;
   kind: GestureKind;
   el: HTMLElement;
   pointerId: number;
@@ -95,8 +98,11 @@ function findDropTarget(
 ): { date: string; minute: number } | null {
   // Mirrors mock getDropTarget: column chosen by cursor X, minute by
   // the Y of the block's would-be top edge. getBoundingClientRect
-  // already accounts for scroll — do NOT subtract scrollTop.
-  const cols = document.querySelectorAll<HTMLElement>(".day-col");
+  // already accounts for scroll — do NOT subtract scrollTop. Phase 6
+  // moved the hit-test to `.day-body` (the relative-positioned grid
+  // container per spec §4.3); legacy code used `.day-col` but is no
+  // longer mounted.
+  const cols = document.querySelectorAll<HTMLElement>(".day-body");
   for (const col of cols) {
     const r = col.getBoundingClientRect();
     if (cursorX < r.left || cursorX > r.right) continue;
@@ -268,7 +274,8 @@ export function useBlockGesture() {
         return;
       }
       if (commit === "pool-drop") {
-        if (!entity || !pendingDrop) {
+        const { poolItem } = a;
+        if ((!entity && !poolItem) || !pendingDrop) {
           if (ghost) ghost.remove();
           clearPoolSource();
           setDropTarget(null);
@@ -281,21 +288,42 @@ export function useBlockGesture() {
         if (ghost) ghost.remove();
         clearPoolSource();
         setDropTarget(null);
-        const duration =
-          entity.estimated_minutes ?? DEFAULT_BLOCK_DURATION_MIN;
-        const category = pickCategory(entity.tags);
         void (async () => {
           try {
-            await useScheduleStore.getState().addBlock({
-              title: entity.title,
-              date: pendingDrop.date,
-              start: minutesToTime(pendingDrop.minute),
-              duration,
-              category,
-              status: "planned",
-              notes: "",
-              source_entity_id: entity.id,
-            });
+            if (poolItem) {
+              const duration = poolItem.splittable
+                ? DEFAULT_BLOCK_DURATION_MIN
+                : Math.min(
+                    Math.round(poolItem.hours * 60),
+                    DAY_CAPACITY_MIN,
+                  );
+              await useScheduleStore.getState().addBlock({
+                title: poolItem.title,
+                date: pendingDrop.date,
+                start: minutesToTime(pendingDrop.minute),
+                duration,
+                category: poolItem.category,
+                status: "planned",
+                notes: "",
+                source_entity_id: poolItem.source_entity_id,
+                pool_item_id: poolItem.id,
+              });
+            } else if (entity) {
+              const duration =
+                entity.estimated_minutes ?? DEFAULT_BLOCK_DURATION_MIN;
+              const category = pickCategory(entity.tags);
+              await useScheduleStore.getState().addBlock({
+                title: entity.title,
+                date: pendingDrop.date,
+                start: minutesToTime(pendingDrop.minute),
+                duration,
+                category,
+                status: "planned",
+                notes: "",
+                source_entity_id: entity.id,
+                pool_item_id: null,
+              });
+            }
           } catch (e) {
             toast.error(`Не удалось: ${(e as Error).message}`);
           } finally {
@@ -339,6 +367,7 @@ export function useBlockGesture() {
         blockId: block.id,
         block,
         entity: null,
+        poolItem: null,
         kind: isResize ? "resize" : "drag",
         el,
         pointerId,
@@ -502,6 +531,7 @@ export function useBlockGesture() {
         blockId: null,
         block: null,
         entity,
+        poolItem: null,
         kind: "pool-drag",
         el,
         pointerId,
@@ -614,6 +644,143 @@ export function useBlockGesture() {
     [teardown],
   );
 
+  const onPoolItemDragStart = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>, item: PoolItem) => {
+      if (e.button !== 0) return;
+      if (activeRef.current) return;
+
+      const el = e.currentTarget;
+      const rect = el.getBoundingClientRect();
+      const pointerId = e.pointerId;
+      // Splittable items always drop as a 60-min slot; the user can
+      // resize after. Atomic items keep their full hours, clamped
+      // to a single day so the drop never wraps overnight.
+      const duration = item.splittable
+        ? DEFAULT_BLOCK_DURATION_MIN
+        : Math.min(Math.round(item.hours * 60), DAY_CAPACITY_MIN);
+      const ghostHeight = (duration / 30) * ROW_H;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        if (el.isConnected) el.setPointerCapture(pointerId);
+      } catch {
+        // ignore
+      }
+
+      const a: Active = {
+        blockId: null,
+        block: null,
+        entity: null,
+        poolItem: item,
+        kind: "pool-drag",
+        el,
+        pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        grabOffX: Math.min(e.clientX - rect.left, POOL_GHOST_WIDTH - 10),
+        grabOffY: Math.min(e.clientY - rect.top, ghostHeight - 10),
+        rectWidth: POOL_GHOST_WIDTH,
+        rectHeight: ghostHeight,
+        originalDuration: duration,
+        moved: false,
+        ghost: null,
+        pendingDrop: null,
+        pendingResize: null,
+        onMove: () => {},
+        onUp: () => {},
+        onCancel: () => {},
+        onBlur: () => {},
+        onScroll: () => {},
+      };
+
+      const recomputeDropTarget = (cx: number, cy: number) => {
+        const topY = cy - a.grabOffY;
+        const target = findDropTarget(cx, topY, duration);
+        if (target) {
+          a.pendingDrop = target;
+          setDropTarget({
+            date: target.date,
+            minute: target.minute,
+            duration,
+          });
+        } else {
+          a.pendingDrop = null;
+          setDropTarget(null);
+        }
+      };
+
+      const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== a.pointerId) return;
+        const dx = ev.clientX - a.startX;
+        const dy = ev.clientY - a.startY;
+        if (
+          !a.moved &&
+          Math.abs(dx) < DRAG_THRESHOLD_PX &&
+          Math.abs(dy) < DRAG_THRESHOLD_PX
+        ) {
+          return;
+        }
+        a.moved = true;
+        lastCursorRef.current = { x: ev.clientX, y: ev.clientY };
+
+        if (!a.ghost) {
+          const g = document.createElement("div");
+          g.className = `drag-ghost tb ${item.category}`;
+          g.style.width = POOL_GHOST_WIDTH + "px";
+          g.style.height = ghostHeight + "px";
+          g.innerHTML =
+            `<div class="bt">${escapeHtml(item.title)}</div>` +
+            `<div class="bm">${fmtDur(duration)}</div>`;
+          document.body.appendChild(g);
+          a.ghost = g;
+          el.classList.add("dragging-source");
+        }
+        a.ghost.style.left = ev.clientX - a.grabOffX + "px";
+        a.ghost.style.top = ev.clientY - a.grabOffY + "px";
+
+        recomputeDropTarget(ev.clientX, ev.clientY);
+      };
+
+      const onUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== a.pointerId) return;
+        if (!a.moved) {
+          teardown("cancel");
+          return;
+        }
+        teardown("pool-drop");
+      };
+
+      const onCancel = (ev: PointerEvent) => {
+        if (ev.pointerId !== a.pointerId) return;
+        teardown("cancel");
+      };
+      const onBlur = () => teardown("cancel");
+      const onScroll = () => {
+        const c = lastCursorRef.current;
+        if (!c) return;
+        recomputeDropTarget(c.x, c.y);
+      };
+
+      a.onMove = onMove;
+      a.onUp = onUp;
+      a.onCancel = onCancel;
+      a.onBlur = onBlur;
+      a.onScroll = onScroll;
+      activeRef.current = a;
+      setGesturing(true);
+
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onCancel);
+      window.addEventListener("lostpointercapture", onCancel);
+      window.addEventListener("blur", onBlur);
+      document.addEventListener("scroll", onScroll, true);
+    },
+    [teardown],
+  );
+
   const cancelGesture = useCallback(() => {
     if (activeRef.current) teardown("cancel");
   }, [teardown]);
@@ -631,6 +798,7 @@ export function useBlockGesture() {
     gesturing,
     onBlockPointerDown,
     onPoolItemPointerDown,
+    onPoolItemDragStart,
     cancelGesture,
   };
 }

@@ -1,3 +1,4 @@
+// LEGACY — phase 6 backup, removed in phase 9
 import { useEffect, useRef } from "react";
 import {
   DEFAULT_BLOCK_DURATION_MIN,

@@ -101,6 +101,40 @@ export const CreateWeekCommandSchema = z.object({
 // rejects it cleanly with a "Schema rejected" message — clearer
 // than letting the executor accept-then-throw.
 
+export const CreatePoolItemCommandSchema = z.object({
+  ...baseCommandShape,
+  action: z.literal("create_pool_item"),
+  data: z.object({
+    week: weekId(),
+    title: z.string(),
+    hours: z.number().positive(),
+    category: z.string(),
+    splittable: z.boolean(),
+    source_entity_id: z.string().nullable().default(null),
+    source_kind: z
+      .enum(["task", "project", "direction", "ad-hoc"])
+      .default("ad-hoc"),
+  }),
+});
+
+export const UpdatePoolItemCommandSchema = z.object({
+  ...baseCommandShape,
+  action: z.literal("update_pool_item"),
+  data: z.looseObject({
+    week: weekId(),
+    pool_item_id: z.string(),
+  }),
+});
+
+export const DeletePoolItemCommandSchema = z.object({
+  ...baseCommandShape,
+  action: z.literal("delete_pool_item"),
+  data: z.object({
+    week: weekId(),
+    pool_item_id: z.string(),
+  }),
+});
+
 const SingleCommandSchema = z.discriminatedUnion("action", [
   CreateBlockCommandSchema,
   UpdateBlockCommandSchema,
@@ -112,6 +146,9 @@ const SingleCommandSchema = z.discriminatedUnion("action", [
   UpdateEntityCommandSchema,
   DeleteEntityCommandSchema,
   CreateWeekCommandSchema,
+  CreatePoolItemCommandSchema,
+  UpdatePoolItemCommandSchema,
+  DeletePoolItemCommandSchema,
 ]);
 
 export const BatchCommandSchema = z.object({
@@ -133,6 +170,9 @@ export const CommandSchema = z.discriminatedUnion("action", [
   UpdateEntityCommandSchema,
   DeleteEntityCommandSchema,
   CreateWeekCommandSchema,
+  CreatePoolItemCommandSchema,
+  UpdatePoolItemCommandSchema,
+  DeletePoolItemCommandSchema,
   BatchCommandSchema,
 ]);
 export type Command = z.infer<typeof CommandSchema>;

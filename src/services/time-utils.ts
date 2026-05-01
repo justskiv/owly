@@ -23,13 +23,16 @@ const MONTHS_RU = [
 ];
 
 export const ROW_H = 40;
-export const START_HOUR = 6;
+export const START_HOUR = 7;
 export const END_HOUR = 23;
 export const SNAP_MIN = 30;
 export const MIN_BLOCK_MIN = 30;
 export const VISIBLE_ROWS = (END_HOUR - START_HOUR) * 2;
 export const DAY_CAPACITY_MIN = (END_HOUR - START_HOUR) * 60;
 export const WEEK_CAPACITY_MIN = DAY_CAPACITY_MIN * 7;
+export const GRID_H = VISIBLE_ROWS * ROW_H;
+export const POOL_W = 280;
+export const GUTTER_W = 48;
 export const WEEKDAYS_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"] as const;
 export const DEFAULT_BLOCK_DURATION_MIN = 60;
 export const DEFAULT_BLOCK_CATEGORY = "work";
