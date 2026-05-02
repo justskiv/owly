@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type { MouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { Block } from "../../schemas";
 import { ROW_H } from "../../services/time-utils";
@@ -47,10 +47,12 @@ export function WeekGrid({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Default scroll position lands at 09:00 — two rows below the
-  // 07:00 top so the morning routines stay glanceable above and
-  // working hours are immediately visible.
-  useEffect(() => {
+  // Default scroll position lands at 09:00 — two hours below 07:00
+  // so the morning routines stay glanceable above and working hours
+  // are immediately visible. Use useLayoutEffect so the scroll
+  // happens before paint; with useEffect the user briefly sees the
+  // grid scrolled to the top before it jumps to 09:00.
+  useLayoutEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = ROW_H * 4;
     }

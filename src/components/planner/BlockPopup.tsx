@@ -3,6 +3,8 @@ import type { BlockStatus } from "../../schemas";
 import { useScheduleStore } from "../../store/schedule";
 import { useUIStore } from "../../store/ui";
 import { useConfigStore } from "../../store/config";
+
+const EMPTY_AREAS: never[] = [];
 import {
   END_HOUR,
   MIN_BLOCK_MIN,
@@ -41,7 +43,10 @@ function BlockPopupContent({
   );
   const updateBlock = useScheduleStore((s) => s.updateBlock);
   const deleteBlock = useScheduleStore((s) => s.deleteBlock);
-  const areas = useConfigStore((s) => s.config?.areas ?? []);
+  // Stable selector — the `?? []` fallback would create a fresh
+  // reference each render and trip React 19's getSnapshot guard.
+  const config = useConfigStore((s) => s.config);
+  const areas = config?.areas ?? EMPTY_AREAS;
 
   const [title, setTitle] = useState(block?.title ?? "");
   const [start, setStart] = useState(block?.start ?? "");
@@ -80,10 +85,21 @@ function BlockPopupContent({
     );
   }
 
+  // Wrap a persist promise so a failed disk write surfaces a toast
+  // and snaps the local draft back to the last known good value
+  // from the prop. Without this, the input keeps showing the
+  // user-typed value while the store and disk hold the old one.
+  const handlePersistError = (e: unknown, reset: () => void) => {
+    toast.error(`Не удалось: ${(e as Error).message}`);
+    reset();
+  };
+
   const persistTitle = () => {
     const t = title.trim();
     if (t && t !== block.title) {
-      void updateBlock(blockId, { title: t });
+      void updateBlock(blockId, { title: t }).catch((e) =>
+        handlePersistError(e, () => setTitle(block.title)),
+      );
     } else {
       setTitle(block.title);
     }
@@ -105,7 +121,9 @@ function BlockPopupContent({
     const mm = String(snapped % 60).padStart(2, "0");
     const next = `${hh}:${mm}`;
     if (next !== block.start) {
-      void updateBlock(blockId, { start: next });
+      void updateBlock(blockId, { start: next }).catch((e) =>
+        handlePersistError(e, () => setStart(block.start)),
+      );
     }
     setStart(next);
   };
@@ -123,21 +141,29 @@ function BlockPopupContent({
     if (snapped > max) snapped = max;
     setDuration(String(snapped));
     if (snapped !== block.duration) {
-      void updateBlock(blockId, { duration: snapped });
+      void updateBlock(blockId, { duration: snapped }).catch((e) =>
+        handlePersistError(e, () =>
+          setDuration(String(block.duration)),
+        ),
+      );
     }
   };
 
   const persistCategory = (next: string) => {
     setCategory(next);
     if (next !== block.category) {
-      void updateBlock(blockId, { category: next });
+      void updateBlock(blockId, { category: next }).catch((e) =>
+        handlePersistError(e, () => setCategory(block.category)),
+      );
     }
   };
 
   const persistStatus = (next: BlockStatus) => {
     setStatus(next);
     if (next !== block.status) {
-      void updateBlock(blockId, { status: next });
+      void updateBlock(blockId, { status: next }).catch((e) =>
+        handlePersistError(e, () => setStatus(block.status)),
+      );
     }
   };
 
@@ -150,9 +176,13 @@ function BlockPopupContent({
   };
 
   const onDelete = async () => {
-    await deleteBlock(blockId);
-    toast.success(`Удалён: ${block.title}`);
-    onClose();
+    try {
+      await deleteBlock(blockId);
+      toast.success(`Удалён: ${block.title}`);
+      onClose();
+    } catch (e) {
+      toast.error(`Не удалось: ${(e as Error).message}`);
+    }
   };
 
   return (

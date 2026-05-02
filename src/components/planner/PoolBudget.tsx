@@ -1,33 +1,19 @@
 import type { Block } from "../../schemas";
 import type { PoolItemView } from "../../services/recalc-pool";
-import { END_HOUR, START_HOUR } from "../../services/time-utils";
+import {
+  calcBudgetSegments,
+  calcBudgetTotals,
+} from "../../services/pool-budget";
 
 interface Props {
   items: PoolItemView[];
   blocks: Block[];
 }
 
-const TOTAL_HOURS = (END_HOUR - START_HOUR) * 7;
-
 export function PoolBudget({ items, blocks }: Props) {
-  const busy = blocks.reduce((s, b) => s + b.duration, 0) / 60;
-  const free = TOTAL_HOURS - busy;
-  const pool = items.reduce((s, pi) => {
-    if (pi.splittable) return s + Math.max(0, pi.hours - pi.scheduled);
-    return pi.placed ? s : s + pi.hours;
-  }, 0);
-  const slack = free - pool;
-
-  // Clamp segments so the three-segment bar never overflows or
-  // double-counts. busy first (always ≤100%), then pool fills the
-  // remainder, slack what's left of the bar (negative slack = pool
-  // pushed past available, no green segment).
-  const busyPct = Math.min(100, (busy / TOTAL_HOURS) * 100);
-  const poolPct = Math.max(
-    0,
-    Math.min(100 - busyPct, (pool / TOTAL_HOURS) * 100),
-  );
-  const slackPct = Math.max(0, 100 - busyPct - poolPct);
+  const totals = calcBudgetTotals(items, blocks);
+  const { busyPct, poolPct, slackPct } = calcBudgetSegments(totals);
+  const { busy, free, pool, slack } = totals;
 
   return (
     <div className="pool-budget">

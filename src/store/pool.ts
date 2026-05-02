@@ -7,6 +7,7 @@ import {
   writeJsonFile,
 } from "../services/file-io";
 import { trackSave } from "../services/save-status";
+import { enqueuePoolWrite } from "../services/pool-write-queue";
 import { generateId, getCurrentWeekId, nowISO } from "../services/time-utils";
 
 type PoolItemDraft = Omit<PoolItem, "id" | "created_at" | "updated_at"> & {
@@ -83,24 +84,36 @@ export const usePoolStore = create<PoolStore>((set, get) => ({
       created_at: draft.created_at ?? now,
       updated_at: draft.updated_at ?? now,
     };
+    // Snapshot the week at action time so a concurrent loadWeek
+    // doesn't redirect the persist to a different file. Same pattern
+    // as schedule.ts addBlock/updateBlock.
+    const week = get().currentWeek;
     const next = [...get().items, item];
     set({ items: next });
-    await trackSave(() => persistPool(get().currentWeek, next));
+    await trackSave(() =>
+      enqueuePoolWrite(week, () => persistPool(week, next)),
+    );
     return item;
   },
 
   updateItem: async (id, updates) => {
+    const week = get().currentWeek;
     const next = get().items.map((it) =>
       it.id === id ? { ...it, ...updates, updated_at: nowISO() } : it,
     );
     set({ items: next });
-    await trackSave(() => persistPool(get().currentWeek, next));
+    await trackSave(() =>
+      enqueuePoolWrite(week, () => persistPool(week, next)),
+    );
   },
 
   removeItem: async (id) => {
+    const week = get().currentWeek;
     const next = get().items.filter((it) => it.id !== id);
     set({ items: next });
-    await trackSave(() => persistPool(get().currentWeek, next));
+    await trackSave(() =>
+      enqueuePoolWrite(week, () => persistPool(week, next)),
+    );
   },
 
   setPlaced: async (id, placed) => {

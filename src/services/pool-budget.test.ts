@@ -1,23 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Block } from "../schemas";
 import type { PoolItemView } from "./recalc-pool";
-import { END_HOUR, START_HOUR } from "./time-utils";
-
-// Mirror of the formula in components/planner/PoolBudget.tsx.
-// Replicated here so tests pin the math without importing the React
-// component (which would pull in the whole render tree).
-const TOTAL_HOURS = (END_HOUR - START_HOUR) * 7;
-
-function calc(items: PoolItemView[], blocks: Block[]) {
-  const busy = blocks.reduce((s, b) => s + b.duration, 0) / 60;
-  const free = TOTAL_HOURS - busy;
-  const pool = items.reduce((s, pi) => {
-    if (pi.splittable) return s + Math.max(0, pi.hours - pi.scheduled);
-    return pi.placed ? s : s + pi.hours;
-  }, 0);
-  const slack = free - pool;
-  return { busy, free, pool, slack };
-}
+import {
+  TOTAL_HOURS,
+  calcBudgetSegments,
+  calcBudgetTotals,
+} from "./pool-budget";
 
 const baseBlock: Omit<Block, "id" | "duration"> = {
   title: "blk",
@@ -40,9 +28,9 @@ const baseItem: Omit<PoolItemView, "id" | "title" | "splittable" | "hours"> = {
   updated_at: "",
 };
 
-describe("pool budget", () => {
-  it("yields TOTAL hours when nothing scheduled and nothing in pool", () => {
-    const out = calc([], []);
+describe("calcBudgetTotals", () => {
+  it("returns TOTAL hours when nothing scheduled and nothing in pool", () => {
+    const out = calcBudgetTotals([], []);
     expect(out.busy).toBe(0);
     expect(out.free).toBe(TOTAL_HOURS);
     expect(out.pool).toBe(0);
@@ -50,7 +38,7 @@ describe("pool budget", () => {
   });
 
   it("counts blocks toward busy", () => {
-    const out = calc([], [
+    const out = calcBudgetTotals([], [
       { ...baseBlock, id: "b1", duration: 120 } as Block,
       { ...baseBlock, id: "b2", duration: 60 } as Block,
     ]);
@@ -58,7 +46,7 @@ describe("pool budget", () => {
     expect(out.free).toBe(TOTAL_HOURS - 3);
   });
 
-  it("splittable hours - scheduled contributes to pool", () => {
+  it("splittable hours minus scheduled contributes to pool", () => {
     const items: PoolItemView[] = [
       {
         ...baseItem,
@@ -69,8 +57,7 @@ describe("pool budget", () => {
         scheduled: 4.5,
       } as PoolItemView,
     ];
-    const out = calc(items, []);
-    expect(out.pool).toBe(7.5);
+    expect(calcBudgetTotals(items, []).pool).toBe(7.5);
   });
 
   it("placed atomics contribute zero", () => {
@@ -84,7 +71,7 @@ describe("pool budget", () => {
         placed: true,
       } as PoolItemView,
     ];
-    expect(calc(items, []).pool).toBe(0);
+    expect(calcBudgetTotals(items, []).pool).toBe(0);
   });
 
   it("unplaced atomics count their full hours", () => {
@@ -98,7 +85,7 @@ describe("pool budget", () => {
         placed: false,
       } as PoolItemView,
     ];
-    expect(calc(items, []).pool).toBe(0.5);
+    expect(calcBudgetTotals(items, []).pool).toBe(0.5);
   });
 
   it("slack goes negative when pool > free", () => {
@@ -112,8 +99,7 @@ describe("pool budget", () => {
         scheduled: 0,
       } as PoolItemView,
     ];
-    const out = calc(items, []);
-    expect(out.slack).toBeLessThan(0);
+    expect(calcBudgetTotals(items, []).slack).toBeLessThan(0);
   });
 
   it("does not double-count splittable past its hours", () => {
@@ -127,6 +113,38 @@ describe("pool budget", () => {
         scheduled: 6,
       } as PoolItemView,
     ];
-    expect(calc(items, []).pool).toBe(0);
+    expect(calcBudgetTotals(items, []).pool).toBe(0);
+  });
+});
+
+describe("calcBudgetSegments", () => {
+  it("zero everywhere for empty totals", () => {
+    const seg = calcBudgetSegments({ busy: 0, free: TOTAL_HOURS, pool: 0, slack: TOTAL_HOURS });
+    expect(seg.busyPct).toBe(0);
+    expect(seg.poolPct).toBe(0);
+    expect(seg.slackPct).toBe(100);
+  });
+
+  it("clamps slack to 0 when pool exceeds free", () => {
+    const seg = calcBudgetSegments({
+      busy: 50,
+      free: TOTAL_HOURS - 50,
+      pool: 200,
+      slack: -150,
+    });
+    expect(seg.slackPct).toBe(0);
+    expect(seg.busyPct + seg.poolPct).toBeLessThanOrEqual(100);
+  });
+
+  it("never overflows past 100%", () => {
+    const seg = calcBudgetSegments({
+      busy: 200,
+      free: -88,
+      pool: 50,
+      slack: -138,
+    });
+    expect(seg.busyPct).toBe(100);
+    expect(seg.poolPct).toBe(0);
+    expect(seg.slackPct).toBe(0);
   });
 });

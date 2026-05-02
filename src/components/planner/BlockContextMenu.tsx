@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Block } from "../../schemas";
 import { useScheduleStore } from "../../store/schedule";
+import { usePoolStore } from "../../store/pool";
 import { useUIStore } from "../../store/ui";
 import { toast } from "../shared/Toast";
 import {
@@ -82,6 +83,18 @@ export function BlockContextMenu({ x, y, block, onClose }: Props) {
           onClose();
           return;
         }
+        // For blocks linked to an ATOMIC pool item, do NOT carry the
+        // pool_item_id over — atomic items are "placed once" and a
+        // second linked block would silently double-count, breaking
+        // the placed-flag and budget. Splittable links carry through
+        // (their `scheduled` simply grows by the duplicate's hours).
+        let dupPoolItemId = block.pool_item_id;
+        if (dupPoolItemId !== null) {
+          const pi = usePoolStore
+            .getState()
+            .items.find((x) => x.id === dupPoolItemId);
+          if (pi && !pi.splittable) dupPoolItemId = null;
+        }
         const created = await store.addBlock({
           title: block.title,
           date: block.date,
@@ -91,7 +104,7 @@ export function BlockContextMenu({ x, y, block, onClose }: Props) {
           status: "planned",
           notes: block.notes,
           source_entity_id: block.source_entity_id,
-          pool_item_id: block.pool_item_id,
+          pool_item_id: dupPoolItemId,
         });
         useUIStore.getState().setSelectedBlock(created.id);
         toast.success(`⧉ Дублирован`);
@@ -107,23 +120,48 @@ export function BlockContextMenu({ x, y, block, onClose }: Props) {
     }
   };
 
+  // Keep the latest `act` and `items` accessible to the static
+  // keydown listener below without re-attaching it on every render.
+  // Without this, the listener captured the first render's `block`
+  // prop and would dispatch actions against a stale block if the
+  // parent updated it (and the previous deps array silently skipped
+  // those re-attaches via an eslint-disable). Refs sidestep both.
+  const actRef = useRef(act);
+  const itemsRef = useRef(items);
+  actRef.current = act;
+  itemsRef.current = items;
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const handled =
+        e.key === "ArrowDown" ||
+        e.key === "ArrowUp" ||
+        e.key === "Enter" ||
+        e.key === " " ||
+        e.key === "Delete" ||
+        e.key === "Backspace";
+      if (!handled) return;
+      // Stop propagation so the planner-level Delete handler doesn't
+      // also run on a block while the context menu is open.
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const list = itemsRef.current;
       if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setFocusIdx((i) => (i + 1) % items.length);
+        setFocusIdx((i) => (i + 1) % list.length);
       } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setFocusIdx((i) => (i - 1 + items.length) % items.length);
+        setFocusIdx((i) => (i - 1 + list.length) % list.length);
       } else if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        void act(items[focusIdx].kind);
+        setFocusIdx((curIdx) => {
+          void actRef.current(list[curIdx].kind);
+          return curIdx;
+        });
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        void actRef.current("del");
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusIdx, isDone]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
 
   return (
     <div

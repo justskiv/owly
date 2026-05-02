@@ -72,23 +72,21 @@ interface Active {
 const RESIZE_HIT_PX = 10;
 const DRAG_THRESHOLD_PX = 5;
 
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => {
-    switch (c) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case '"':
-        return "&quot;";
-      case "'":
-        return "&#39;";
-      default:
-        return c;
-    }
-  });
+// Builds the two-line ghost body via DOM APIs instead of
+// concatenating HTML, so the title text can never inject markup
+// even if it contains chars the manual escape didn't account for
+// (zero-width spaces, RTL marks, etc.). Also keeps the call sites
+// shorter than the previous template-literal approach.
+function buildGhostBody(title: string, duration: string): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  const t = document.createElement("div");
+  t.className = "bt";
+  t.textContent = title;
+  const m = document.createElement("div");
+  m.className = "bm";
+  m.textContent = duration;
+  frag.append(t, m);
+  return frag;
 }
 
 function findDropTarget(
@@ -175,9 +173,11 @@ export function useBlockGesture() {
       };
 
       const clearPoolSource = () => {
-        if (entity) {
-          el.classList.remove("dragging-source");
-        }
+        // Both entity-drag and pool-item-drag paths add this class
+        // when the ghost first materialises (lines 599 and 738).
+        // The earlier `if (entity)` guard left the class stuck on
+        // pool-item rows after the drop completed.
+        el.classList.remove("dragging-source");
       };
 
       // Sync branches remove ghost immediately.
@@ -443,9 +443,7 @@ export function useBlockGesture() {
           g.className = `drag-ghost tb ${block.category}`;
           g.style.width = a.rectWidth + "px";
           g.style.height = a.rectHeight + "px";
-          g.innerHTML =
-            `<div class="bt">${escapeHtml(block.title)}</div>` +
-            `<div class="bm">${fmtDur(block.duration)}</div>`;
+          g.append(buildGhostBody(block.title, fmtDur(block.duration)));
           document.body.appendChild(g);
           a.ghost = g;
           setActiveDragBlockId(block.id);
@@ -591,9 +589,7 @@ export function useBlockGesture() {
           g.className = `drag-ghost tb ${category}`;
           g.style.width = POOL_GHOST_WIDTH + "px";
           g.style.height = ghostHeight + "px";
-          g.innerHTML =
-            `<div class="bt">${escapeHtml(entity.title)}</div>` +
-            `<div class="bm">${fmtDur(duration)}</div>`;
+          g.append(buildGhostBody(entity.title, fmtDur(duration)));
           document.body.appendChild(g);
           a.ghost = g;
           el.classList.add("dragging-source");
@@ -730,9 +726,7 @@ export function useBlockGesture() {
           g.className = `drag-ghost tb ${item.category}`;
           g.style.width = POOL_GHOST_WIDTH + "px";
           g.style.height = ghostHeight + "px";
-          g.innerHTML =
-            `<div class="bt">${escapeHtml(item.title)}</div>` +
-            `<div class="bm">${fmtDur(duration)}</div>`;
+          g.append(buildGhostBody(item.title, fmtDur(duration)));
           document.body.appendChild(g);
           a.ghost = g;
           el.classList.add("dragging-source");

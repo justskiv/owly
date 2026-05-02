@@ -1,5 +1,5 @@
 import type { Block, Command, Entity, PoolItem } from "../schemas";
-import { EntitySchema } from "../schemas";
+import { EntitySchema, PoolItemSchema } from "../schemas";
 import {
   applyToWeek,
   findBlockById,
@@ -229,6 +229,11 @@ export async function executeCommand(cmd: Command): Promise<void> {
         week: string;
         pool_item_id: string;
       };
+      // Strip identity / timestamps from the patch so an agent can't
+      // re-id an item, rewrite created_at, or change a splittable
+      // into something else by accident. updated_at is set fresh.
+      // Mirrors update_entity (line 165-181); without it loose-data
+      // bypasses Zod and feeds the store invalid PoolItems.
       const {
         week,
         pool_item_id,
@@ -240,13 +245,31 @@ export async function executeCommand(cmd: Command): Promise<void> {
       void _ignoreId;
       void _ignoreCreated;
       void _ignoreUpdated;
+      let foundCount = 0;
+      let validationError: string | null = null;
       await applyToPoolWeek(week, (items) =>
-        items.map((it) =>
-          it.id === pool_item_id
-            ? ({ ...it, ...patch, updated_at: nowISO() } as PoolItem)
-            : it,
-        ),
+        items.map((it) => {
+          if (it.id !== pool_item_id) return it;
+          foundCount++;
+          const merged = { ...it, ...patch, updated_at: nowISO() };
+          const parsed = PoolItemSchema.safeParse(merged);
+          if (!parsed.success) {
+            validationError = parsed.error.issues
+              .map((i) => `${i.path.join(".")}: ${i.message}`)
+              .join("; ");
+            return it;
+          }
+          return parsed.data;
+        }),
       );
+      if (validationError) {
+        throw new Error(`update_pool_item rejected: ${validationError}`);
+      }
+      if (foundCount === 0) {
+        throw new Error(
+          `Pool item ${pool_item_id} not found in week ${week}`,
+        );
+      }
       return;
     }
 

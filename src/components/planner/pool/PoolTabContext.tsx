@@ -58,60 +58,75 @@ export function PoolTabContext() {
   }, [items]);
 
   const markCadence = async (d: DirectionEntity) => {
-    const today = formatDate(getStartOfDay());
-    await updateEntity(d.id, {
-      fields: { ...d.fields, last_act: today },
-    });
-    toast.success(`✓ ${d.title}`);
+    try {
+      const today = formatDate(getStartOfDay());
+      await updateEntity(d.id, {
+        fields: { ...d.fields, last_act: today },
+      });
+      toast.success(`✓ ${d.title}`);
+    } catch (e) {
+      toast.error(`Не удалось: ${(e as Error).message}`);
+    }
   };
 
-  // Pool toggle for a direction. With linked projects, pick the
-  // freshest one and add as a 4h splittable. Without — add the
-  // direction itself as a 2h splittable. See spec §4.6 «Tab:
-  // Контекст».
+  // Pool toggle for a direction. The "in pool" indicator reflects
+  // either the direction itself OR any linked project sitting in the
+  // pool. Toggle removes whichever entry actually backs the indicator
+  // — including a non-freshest linked project if that's what's in.
+  // Otherwise: add freshest project (4h) or, if no linked projects,
+  // the direction itself (2h). Spec §4.6 «Tab: Контекст».
   const togglePool = async (d: DirectionEntity) => {
-    const existingDir = inPoolByEntity.get(d.id);
-    if (existingDir) {
-      await removePoolItemAndBlocks(existingDir.id);
-      toast.success(`Удалено из пула: ${d.title}`);
-      return;
-    }
-    const linked = projectsByDirection.get(d.id) ?? [];
-    if (linked.length === 0) {
-      const cat = pickAreaTag(d.tags, areas) ?? d.tags[0] ?? "work";
+    try {
+      const existingDir = inPoolByEntity.get(d.id);
+      if (existingDir) {
+        await removePoolItemAndBlocks(existingDir.id);
+        toast.success(`Удалено из пула: ${d.title}`);
+        return;
+      }
+      const linked = projectsByDirection.get(d.id) ?? [];
+      // If ANY linked project is already in the pool, remove THAT
+      // one. Without this, clicking "✓" when a non-freshest project
+      // is in the pool would silently add the freshest as a duplicate.
+      for (const p of linked) {
+        const linkedExisting = inPoolByEntity.get(p.id);
+        if (linkedExisting) {
+          await removePoolItemAndBlocks(linkedExisting.id);
+          toast.success(`Удалено из пула: ${p.title}`);
+          return;
+        }
+      }
+      if (linked.length === 0) {
+        const cat = pickAreaTag(d.tags, areas) ?? d.tags[0] ?? "work";
+        await addItem({
+          title: d.title,
+          hours: 2,
+          category: cat,
+          splittable: true,
+          source_entity_id: d.id,
+          source_kind: "direction",
+          placed: false,
+        });
+        toast.success(`В пул: ${d.title}`, { category: cat });
+        return;
+      }
+      const freshest = linked.reduce((a, b) =>
+        a.fields.last_activity_days < b.fields.last_activity_days ? a : b,
+      );
+      const cat =
+        pickAreaTag(freshest.tags, areas) ?? freshest.tags[0] ?? "work";
       await addItem({
-        title: d.title,
-        hours: 2,
+        title: freshest.title,
+        hours: 4,
         category: cat,
         splittable: true,
-        source_entity_id: d.id,
-        source_kind: "direction",
+        source_entity_id: freshest.id,
+        source_kind: "project",
         placed: false,
       });
-      toast.success(`В пул: ${d.title}`, { category: cat });
-      return;
+      toast.success(`В пул: ${freshest.title}`, { category: cat });
+    } catch (e) {
+      toast.error(`Не удалось: ${(e as Error).message}`);
     }
-    const freshest = linked.reduce((a, b) =>
-      a.fields.last_activity_days < b.fields.last_activity_days ? a : b,
-    );
-    if (inPoolByEntity.has(freshest.id)) {
-      // Already in the pool via this project — toggle removes it.
-      const ex = inPoolByEntity.get(freshest.id)!;
-      await removePoolItemAndBlocks(ex.id);
-      toast.success(`Удалено из пула: ${freshest.title}`);
-      return;
-    }
-    const cat = pickAreaTag(freshest.tags, areas) ?? freshest.tags[0] ?? "work";
-    await addItem({
-      title: freshest.title,
-      hours: 4,
-      category: cat,
-      splittable: true,
-      source_entity_id: freshest.id,
-      source_kind: "project",
-      placed: false,
-    });
-    toast.success(`В пул: ${freshest.title}`, { category: cat });
   };
 
   if (directions.length === 0) {

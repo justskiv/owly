@@ -62,23 +62,27 @@ export function PoolTabTasks({ onDragStart }: Props) {
   }, [items]);
 
   const togglePool = async (t: TaskEntity) => {
-    const existing = inPoolByEntity.get(t.id);
-    if (existing) {
-      await removePoolItemAndBlocks(existing.id);
-      toast.success(`Удалено из пула: ${t.title}`);
-      return;
+    try {
+      const existing = inPoolByEntity.get(t.id);
+      if (existing) {
+        await removePoolItemAndBlocks(existing.id);
+        toast.success(`Удалено из пула: ${t.title}`);
+        return;
+      }
+      const cat = pickAreaTag(t.tags, areas) ?? t.tags[0] ?? "work";
+      await addItem({
+        title: t.title,
+        hours: 1,
+        category: cat,
+        splittable: false,
+        source_entity_id: t.id,
+        source_kind: "task",
+        placed: false,
+      });
+      toast.success(`В пул: ${t.title}`, { category: cat });
+    } catch (e) {
+      toast.error(`Не удалось: ${(e as Error).message}`);
     }
-    const cat = pickAreaTag(t.tags, areas) ?? t.tags[0] ?? "work";
-    await addItem({
-      title: t.title,
-      hours: 1,
-      category: cat,
-      splittable: false,
-      source_entity_id: t.id,
-      source_kind: "task",
-      placed: false,
-    });
-    toast.success(`В пул: ${t.title}`, { category: cat });
   };
 
   if (sorted.active.length === 0 && sorted.done.length === 0) {

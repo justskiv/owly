@@ -31,6 +31,10 @@ interface CtxMenuState {
 }
 
 function useNowInWeek(weekDates: string[], tick: number) {
+  // `tick` doesn't appear in the body but is the explicit cadence
+  // signal — the parent bumps it once per minute so this memo
+  // recomputes the wall-clock minute that the now-line follows.
+  void tick;
   return useMemo(() => {
     const now = new Date();
     const iso = formatDate(now);
@@ -39,8 +43,6 @@ function useNowInWeek(weekDates: string[], tick: number) {
     const minutes = now.getHours() * 60 + now.getMinutes();
     const visible = minutes >= START_HOUR * 60 && minutes < END_HOUR * 60;
     return { todayIdx: idx, nowMinutes: visible ? minutes : null };
-    // tick is the explicit dep that re-invalidates this memo every minute
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekDates, tick]);
 }
 

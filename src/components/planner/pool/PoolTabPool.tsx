@@ -29,7 +29,9 @@ export function PoolTabPool({ items, onDragStart }: Props) {
   const atomic = items.filter((it) => !it.splittable);
 
   if (items.length === 0) {
-    return <div className="pool-empty">Пул пуст. + добавит в пул.</div>;
+    return (
+      <div className="pool-empty">Пул пуст. Нажмите «+» чтобы добавить.</div>
+    );
   }
 
   return (

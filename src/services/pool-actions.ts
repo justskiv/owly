@@ -6,6 +6,7 @@ import {
   writeJsonFile,
 } from "./file-io";
 import { trackSave } from "./save-status";
+import { enqueuePoolWrite } from "./pool-write-queue";
 import { useScheduleStore, applyToWeek } from "../store/schedule";
 import { usePoolStore } from "../store/pool";
 
@@ -31,7 +32,9 @@ async function persistPoolFile(
 // Mutate any pool week's items. Routes through the store when the
 // target week is currently loaded so the UI updates reactively;
 // otherwise reads the file from disk, applies the mutator, writes
-// back. Mirrors `applyToWeek` in schedule.ts:244.
+// back. All writes go through `enqueuePoolWrite` so a rapid burst of
+// agent commands targeting one week file persists in submission
+// order. Mirrors `applyToWeek` in schedule.ts:244.
 export async function applyToPoolWeek(
   week: string,
   mutate: (items: PoolItem[]) => PoolItem[],
@@ -40,14 +43,23 @@ export async function applyToPoolWeek(
   if (week === pool.currentWeek) {
     const next = mutate(pool.items);
     usePoolStore.setState({ items: next });
-    await trackSave(() => persistPoolFile(week, next));
+    await trackSave(() =>
+      enqueuePoolWrite(week, () => persistPoolFile(week, next)),
+    );
     return;
   }
-  const path = await getDataPath("pool", `${week}.json`);
-  const empty: PoolFile = { version: 1, week, items: [] };
-  const file = await readJsonFileOrCreate(path, PoolFileSchema, empty);
-  const next = mutate(file.items);
-  await trackSave(() => persistPoolFile(week, next));
+  // Read-modify-write must run inside the queue so two off-current
+  // mutations don't both read the pre-mutation file and clobber each
+  // other. The queue serialises the whole sequence per week.
+  await trackSave(() =>
+    enqueuePoolWrite(week, async () => {
+      const path = await getDataPath("pool", `${week}.json`);
+      const empty: PoolFile = { version: 1, week, items: [] };
+      const file = await readJsonFileOrCreate(path, PoolFileSchema, empty);
+      const next = mutate(file.items);
+      await persistPoolFile(week, next);
+    }),
+  );
 }
 
 // Removes a pool item AND every block linked to it. Used by the

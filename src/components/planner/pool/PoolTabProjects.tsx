@@ -42,23 +42,27 @@ export function PoolTabProjects() {
   }, [items]);
 
   const togglePool = async (p: ProjectEntity) => {
-    const existing = inPoolByEntity.get(p.id);
-    if (existing) {
-      await removePoolItemAndBlocks(existing.id);
-      toast.success(`Удалено из пула: ${p.title}`);
-      return;
+    try {
+      const existing = inPoolByEntity.get(p.id);
+      if (existing) {
+        await removePoolItemAndBlocks(existing.id);
+        toast.success(`Удалено из пула: ${p.title}`);
+        return;
+      }
+      const cat = pickAreaTag(p.tags, areas) ?? p.tags[0] ?? "work";
+      await addItem({
+        title: p.title,
+        hours: 4,
+        category: cat,
+        splittable: true,
+        source_entity_id: p.id,
+        source_kind: "project",
+        placed: false,
+      });
+      toast.success(`В пул: ${p.title}`, { category: cat });
+    } catch (e) {
+      toast.error(`Не удалось: ${(e as Error).message}`);
     }
-    const cat = pickAreaTag(p.tags, areas) ?? p.tags[0] ?? "work";
-    await addItem({
-      title: p.title,
-      hours: 4,
-      category: cat,
-      splittable: true,
-      source_entity_id: p.id,
-      source_kind: "project",
-      placed: false,
-    });
-    toast.success(`В пул: ${p.title}`, { category: cat });
   };
 
   if (sorted.length === 0) {
