@@ -2,6 +2,7 @@ import { z } from "zod";
 import { isoDate, timeHHMM, weekId } from "./common";
 import { BlockStatusSchema, BlockSchema } from "./schedule";
 import { EntitySchema } from "./entity";
+import { HorizonSizeSchema } from "./horizon";
 
 const baseCommandShape = {
   id: z.string(),
@@ -135,6 +136,33 @@ export const DeletePoolItemCommandSchema = z.object({
   }),
 });
 
+export const SetHorizonMonthsCommandSchema = z.object({
+  ...baseCommandShape,
+  action: z.literal("set_horizon_months"),
+  data: z.object({
+    project_id: z.string(),
+    months: z.array(z.number().int().min(0).max(11)),
+  }),
+});
+
+export const SetHorizonHiddenCommandSchema = z.object({
+  ...baseCommandShape,
+  action: z.literal("set_horizon_hidden"),
+  data: z.object({
+    project_id: z.string(),
+    hidden: z.boolean(),
+  }),
+});
+
+export const SetHorizonSizeCommandSchema = z.object({
+  ...baseCommandShape,
+  action: z.literal("set_horizon_size"),
+  data: z.object({
+    project_id: z.string(),
+    size: HorizonSizeSchema,
+  }),
+});
+
 const SingleCommandSchema = z.discriminatedUnion("action", [
   CreateBlockCommandSchema,
   UpdateBlockCommandSchema,
@@ -149,6 +177,9 @@ const SingleCommandSchema = z.discriminatedUnion("action", [
   CreatePoolItemCommandSchema,
   UpdatePoolItemCommandSchema,
   DeletePoolItemCommandSchema,
+  SetHorizonMonthsCommandSchema,
+  SetHorizonHiddenCommandSchema,
+  SetHorizonSizeCommandSchema,
 ]);
 
 export const BatchCommandSchema = z.object({
@@ -173,6 +204,9 @@ export const CommandSchema = z.discriminatedUnion("action", [
   CreatePoolItemCommandSchema,
   UpdatePoolItemCommandSchema,
   DeletePoolItemCommandSchema,
+  SetHorizonMonthsCommandSchema,
+  SetHorizonHiddenCommandSchema,
+  SetHorizonSizeCommandSchema,
   BatchCommandSchema,
 ]);
 export type Command = z.infer<typeof CommandSchema>;

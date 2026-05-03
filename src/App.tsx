@@ -16,6 +16,7 @@ import { getCurrentWeekId } from "./services/time-utils";
 import { startCommandProcessor } from "./services/command-processor";
 import { installDashboardHotReload } from "./services/dashboard-hot-reload";
 import { maybeMigrateToV2 } from "./services/seed-migration";
+import { reconcile as reconcileHorizon } from "./services/horizon-reconcile";
 
 function App() {
   useEffect(() => {
@@ -67,6 +68,27 @@ function App() {
           usePoolStore.getState().loadWeek(currentWeek),
           useHorizonStore.getState().load(),
         ]);
+        // Reconcile horizon ↔ entities once both stores are hydrated.
+        // Catches up users whose data/horizon.json predates the
+        // seed-v2/horizon.json bundle (their migration ran when only
+        // entities/schedule/pool were copied), and prunes orphaned
+        // horizon entries pointing at deleted projects.
+        const projectIds = new Set(
+          useEntityStore
+            .getState()
+            .entities.filter((e) => e.type === "project")
+            .map((e) => e.id),
+        );
+        const diff = reconcileHorizon(
+          projectIds,
+          useHorizonStore.getState().projects,
+        );
+        for (const id of diff.toAdd) {
+          await useHorizonStore.getState().addProject(id);
+        }
+        for (const id of diff.toRemove) {
+          await useHorizonStore.getState().removeProject(id);
+        }
         // Watcher-driven processors only after stores are ready —
         // a command landing during boot would otherwise see empty
         // schedule/entities snapshots and fail with confusing errors.
@@ -101,6 +123,30 @@ function App() {
     const unsub = useScheduleStore.subscribe((state, prev) => {
       if (state.currentWeek !== prev.currentWeek) {
         void usePoolStore.getState().loadWeek(state.currentWeek);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Auto-sync project entities into horizon. Diff-based: we only react
+  // to changes between consecutive snapshots, never to the full set,
+  // so the initial loadEntities → set() pass doesn't blast addProject
+  // into a freshly-loaded horizon. Reconciliation in the boot effect
+  // already handled the catch-up; this only services new
+  // creations/deletions going forward.
+  useEffect(() => {
+    const unsub = useEntityStore.subscribe((state, prev) => {
+      const cur = new Set(
+        state.entities.filter((e) => e.type === "project").map((e) => e.id),
+      );
+      const old = new Set(
+        prev.entities.filter((e) => e.type === "project").map((e) => e.id),
+      );
+      for (const id of cur) {
+        if (!old.has(id)) void useHorizonStore.getState().addProject(id);
+      }
+      for (const id of old) {
+        if (!cur.has(id)) void useHorizonStore.getState().removeProject(id);
       }
     });
     return () => unsub();

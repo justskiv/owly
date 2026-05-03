@@ -81,6 +81,12 @@ export type BlockPopupState =
 export type SideTab = "pool" | "tasks" | "projects" | "dirs";
 export type PoolModal = null | "new-task" | "new-pool-item";
 
+// Phase 7: cross-highlight between Backlog items and board project rows.
+// Hover sets a temporary highlight (`fixed: false`); click on a backlog
+// item promotes it to fixed. Clicking the same item again or clicking
+// empty board area clears it.
+export type HorizonHighlight = { projectId: string; fixed: boolean } | null;
+
 export type TaskFilter =
   | { type: "cat"; val: string }
   | { type: "prio"; val: "high" | "medium" | "low" }
@@ -188,7 +194,11 @@ interface UIStore {
   poolModalOpen: PoolModal;
   blockPopup: BlockPopupState;
 
+  // Phase 7: cross-highlight (board ↔ backlog). Volatile, no persist.
+  horizonHighlight: HorizonHighlight;
+
   setPage: (page: Page) => void;
+  setHorizonHighlight: (h: HorizonHighlight) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
   setSaveStatus: (status: SaveStatus, error?: string | null) => void;
@@ -371,7 +381,19 @@ export const useUIStore = create<UIStore>((set, get) => ({
   poolModalOpen: null,
   blockPopup: { open: false },
 
-  setPage: (currentPage) => set({ currentPage }),
+  horizonHighlight: null,
+
+  // When we navigate away from the Horizon page, the cross-highlight
+  // becomes orphan UI state that lights up nothing visible — clear it
+  // here rather than via a useEffect cleanup, which would run after
+  // the next page mounts (causing a brief flicker).
+  setPage: (currentPage) =>
+    set((prev) => ({
+      currentPage,
+      horizonHighlight:
+        currentPage === "horizon" ? prev.horizonHighlight : null,
+    })),
+  setHorizonHighlight: (horizonHighlight) => set({ horizonHighlight }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
   setSelectedBlock: (selectedBlockId) => set({ selectedBlockId }),
   setSaveStatus: (saveStatus, saveError = null) =>

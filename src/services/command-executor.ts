@@ -6,6 +6,7 @@ import {
   findWeekContainingBlock,
 } from "../store/schedule";
 import { useEntityStore } from "../store/entities";
+import { useHorizonStore } from "../store/horizon";
 import {
   applyToPoolWeek,
   deletePoolItemCascade,
@@ -276,6 +277,42 @@ export async function executeCommand(cmd: Command): Promise<void> {
     case "delete_pool_item": {
       const { week, pool_item_id } = cmd.data;
       await deletePoolItemCascade(week, pool_item_id);
+      return;
+    }
+
+    case "set_horizon_months": {
+      const { project_id, months } = cmd.data;
+      const exists = useHorizonStore
+        .getState()
+        .projects.some((p) => p.project_id === project_id);
+      if (!exists) {
+        throw new Error(`Horizon project ${project_id} not found`);
+      }
+      await useHorizonStore.getState().setMonths(project_id, months);
+      return;
+    }
+
+    case "set_horizon_hidden": {
+      const { project_id, hidden } = cmd.data;
+      const exists = useHorizonStore
+        .getState()
+        .projects.some((p) => p.project_id === project_id);
+      if (!exists) {
+        throw new Error(`Horizon project ${project_id} not found`);
+      }
+      await useHorizonStore.getState().setHidden(project_id, hidden);
+      return;
+    }
+
+    case "set_horizon_size": {
+      const { project_id, size } = cmd.data;
+      const exists = useHorizonStore
+        .getState()
+        .projects.some((p) => p.project_id === project_id);
+      if (!exists) {
+        throw new Error(`Horizon project ${project_id} not found`);
+      }
+      await useHorizonStore.getState().setSize(project_id, size);
       return;
     }
 

@@ -11,6 +11,7 @@ import {
   writeJsonFile,
 } from "../services/file-io";
 import { trackSave } from "../services/save-status";
+import { enqueueHorizonWrite } from "../services/horizon-write-queue";
 
 // First day of the current month, formatted as YYYY-MM-DD. Used as the
 // default `base_month` when no horizon.json exists yet, so a fresh
@@ -147,7 +148,9 @@ export const useHorizonStore = create<HorizonStore>((set, get) => {
         p.project_id === projectId ? { ...p, months } : p,
       );
       set({ projects });
-      await trackSave(() => persist({ ...snapshot(), projects }));
+      await trackSave(() =>
+        enqueueHorizonWrite(() => persist({ ...snapshot(), projects })),
+      );
     },
 
     setHidden: async (projectId, hidden) => {
@@ -155,7 +158,9 @@ export const useHorizonStore = create<HorizonStore>((set, get) => {
         p.project_id === projectId ? { ...p, hidden } : p,
       );
       set({ projects });
-      await trackSave(() => persist({ ...snapshot(), projects }));
+      await trackSave(() =>
+        enqueueHorizonWrite(() => persist({ ...snapshot(), projects })),
+      );
     },
 
     setSize: async (projectId, size) => {
@@ -163,7 +168,9 @@ export const useHorizonStore = create<HorizonStore>((set, get) => {
         p.project_id === projectId ? { ...p, size } : p,
       );
       set({ projects });
-      await trackSave(() => persist({ ...snapshot(), projects }));
+      await trackSave(() =>
+        enqueueHorizonWrite(() => persist({ ...snapshot(), projects })),
+      );
     },
 
     toggleGroup: async (group) => {
@@ -172,7 +179,9 @@ export const useHorizonStore = create<HorizonStore>((set, get) => {
         [group]: !get().groupCollapsed[group],
       };
       set({ groupCollapsed });
-      await trackSave(() => persist({ ...snapshot(), groupCollapsed }));
+      await trackSave(() =>
+        enqueueHorizonWrite(() => persist({ ...snapshot(), groupCollapsed })),
+      );
     },
 
     toggleSection: async (section) => {
@@ -181,7 +190,11 @@ export const useHorizonStore = create<HorizonStore>((set, get) => {
         [section]: !get().sectionCollapsed[section],
       };
       set({ sectionCollapsed });
-      await trackSave(() => persist({ ...snapshot(), sectionCollapsed }));
+      await trackSave(() =>
+        enqueueHorizonWrite(() =>
+          persist({ ...snapshot(), sectionCollapsed }),
+        ),
+      );
     },
 
     addProject: async (projectId, opts) => {
@@ -194,7 +207,9 @@ export const useHorizonStore = create<HorizonStore>((set, get) => {
       };
       const projects = [...get().projects, next];
       set({ projects });
-      await trackSave(() => persist({ ...snapshot(), projects }));
+      await trackSave(() =>
+        enqueueHorizonWrite(() => persist({ ...snapshot(), projects })),
+      );
     },
 
     removeProject: async (projectId) => {
@@ -202,7 +217,9 @@ export const useHorizonStore = create<HorizonStore>((set, get) => {
         (p) => p.project_id !== projectId,
       );
       set({ projects });
-      await trackSave(() => persist({ ...snapshot(), projects }));
+      await trackSave(() =>
+        enqueueHorizonWrite(() => persist({ ...snapshot(), projects })),
+      );
     },
   };
 });
