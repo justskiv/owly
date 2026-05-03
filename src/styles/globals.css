@@ -1208,6 +1208,12 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
 .hz-action-btn:hover{border-color:var(--border-hover);color:var(--text-primary)}
 .hz-action-btn.danger:hover{border-color:var(--error);color:var(--error)}
 
+/* Right-click size menu (Phase 9) */
+.hz-size-menu{position:absolute;top:100%;left:8px;z-index:20;margin-top:2px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 0;box-shadow:var(--shadow-md);min-width:130px}
+.hz-size-menu button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:6px 12px;text-align:left;background:none;border:none;cursor:pointer;font-size:var(--fs-xs);color:var(--text-primary);font-family:inherit}
+.hz-size-menu button:hover{background:var(--bg-tint-1)}
+.hz-size-check{color:var(--accent);font-weight:700}
+
 /* Month cells (project rows AND drop row) */
 .month-cell{text-align:center;cursor:pointer;border-left:1px solid var(--border);transition:background .1s}
 .month-cell:hover{background:var(--bg-tint-1)}

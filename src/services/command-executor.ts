@@ -16,7 +16,7 @@ import {
   createWeekFromTemplate,
   weekFileExists,
 } from "./week-manager";
-import { dateToWeekId, generateId, nowISO } from "./time-utils";
+import { dateToWeekId, formatDate, generateId, nowISO } from "./time-utils";
 
 // Errors thrown from a sub-command inside batch carry these extras
 // so the processor can record `partial: { succeeded, failed_at_index }`
@@ -313,6 +313,26 @@ export async function executeCommand(cmd: Command): Promise<void> {
         throw new Error(`Horizon project ${project_id} not found`);
       }
       await useHorizonStore.getState().setSize(project_id, size);
+      return;
+    }
+
+    case "mark_cadence": {
+      const { direction_id } = cmd.data;
+      const cur = useEntityStore
+        .getState()
+        .entities.find((e: Entity) => e.id === direction_id);
+      if (!cur) throw new Error(`Direction ${direction_id} not found`);
+      if (cur.type !== "direction") {
+        throw new Error(
+          `Entity ${direction_id} is type ${cur.type}, not direction`,
+        );
+      }
+      // Spread current fields — replacing `fields` outright would wipe
+      // cadence / target / current / progress for any direction the
+      // agent never set explicitly via mark_cadence.
+      await useEntityStore.getState().updateEntity(direction_id, {
+        fields: { ...cur.fields, last_act: formatDate(new Date()) },
+      });
       return;
     }
 

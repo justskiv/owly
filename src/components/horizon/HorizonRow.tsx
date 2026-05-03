@@ -1,9 +1,15 @@
-import type { MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
 import { EyeOff, X } from "lucide-react";
-import type { Area, HorizonProjectState, ProjectEntity } from "../../schemas";
+import type {
+  Area,
+  HorizonProjectState,
+  HorizonSize,
+  ProjectEntity,
+} from "../../schemas";
 import { getAreaColor, pickAreaTag } from "../../services/categories";
 import { useHorizonStore } from "../../store/horizon";
 import { toast } from "../shared/Toast";
+import { HorizonSizeMenu } from "./HorizonSizeMenu";
 
 interface Props {
   state: HorizonProjectState;
@@ -28,6 +34,22 @@ export function HorizonRow({
 }: Props) {
   const areaTag = pickAreaTag(project.tags, areas);
   const color = areaTag ? getAreaColor(areaTag, areas) : FALLBACK_COLOR;
+  const [sizeMenuOpen, setSizeMenuOpen] = useState(false);
+
+  const onContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    setSizeMenuOpen(true);
+  };
+
+  const onSelectSize = (size: HorizonSize) => {
+    void useHorizonStore
+      .getState()
+      .setSize(project.id, size)
+      .catch((err: unknown) => {
+        toast.error(`Не удалось: ${(err as Error).message}`);
+      });
+    setSizeMenuOpen(false);
+  };
 
   const toggleChip = (mIdx: number) => {
     const cur = state.months;
@@ -69,9 +91,16 @@ export function HorizonRow({
   return (
     <tr className={highlighted ? "highlighted" : ""}>
       <td className="name-cell">
-        <div className="hz-name">
+        <div className="hz-name" onContextMenu={onContextMenu}>
           <span className="hz-dot" style={{ background: color }} />
           <span>{project.title}</span>
+          {sizeMenuOpen && (
+            <HorizonSizeMenu
+              active={state.size}
+              onSelect={onSelectSize}
+              onClose={() => setSizeMenuOpen(false)}
+            />
+          )}
           <div className="hz-actions">
             <button
               type="button"

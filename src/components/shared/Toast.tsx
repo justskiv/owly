@@ -21,7 +21,7 @@ interface ToastStore {
   resume: (id: string) => void;
 }
 
-const DISMISS_MS = 2800;
+const DISMISS_MS = 2200;
 // Soft cap on the in-memory queue — anything past MAX_KEEP can never
 // be visible (MAX_VISIBLE caps the render), trimming keeps memory flat
 // under fast bursts.

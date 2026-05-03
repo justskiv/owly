@@ -1,10 +1,11 @@
+import type { LucideIcon } from "lucide-react";
 import type { HorizonSize } from "../../schemas";
 import { useHorizonStore } from "../../store/horizon";
 
 interface Props {
   group: HorizonSize;
   label: string;
-  icon: string;
+  Icon: LucideIcon;
   count: number;
   collapsed: boolean;
   colspan: number;
@@ -13,7 +14,7 @@ interface Props {
 export function HorizonGroupHeader({
   group,
   label,
-  icon,
+  Icon,
   count,
   collapsed,
   colspan,
@@ -26,7 +27,7 @@ export function HorizonGroupHeader({
       <td colSpan={colspan}>
         <div className="hz-group-head">
           <span>{collapsed ? "▶" : "▼"}</span>
-          <span>{icon}</span>
+          <Icon size={14} strokeWidth={1.6} aria-hidden="true" />
           <span>{label}</span>
           <span className="hg-cnt">{count}</span>
         </div>

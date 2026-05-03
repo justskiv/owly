@@ -23,6 +23,13 @@ const ACTION_RU: Record<string, string> = {
   update_entity: "Сущность обновлена",
   delete_entity: "Сущность удалена",
   create_week: "Неделя создана",
+  create_pool_item: "Задача в пуле создана",
+  update_pool_item: "Задача в пуле обновлена",
+  delete_pool_item: "Задача в пуле удалена",
+  set_horizon_months: "Месяцы горизонта обновлены",
+  set_horizon_hidden: "Видимость на горизонте обновлена",
+  set_horizon_size: "Размер на горизонте обновлён",
+  mark_cadence: "Каденция отмечена",
   batch: "Команды применены",
 };
 

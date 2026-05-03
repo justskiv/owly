@@ -85,7 +85,7 @@ export function HorizonBoard({
                   <HorizonGroupHeader
                     group={g.id}
                     label={g.label}
-                    icon={g.icon}
+                    Icon={g.Icon}
                     count={items.length}
                     collapsed={collapsed}
                     colspan={colspan}

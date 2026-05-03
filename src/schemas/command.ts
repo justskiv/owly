@@ -163,6 +163,12 @@ export const SetHorizonSizeCommandSchema = z.object({
   }),
 });
 
+export const MarkCadenceCommandSchema = z.object({
+  ...baseCommandShape,
+  action: z.literal("mark_cadence"),
+  data: z.object({ direction_id: z.string() }),
+});
+
 const SingleCommandSchema = z.discriminatedUnion("action", [
   CreateBlockCommandSchema,
   UpdateBlockCommandSchema,
@@ -180,6 +186,7 @@ const SingleCommandSchema = z.discriminatedUnion("action", [
   SetHorizonMonthsCommandSchema,
   SetHorizonHiddenCommandSchema,
   SetHorizonSizeCommandSchema,
+  MarkCadenceCommandSchema,
 ]);
 
 export const BatchCommandSchema = z.object({
@@ -207,6 +214,7 @@ export const CommandSchema = z.discriminatedUnion("action", [
   SetHorizonMonthsCommandSchema,
   SetHorizonHiddenCommandSchema,
   SetHorizonSizeCommandSchema,
+  MarkCadenceCommandSchema,
   BatchCommandSchema,
 ]);
 export type Command = z.infer<typeof CommandSchema>;

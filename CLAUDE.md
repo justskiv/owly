@@ -61,3 +61,10 @@ entities/templates → dashboards → AI integration) закрыты. Готов
 Подробные принципы и анти-паттерны — в `CODESTYLE.md`. Каждое правило
 оттуда связано с реальным кейсом ревью. В обсуждении PR — ссылаться
 номером пункта.
+
+## AI-агент / очередь команд
+
+Внешний клиент пишет в `data/commands/pending/<id>.json`, watcher
+исполняет, перемещает в `done/` или `failed/`. Полный reference
+действий, схем и примеров — `docs/api/commands-api.md`. Source of
+truth для схем — `src/schemas/command.ts`.

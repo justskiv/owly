@@ -87,16 +87,6 @@ export function StatusBar() {
           </button>
         </>
       )}
-      <div className="hints" data-tauri-drag-region>
-        <span data-tauri-drag-region>
-          <kbd data-tauri-drag-region>1</kbd>
-          <kbd data-tauri-drag-region>2</kbd>
-          <kbd data-tauri-drag-region>3</kbd> страницы
-        </span>
-        <span data-tauri-drag-region>
-          <kbd data-tauri-drag-region>N</kbd> блок
-        </span>
-      </div>
     </div>
   );
 }

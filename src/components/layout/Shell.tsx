@@ -17,16 +17,7 @@ import { CommandsLogPanel } from "../commands/CommandsLogPanel";
 import { QuickAdd } from "../quick-add/QuickAdd";
 import { EntityPopupHost } from "../shared/EntityPopup";
 import { BlockPopupHost } from "../planner/BlockPopup";
-import { useUIStore, type Page } from "../../store/ui";
-
-const KEY_PAGE: Record<string, Page> = {
-  Digit1: "plan",
-  Digit2: "tasks",
-  Digit3: "projects",
-  Digit4: "context",
-  Digit5: "horizon",
-  Digit6: "review",
-};
+import { useUIStore } from "../../store/ui";
 
 export function Shell() {
   const currentPage = useUIStore((s) => s.currentPage);
@@ -90,11 +81,6 @@ export function Shell() {
         else ui.openQuickAdd();
         return;
       }
-
-      // Digits 1..6 without modifiers — switch main tabs.
-      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
-      const next = KEY_PAGE[e.code];
-      if (next) setPage(next);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
