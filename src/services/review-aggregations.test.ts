@@ -190,6 +190,41 @@ describe("cadencePctForDirections", () => {
       ),
     ).toBe(67);
   });
+
+  // Lock the boundary: "cadence" is the maximum gap that's still ok.
+  it("treats since === cadence as ok (boundary)", () => {
+    // 2026-05-03 minus 7 days = 2026-04-26
+    expect(
+      cadencePctForDirections(
+        [direction("d1", { cadence: 7, last_act: "2026-04-26" })],
+        today,
+      ),
+    ).toBe(100);
+  });
+
+  it("treats since === cadence + 1 as miss (boundary)", () => {
+    // 2026-05-03 minus 8 days = 2026-04-25
+    expect(
+      cadencePctForDirections(
+        [direction("d1", { cadence: 7, last_act: "2026-04-25" })],
+        today,
+      ),
+    ).toBe(0);
+  });
+
+  it("ignores directions with cadence but null last_act (no inflation)", () => {
+    // d2 has cadence but no last_act → excluded entirely; d1 alone
+    // counts → 100%, NOT diluted to 50%.
+    expect(
+      cadencePctForDirections(
+        [
+          direction("d1", { cadence: 7, last_act: "2026-05-01" }),
+          direction("d2", { cadence: 7, last_act: null }),
+        ],
+        today,
+      ),
+    ).toBe(100);
+  });
 });
 
 describe("hoursByCategory", () => {

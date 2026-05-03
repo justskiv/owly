@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import type { ReviewData } from "../../hooks/useReviewData";
+import { useToday } from "../../hooks/useToday";
 import type {
   Block,
   DirectionEntity,
@@ -10,8 +12,9 @@ import type { PoolItemView } from "../../services/recalc-pool";
 import {
   cadencePctForDirections,
   execPctForBlocks,
+  hasCadence,
   hoursByCategory,
-  hoursByDay,
+  orderedAreas,
   poolPctForItems,
 } from "../../services/review-aggregations";
 import { dateForDayIndex } from "../../services/time-utils";
@@ -19,7 +22,6 @@ import { cadUrgClass, daysSince } from "../../services/urgency";
 import { useConfigStore } from "../../store/config";
 import { useEntityStore } from "../../store/entities";
 import { useScheduleStore } from "../../store/schedule";
-import type { ReviewData } from "../../hooks/useReviewData";
 import { Gauge } from "./Gauge";
 
 const EMPTY_AREAS: never[] = [];
@@ -38,7 +40,8 @@ interface Props {
 export function WeekCards({ data }: Props) {
   const entities = useEntityStore((s) => s.entities);
   const config = useConfigStore((s) => s.config);
-  const areas = config?.areas ?? EMPTY_AREAS;
+  const rawAreas = config?.areas ?? EMPTY_AREAS;
+  const areas = useMemo(() => orderedAreas(rawAreas), [rawAreas]);
   const startDate = useScheduleStore((s) => s.startDate);
 
   const directions = useMemo<DirectionEntity[]>(
@@ -54,7 +57,7 @@ export function WeekCards({ data }: Props) {
     [entities],
   );
 
-  const today = useMemo(() => new Date(), []);
+  const today = useToday();
   const weekDays = useMemo(
     () =>
       Array.from({ length: 7 }, (_, i) => dateForDayIndex(startDate, i)),
@@ -69,13 +72,7 @@ export function WeekCards({ data }: Props) {
   const poolPct = poolPctForItems(pool);
   const cadPct = cadencePctForDirections(directions, today);
 
-  const cadDirs = useMemo(
-    () =>
-      directions.filter(
-        (d) => d.fields.cadence != null && d.fields.last_act != null,
-      ),
-    [directions],
-  );
+  const cadDirs = useMemo(() => directions.filter(hasCadence), [directions]);
 
   const measurableDirs = useMemo(
     () => directions.filter((d) => d.fields.progress != null),
@@ -88,23 +85,33 @@ export function WeekCards({ data }: Props) {
         .filter(
           (p) =>
             p.status === "active" &&
-            p.fields.last_activity_days > STALE_DAYS,
+            (p.fields.last_activity_days ?? 0) >= STALE_DAYS,
         )
         .sort(
           (a, b) =>
-            b.fields.last_activity_days - a.fields.last_activity_days,
+            (b.fields.last_activity_days ?? 0) -
+            (a.fields.last_activity_days ?? 0),
         )
         .slice(0, STALE_LIMIT),
     [projects],
   );
 
   const catHours = useMemo(() => hoursByCategory(blocks), [blocks]);
-  const dayHours = useMemo(
-    () => hoursByDay(blocks, weekDays),
-    [blocks, weekDays],
-  );
-
   const maxCatHours = Math.max(1, ...Object.values(catHours));
+
+  // Card 1 subtitle stats — match the mock copy.
+  const doneBlocks = blocks.filter((b) => b.status === "done").length;
+  const doneHours = blocks
+    .filter((b) => b.status === "done")
+    .reduce((s, b) => s + b.duration, 0) / 60;
+  const totalHours = blocks.reduce((s, b) => s + b.duration, 0) / 60;
+  const poolDone = pool.filter((pi) =>
+    pi.splittable ? pi.scheduled >= pi.hours : pi.placed,
+  ).length;
+  const cadOk = cadDirs.filter((d) => {
+    const since = daysSince(d.fields.last_act, today);
+    return since !== null && since <= d.fields.cadence;
+  }).length;
 
   return (
     <>
@@ -115,19 +122,31 @@ export function WeekCards({ data }: Props) {
             value={exec}
             color={gaugeColor(exec, "exec")}
             title="Выполнение блоков"
-            subtitle={`${blocks.filter((b) => b.status === "done").length}/${blocks.length} done`}
+            subtitle={
+              blocks.length === 0
+                ? "нет блоков"
+                : `${doneBlocks}/${blocks.length} блоков · ${doneHours.toFixed(1)}/${totalHours.toFixed(1)}ч`
+            }
           />
           <Gauge
             value={poolPct}
             color={gaugeColor(poolPct, "pool")}
             title="Пул недели"
-            subtitle={poolSubtitle(pool)}
+            subtitle={
+              pool.length === 0
+                ? "пусто"
+                : `${poolDone}/${pool.length} задач завершено`
+            }
           />
           <Gauge
             value={cadPct}
             color={gaugeColor(cadPct, "cadence")}
             title="Каденции"
-            subtitle={`${cadDirs.length} направлений`}
+            subtitle={
+              cadDirs.length === 0
+                ? "нет каденций"
+                : `${cadOk}/${cadDirs.length} в норме`
+            }
           />
         </div>
       </div>
@@ -159,7 +178,7 @@ export function WeekCards({ data }: Props) {
           <div className="rv-empty">нет каденций</div>
         ) : (
           cadDirs.map((d) => {
-            const cadence = d.fields.cadence as number;
+            const cadence = d.fields.cadence;
             const since = daysSince(d.fields.last_act, today) ?? 0;
             const over = since - cadence;
             const dotColor = directionDotColor(d, areas);
@@ -217,24 +236,25 @@ export function WeekCards({ data }: Props) {
         <h4 style={{ marginTop: 12 }}>По дням</h4>
         <div className="rv-chart">
           {weekDays.map((day, i) => {
-            const total = dayHours[day] ?? 0;
-            // Pixel-based heights: percentage chains via flex parents
-            // don't resolve reliably in WebKit when the chain has no
-            // definite height. The chart is 100px tall; ~16px goes
-            // to the day label, leaving ~84 for bars.
-            const barPx = Math.min(
-              84,
-              (total / DAY_CAP_HOURS) * 84,
+            // Total counts only blocks whose category is in the
+            // configured areas list; otherwise an unmapped category
+            // would inflate the bar height but render no segment,
+            // leaving a visible gap. Block durations are in minutes.
+            const knownIds = new Set(areas.map((a) => a.id));
+            const dayKnown = blocks.filter(
+              (b) => b.date === day && knownIds.has(b.category),
             );
+            const total = dayKnown.reduce((s, b) => s + b.duration, 0) / 60;
+            const barPx =
+              total === 0
+                ? 0
+                : Math.max(2, Math.min(84, (total / DAY_CAP_HOURS) * 84));
             return (
               <div className="rv-chart-col" key={day}>
-                <div
-                  className="rv-chart-bar"
-                  style={{ height: barPx }}
-                >
+                <div className="rv-chart-bar" style={{ height: barPx }}>
                   {areas.map((a) => {
-                    const aHrs = blocks
-                      .filter((b) => b.date === day && b.category === a.id)
+                    const aHrs = dayKnown
+                      .filter((b) => b.category === a.id)
                       .reduce((s, b) => s + b.duration, 0) / 60;
                     if (aHrs === 0 || total === 0) return null;
                     const segPx = (aHrs / total) * barPx;
@@ -300,7 +320,7 @@ export function WeekCards({ data }: Props) {
           </div>
           <div>
             <h4 style={{ marginTop: 0 }}>
-              Заброшенные проекты (&gt;{STALE_DAYS}д)
+              Заброшенные проекты (≥{STALE_DAYS}д)
             </h4>
             {staleProjects.length === 0 ? (
               <div className="rv-empty">все проекты свежие</div>
@@ -309,7 +329,7 @@ export function WeekCards({ data }: Props) {
                 <div className="rv-stat" key={p.id}>
                   <span className="rv-label">{p.title}</span>
                   <span className="rv-val" style={{ color: "var(--error)" }}>
-                    {p.fields.last_activity_days}д
+                    {p.fields.last_activity_days ?? 0}д
                   </span>
                 </div>
               ))
@@ -336,14 +356,6 @@ function poolItemColor(pi: PoolItemView): string {
     return "var(--text-tertiary)";
   }
   return pi.placed ? "var(--success)" : "var(--text-disabled)";
-}
-
-function poolSubtitle(items: readonly PoolItemView[]): string {
-  if (items.length === 0) return "пусто";
-  const done = items.filter((pi) =>
-    pi.splittable ? pi.scheduled >= pi.hours : pi.placed,
-  ).length;
-  return `${done}/${items.length} done`;
 }
 
 function directionDotColor(

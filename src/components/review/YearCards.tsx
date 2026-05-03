@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { ReviewData } from "../../hooks/useReviewData";
+import { useToday } from "../../hooks/useToday";
 import type {
   Block,
   DirectionEntity,
@@ -10,8 +11,9 @@ import { gaugeColor } from "../../services/gauge-math";
 import {
   cadencePctForDirections,
   hoursByCategory,
+  orderedAreas,
 } from "../../services/review-aggregations";
-import { getWeekStartDate } from "../../services/time-utils";
+import { getWeekStartDate, isWithin } from "../../services/time-utils";
 import { useConfigStore } from "../../store/config";
 import { useEntityStore } from "../../store/entities";
 import { Gauge } from "./Gauge";
@@ -29,7 +31,8 @@ interface Props {
 export function YearCards({ data }: Props) {
   const entities = useEntityStore((s) => s.entities);
   const config = useConfigStore((s) => s.config);
-  const areas = config?.areas ?? EMPTY_AREAS;
+  const rawAreas = config?.areas ?? EMPTY_AREAS;
+  const areas = useMemo(() => orderedAreas(rawAreas), [rawAreas]);
 
   const directions = useMemo<DirectionEntity[]>(
     () =>
@@ -44,7 +47,7 @@ export function YearCards({ data }: Props) {
     [entities],
   );
 
-  const today = useMemo(() => new Date(), []);
+  const today = useToday();
 
   // 52 weeks newest-first → reverse for left-to-right oldest →
   // newest display.
@@ -59,6 +62,10 @@ export function YearCards({ data }: Props) {
   const totalDone = allBlocks.filter((b) => b.status === "done").length;
   const totalMinutes = allBlocks.reduce((s, b) => s + b.duration, 0);
   const totalHours = totalMinutes / 60;
+  const weeksWithData = Math.max(
+    1,
+    weeks.filter((w) => (w.bundle?.blocks.length ?? 0) > 0).length,
+  );
   const avgExec = totalBlocks
     ? Math.round((totalDone / totalBlocks) * 100)
     : 0;
@@ -77,10 +84,13 @@ export function YearCards({ data }: Props) {
   const projectsActive = projects.filter(
     (p) => p.status === "active",
   ).length;
+  const currentYear = today.getFullYear();
 
   // Group weeks by calendar month of their Monday. ISO weeks don't
   // line up perfectly with months, but a single Monday lands in
-  // exactly one month — close enough for a 12-bar trend.
+  // exactly one month — close enough for a 12-bar trend. (Known
+  // imprecision: 2025-w01's Monday is 2024-12-30, so a year-boundary
+  // window can produce 13 buckets; documented for Phase 9.)
   const monthlyExec = useMemo(() => {
     const byMonth: Record<number, { done: number; total: number }> = {};
     for (const w of weeks) {
@@ -120,26 +130,24 @@ export function YearCards({ data }: Props) {
     [directions],
   );
 
-  if (data.status === "loading") {
-    return (
-      <div className="rv-card full">
-        <div className="rv-empty">Загружаем последние 52 недели…</div>
-      </div>
-    );
-  }
-
   const hasAnyData = totalBlocks > 0;
+  const isLoading = data.status === "loading";
 
   return (
     <>
-      {/* Card 1 — 4 gauges */}
+      {/* Card 1 — 4 gauges. Always rendered; current week is live, so
+          numbers are at least non-empty even while historical loads. */}
       <div className="rv-card full">
         <div className="rv-gauge-row">
           <Gauge
             value={avgExec}
             color={gaugeColor(avgExec, "exec")}
             title="Среднее выполнение"
-            subtitle={`${totalDone}/${totalBlocks} done за год`}
+            subtitle={
+              hasAnyData
+                ? `${totalDone}/${totalBlocks} блоков · ${weeksWithData} нед.`
+                : "нет блоков"
+            }
           />
           <Gauge
             value={cadPct}
@@ -152,7 +160,7 @@ export function YearCards({ data }: Props) {
             ring={false}
             fontSize={11}
             title="Продуктивных часов"
-            subtitle={`~${(totalHours / 52).toFixed(0)}ч/нед`}
+            subtitle={`~${(totalHours / weeksWithData).toFixed(0)}ч/нед`}
           />
           <Gauge
             value={projectsDone}
@@ -168,7 +176,9 @@ export function YearCards({ data }: Props) {
       {/* Card 2 — Monthly trend */}
       <div className="rv-card span2">
         <h4>Выполнение по месяцам</h4>
-        {!hasAnyData ? (
+        {isLoading && !hasAnyData ? (
+          <div className="rv-empty">Загружаем последние 52 недели…</div>
+        ) : !hasAnyData ? (
           <div className="rv-empty">Недостаточно данных для отчёта</div>
         ) : (
           <div className="rv-chart" style={{ height: 130 }}>
@@ -198,7 +208,7 @@ export function YearCards({ data }: Props) {
 
       {/* Card 3 — Categories yearly */}
       <div className="rv-card">
-        <h4>Часы по категориям</h4>
+        <h4>Часов за {currentYear}</h4>
         {!hasAnyData ? (
           <div className="rv-empty">нет данных</div>
         ) : (
@@ -222,60 +232,78 @@ export function YearCards({ data }: Props) {
         )}
       </div>
 
-      {/* Card 4 — Directions yearly progress */}
+      {/* Card 4 — Итоги года: directions progress + achievements
+          placeholder. Achievements need an algorithm to derive (mock
+          hardcodes them) — Phase 9 ships real list, for now we keep
+          the right column structurally so the layout matches the
+          mock. */}
       <div className="rv-card full">
-        <h4>Направления — годовой прогресс</h4>
-        {measurableDirs.length === 0 ? (
-          <div className="rv-empty">нет измеримых направлений</div>
-        ) : (
-          measurableDirs.map((d) => {
-            const tag = d.tags[0];
-            const dotColor = tag
-              ? getAreaColor(tag, areas)
-              : "var(--accent)";
-            const progress = d.fields.progress ?? 0;
-            return (
-              <div key={d.id}>
-                <div className="rv-stat">
-                  <span
-                    className="rv-label"
-                    style={{ display: "flex", alignItems: "center", gap: 6 }}
-                  >
-                    <span
-                      style={{
-                        width: 8, height: 8, borderRadius: "50%",
-                        background: dotColor, flexShrink: 0,
-                      }}
-                    />
-                    {d.title}
-                  </span>
-                  <span className="rv-val">
-                    {d.fields.current ?? "—"}
-                    {d.fields.target ? ` → ${d.fields.target}` : ""}
-                  </span>
-                </div>
-                <div className="rv-bar-wrap" style={{ margin: "-2px 0 4px" }}>
-                  <div className="rv-bar">
-                    <span
-                      style={{
-                        width: `${progress}%`,
-                        background: "var(--accent)",
-                      }}
-                    />
+        <h4>Итоги года</h4>
+        <div className="rv-grid-2">
+          <div>
+            <h4 style={{ marginTop: 0 }}>
+              Направления — прогресс за год
+            </h4>
+            {measurableDirs.length === 0 ? (
+              <div className="rv-empty">нет измеримых направлений</div>
+            ) : (
+              measurableDirs.map((d) => {
+                const tag = d.tags[0];
+                const dotColor = tag
+                  ? getAreaColor(tag, areas)
+                  : "var(--accent)";
+                const progress = d.fields.progress ?? 0;
+                return (
+                  <div key={d.id}>
+                    <div className="rv-stat">
+                      <span
+                        className="rv-label"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            background: dotColor,
+                            flexShrink: 0,
+                          }}
+                        />
+                        {d.title}
+                      </span>
+                      <span className="rv-val">
+                        {d.fields.current ?? "—"}
+                        {d.fields.target ? ` → ${d.fields.target}` : ""}
+                      </span>
+                    </div>
+                    <div
+                      className="rv-bar-wrap"
+                      style={{ margin: "-2px 0 4px" }}
+                    >
+                      <div className="rv-bar">
+                        <span
+                          style={{
+                            width: `${progress}%`,
+                            background: dotColor,
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })
-        )}
+                );
+              })
+            )}
+          </div>
+          <div>
+            <h4 style={{ marginTop: 0 }}>Достижения</h4>
+            <div className="rv-empty">копится</div>
+          </div>
+        </div>
       </div>
     </>
   );
-}
-
-function isWithin(timestamp: string, fromIso: string, today: Date): boolean {
-  const tsDate = new Date(timestamp);
-  if (Number.isNaN(tsDate.getTime())) return false;
-  const from = new Date(fromIso);
-  return tsDate >= from && tsDate <= today;
 }

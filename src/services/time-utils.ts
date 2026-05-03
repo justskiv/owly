@@ -62,9 +62,28 @@ export function getStartOfDay(d: Date = new Date()): Date {
   return r;
 }
 
-function parseDate(s: string): Date {
+// Parses an ISO date "YYYY-MM-DD" as a LOCAL midnight Date. The naive
+// `new Date(s)` overload interprets the same string as UTC midnight,
+// which crosses the local-day boundary in any timezone with a non-zero
+// offset and silently shifts comparisons (entity timestamps stored via
+// nowISO() are local).
+export function parseDate(s: string): Date {
   const [y, m, d] = s.split("-").map((p) => parseInt(p, 10));
   return new Date(y, m - 1, d);
+}
+
+// Inclusive range check. Both bounds are LOCAL: `fromIso` is parsed via
+// parseDate (local midnight); `today` is whatever the caller passed
+// (typically `new Date()` at render time). Used to bucket entity
+// timestamps (created_at / updated_at — also local) into a period.
+export function isWithin(
+  timestamp: string,
+  fromIso: string,
+  today: Date,
+): boolean {
+  const ts = new Date(timestamp);
+  if (Number.isNaN(ts.getTime())) return false;
+  return ts >= parseDate(fromIso) && ts <= today;
 }
 
 function formatWeekId(year: number, week: number): string {

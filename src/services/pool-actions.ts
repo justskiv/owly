@@ -5,6 +5,7 @@ import {
   readJsonFileOrCreate,
   writeJsonFile,
 } from "./file-io";
+import { invalidatePoolCache } from "./review-aggregations";
 import { trackSave } from "./save-status";
 import { enqueuePoolWrite } from "./pool-write-queue";
 import { useScheduleStore, applyToWeek } from "../store/schedule";
@@ -43,6 +44,7 @@ export async function applyToPoolWeek(
   if (week === pool.currentWeek) {
     const next = mutate(pool.items);
     usePoolStore.setState({ items: next });
+    invalidatePoolCache(week);
     await trackSave(() =>
       enqueuePoolWrite(week, () => persistPoolFile(week, next)),
     );
@@ -51,6 +53,7 @@ export async function applyToPoolWeek(
   // Read-modify-write must run inside the queue so two off-current
   // mutations don't both read the pre-mutation file and clobber each
   // other. The queue serialises the whole sequence per week.
+  invalidatePoolCache(week);
   await trackSave(() =>
     enqueuePoolWrite(week, async () => {
       const path = await getDataPath("pool", `${week}.json`);

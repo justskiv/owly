@@ -14,6 +14,43 @@ export interface WeekBundle {
   pool: PoolItemView[];
 }
 
+// DirectionEntity narrowed to the variant where both cadence fields
+// are populated. Lets call sites stop sprinkling `as number` casts.
+export type DirectionWithCadence = DirectionEntity & {
+  fields: DirectionEntity["fields"] & {
+    cadence: number;
+    last_act: string;
+  };
+};
+
+export function hasCadence(d: DirectionEntity): d is DirectionWithCadence {
+  return d.fields.cadence != null && d.fields.last_act != null;
+}
+
+// Mock §9.4 fixes a left-to-right area order in stacked charts and
+// horizontal bars: work, growth, health, life, people. We honor that
+// for the known ids and append any user-defined custom areas after,
+// in their config order.
+const ORDERED_AREA_IDS = ["work", "growth", "health", "life", "people"];
+
+export function orderedAreas<T extends { id: string }>(
+  areas: readonly T[],
+): T[] {
+  const remaining = new Map(areas.map((a) => [a.id, a]));
+  const out: T[] = [];
+  for (const id of ORDERED_AREA_IDS) {
+    const a = remaining.get(id);
+    if (a) {
+      out.push(a);
+      remaining.delete(id);
+    }
+  }
+  for (const a of areas) {
+    if (remaining.has(a.id)) out.push(a);
+  }
+  return out;
+}
+
 // Schedule has its own week-cache (used by routine-stats too); pool
 // has none. We mirror the cache pattern locally so flipping between
 // Месяц/Год tabs doesn't re-stat 4 or 52 files every time. `null`
@@ -40,9 +77,15 @@ async function readPoolFile(weekId: string): Promise<PoolItem[] | null> {
   }
 }
 
-// Convenience for testing — never called in production code paths.
-export function _resetPoolCacheForTest(): void {
-  poolCache.clear();
+// Pool store / pool actions call this after every mutation so the
+// next Месяц/Год read picks up fresh data. Without it the cache would
+// silently serve a pre-edit snapshot until app restart.
+export function invalidatePoolCache(weekId?: string): void {
+  if (weekId === undefined) {
+    poolCache.clear();
+    return;
+  }
+  poolCache.delete(weekId);
 }
 
 export async function loadWeekBundle(
@@ -78,13 +121,11 @@ export function cadencePctForDirections(
   dirs: readonly DirectionEntity[],
   today: Date,
 ): number {
-  const cadDirs = dirs.filter(
-    (d) => d.fields.cadence != null && d.fields.last_act != null,
-  );
+  const cadDirs = dirs.filter(hasCadence);
   if (cadDirs.length === 0) return 0;
   const ok = cadDirs.filter((d) => {
     const since = daysSince(d.fields.last_act, today);
-    return since !== null && since <= (d.fields.cadence as number);
+    return since !== null && since <= d.fields.cadence;
   }).length;
   return Math.round((ok / cadDirs.length) * 100);
 }

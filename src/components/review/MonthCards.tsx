@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { ReviewData } from "../../hooks/useReviewData";
+import { useToday } from "../../hooks/useToday";
 import type {
   Block,
   DirectionEntity,
@@ -9,9 +10,11 @@ import { gaugeColor } from "../../services/gauge-math";
 import {
   cadencePctForDirections,
   execPctForBlocks,
+  hasCadence,
   hoursByCategory,
+  orderedAreas,
 } from "../../services/review-aggregations";
-import { getWeekStartDate } from "../../services/time-utils";
+import { getWeekStartDate, isWithin } from "../../services/time-utils";
 import { daysSince } from "../../services/urgency";
 import { useConfigStore } from "../../store/config";
 import { useEntityStore } from "../../store/entities";
@@ -29,7 +32,8 @@ interface Props {
 export function MonthCards({ data }: Props) {
   const entities = useEntityStore((s) => s.entities);
   const config = useConfigStore((s) => s.config);
-  const areas = config?.areas ?? EMPTY_AREAS;
+  const rawAreas = config?.areas ?? EMPTY_AREAS;
+  const areas = useMemo(() => orderedAreas(rawAreas), [rawAreas]);
   const directions = useMemo<DirectionEntity[]>(
     () =>
       entities.filter(
@@ -43,7 +47,7 @@ export function MonthCards({ data }: Props) {
     [entities],
   );
 
-  const today = useMemo(() => new Date(), []);
+  const today = useToday();
 
   // weeks come newest-first from the hook (offsets 0, -1, -2, -3);
   // reverse for display so the trend reads left-to-right oldest →
@@ -60,21 +64,14 @@ export function MonthCards({ data }: Props) {
   );
   const maxMonthCat = Math.max(1, ...Object.values(monthCatHours));
 
-  const totalBlocks = weeks.reduce(
-    (s, w) => s + (w.bundle?.blocks.length ?? 0),
-    0,
-  );
-  const totalDone = weeks.reduce(
-    (s, w) =>
-      s + (w.bundle?.blocks.filter((b) => b.status === "done").length ?? 0),
-    0,
-  );
-  const totalMinutes = weeks.reduce(
-    (s, w) =>
-      s + (w.bundle?.blocks.reduce((bs, b) => bs + b.duration, 0) ?? 0),
-    0,
-  );
+  const totalBlocks = allBlocks.length;
+  const totalDone = allBlocks.filter((b) => b.status === "done").length;
+  const totalMinutes = allBlocks.reduce((s, b) => s + b.duration, 0);
   const totalHours = totalMinutes / 60;
+  const weeksWithData = Math.max(
+    1,
+    weeks.filter((w) => (w.bundle?.blocks.length ?? 0) > 0).length,
+  );
   // Weighted avg (total done / total blocks) is more honest than a
   // simple mean of weekly %s — an empty week shouldn't drag the
   // monthly figure to 0.
@@ -84,15 +81,8 @@ export function MonthCards({ data }: Props) {
 
   const cadPct = cadencePctForDirections(directions, today);
 
-  if (data.status === "loading") {
-    return (
-      <div className="rv-card full">
-        <div className="rv-empty">Загружаем последние 4 недели…</div>
-      </div>
-    );
-  }
-
   const hasAnyData = totalBlocks > 0;
+  const isLoading = data.status === "loading";
 
   // Window for "completed/started this month" = earliest loaded
   // week's Mon → today.
@@ -111,36 +101,41 @@ export function MonthCards({ data }: Props) {
         isWithin(p.created_at, monthStartIso, today),
       ).length
     : 0;
-  const active = projects.filter(
-    (p) => p.status === "active" && p.fields.last_activity_days < 14,
-  ).length;
+  // Active project count is the same definition as on the Year tab —
+  // status==="active". Adding a "freshness" gate diverged the two
+  // numbers from the same data source.
+  const active = projects.filter((p) => p.status === "active").length;
 
-  const cadDirs = directions.filter(
-    (d) => d.fields.cadence != null && d.fields.last_act != null,
-  );
+  const cadDirs = directions.filter(hasCadence);
   const cadStatus = cadDirs.map((d) => {
-    const since = daysSince(d.fields.last_act, today) ?? 0;
-    const over = since - (d.fields.cadence as number);
-    return { id: d.id, title: d.title, ok: over <= 0 };
+    const since = daysSince(d.fields.last_act, today);
+    const ok = since !== null && since <= d.fields.cadence;
+    return { id: d.id, title: d.title, ok };
   });
   const cadOk = cadStatus.filter((c) => c.ok).length;
   const cadMiss = cadStatus.length - cadOk;
 
   return (
     <>
-      {/* Card 1 — 3 gauges */}
+      {/* Card 1 — 3 gauges. Always rendered (even during historical
+          load) so Card 1 doesn't blank-flash on tab switches; current
+          week's data already lives in `weeks[0]` from the live store. */}
       <div className="rv-card full">
         <div className="rv-gauge-row">
           <Gauge
             value={avgExec}
             color={gaugeColor(avgExec, "exec")}
             title="Среднее выполнение"
-            subtitle={`${totalDone}/${totalBlocks} done за 4 недели`}
+            subtitle={
+              hasAnyData
+                ? `${totalDone}/${totalBlocks} блоков за ${weeksWithData} нед.`
+                : "нет блоков"
+            }
           />
           <Gauge
             value={cadPct}
             color={gaugeColor(cadPct, "cadence")}
-            title="Каденции"
+            title="Каденции соблюдены"
             subtitle="снимок на сегодня"
           />
           <Gauge
@@ -148,7 +143,7 @@ export function MonthCards({ data }: Props) {
             ring={false}
             fontSize={12}
             title="Часов запланировано"
-            subtitle={`~${(totalHours / 4).toFixed(0)}ч/нед в среднем`}
+            subtitle={`~${(totalHours / weeksWithData).toFixed(0)}ч/нед в среднем`}
           />
         </div>
       </div>
@@ -156,7 +151,9 @@ export function MonthCards({ data }: Props) {
       {/* Card 2 — Weekly trend */}
       <div className="rv-card span2">
         <h4>Выполнение по неделям</h4>
-        {!hasAnyData ? (
+        {isLoading && !hasAnyData ? (
+          <div className="rv-empty">Загружаем последние 4 недели…</div>
+        ) : !hasAnyData ? (
           <div className="rv-empty">Недостаточно данных для отчёта</div>
         ) : (
           <div className="rv-chart" style={{ height: 120 }}>
@@ -245,7 +242,12 @@ export function MonthCards({ data }: Props) {
           </div>
         </div>
         <div>
-          <h4 style={{ marginTop: 0 }}>Направления</h4>
+          {/* Direction deltas need historical snapshots that don't
+              exist yet — Phase 9 introduces `direction_history` or a
+              `completed_at` style field. Until then we show titles
+              with an em-dash placeholder so the column structure is
+              visible. */}
+          <h4 style={{ marginTop: 0 }}>Движение направлений</h4>
           {directions.length === 0 ? (
             <div className="rv-empty">нет данных</div>
           ) : (
@@ -263,7 +265,7 @@ export function MonthCards({ data }: Props) {
           )}
         </div>
         <div>
-          <h4 style={{ marginTop: 0 }}>Каденции</h4>
+          <h4 style={{ marginTop: 0 }}>Каденции за месяц</h4>
           {cadStatus.length === 0 ? (
             <div className="rv-empty">нет каденций</div>
           ) : (
@@ -295,11 +297,4 @@ function weekShortLabel(weekId: string): string {
   // "2026-w18" → "w18"
   const parts = weekId.split("-w");
   return `w${parts[1] ?? "?"}`;
-}
-
-function isWithin(timestamp: string, fromIso: string, today: Date): boolean {
-  const tsDate = new Date(timestamp);
-  if (Number.isNaN(tsDate.getTime())) return false;
-  const from = new Date(fromIso);
-  return tsDate >= from && tsDate <= today;
 }

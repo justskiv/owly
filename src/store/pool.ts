@@ -6,6 +6,7 @@ import {
   readJsonFileOrCreate,
   writeJsonFile,
 } from "../services/file-io";
+import { invalidatePoolCache } from "../services/review-aggregations";
 import { trackSave } from "../services/save-status";
 import { enqueuePoolWrite } from "../services/pool-write-queue";
 import { generateId, getCurrentWeekId, nowISO } from "../services/time-utils";
@@ -90,6 +91,7 @@ export const usePoolStore = create<PoolStore>((set, get) => ({
     const week = get().currentWeek;
     const next = [...get().items, item];
     set({ items: next });
+    invalidatePoolCache(week);
     await trackSave(() =>
       enqueuePoolWrite(week, () => persistPool(week, next)),
     );
@@ -102,6 +104,7 @@ export const usePoolStore = create<PoolStore>((set, get) => ({
       it.id === id ? { ...it, ...updates, updated_at: nowISO() } : it,
     );
     set({ items: next });
+    invalidatePoolCache(week);
     await trackSave(() =>
       enqueuePoolWrite(week, () => persistPool(week, next)),
     );
@@ -111,6 +114,7 @@ export const usePoolStore = create<PoolStore>((set, get) => ({
     const week = get().currentWeek;
     const next = get().items.filter((it) => it.id !== id);
     set({ items: next });
+    invalidatePoolCache(week);
     await trackSave(() =>
       enqueuePoolWrite(week, () => persistPool(week, next)),
     );

@@ -2,7 +2,7 @@ import { MonthCards } from "../components/review/MonthCards";
 import { WeekCards } from "../components/review/WeekCards";
 import { YearCards } from "../components/review/YearCards";
 import { useReviewData } from "../hooks/useReviewData";
-import { formatWeekRange } from "../services/time-utils";
+import { formatWeekRange, getWeekNumber } from "../services/time-utils";
 import { useScheduleStore } from "../store/schedule";
 import { useUIStore } from "../store/ui";
 
@@ -22,7 +22,9 @@ export function ReviewPage() {
     <div className="review-view">
       <div className="review-inner">
         <h1>Ревью</h1>
-        <div className="rv-week-label">{formatWeekRange(currentWeek)}</div>
+        <div className="rv-week-label">
+          W{getWeekNumber(currentWeek)} · {formatWeekRange(currentWeek)}
+        </div>
         <div className="rv-tabs">
           {PERIODS.map((p) => (
             <button
