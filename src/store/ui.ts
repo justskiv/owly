@@ -87,6 +87,12 @@ export type PoolModal = null | "new-task" | "new-pool-item";
 // empty board area clears it.
 export type HorizonHighlight = { projectId: string; fixed: boolean } | null;
 
+// Phase 8: which review period is active. Volatile, no persist —
+// matches activeBoard / sideTab. We deliberately do NOT reset it in
+// setPage so a user who switched to «Год», navigated away, and came
+// back lands on the same tab.
+export type ReviewPeriod = "week" | "month" | "year";
+
 export type TaskFilter =
   | { type: "cat"; val: string }
   | { type: "prio"; val: "high" | "medium" | "low" }
@@ -197,8 +203,12 @@ interface UIStore {
   // Phase 7: cross-highlight (board ↔ backlog). Volatile, no persist.
   horizonHighlight: HorizonHighlight;
 
+  // Phase 8: active period tab on the Review screen.
+  rvPeriod: ReviewPeriod;
+
   setPage: (page: Page) => void;
   setHorizonHighlight: (h: HorizonHighlight) => void;
+  setRvPeriod: (p: ReviewPeriod) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
   setSaveStatus: (status: SaveStatus, error?: string | null) => void;
@@ -383,6 +393,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   horizonHighlight: null,
 
+  rvPeriod: "week",
+
   // When we navigate away from the Horizon page, the cross-highlight
   // becomes orphan UI state that lights up nothing visible — clear it
   // here rather than via a useEffect cleanup, which would run after
@@ -394,6 +406,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
         currentPage === "horizon" ? prev.horizonHighlight : null,
     })),
   setHorizonHighlight: (horizonHighlight) => set({ horizonHighlight }),
+  setRvPeriod: (rvPeriod) => set({ rvPeriod }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
   setSelectedBlock: (selectedBlockId) => set({ selectedBlockId }),
   setSaveStatus: (saveStatus, saveError = null) =>
