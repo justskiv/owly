@@ -206,12 +206,25 @@ interface UIStore {
   // Phase 8: active period tab on the Review screen.
   rvPeriod: ReviewPeriod;
 
+  // Boot gate: subscriptions that mirror one store into another
+  // (entity → horizon, schedule → pool) suspend their callbacks
+  // until the initial Promise.all of loadConfig/loadEntities/
+  // loadSchedule/loadPool/loadHorizon has completed AND reconcile
+  // has run. Otherwise the diff between the empty initial snapshot
+  // and the freshly-loaded state would fire spurious addProject /
+  // loadWeek calls against half-hydrated stores. Subscriptions are
+  // *installed* immediately so post-boot mutations are seen — but
+  // their callbacks no-op until this flag flips true. See App.tsx
+  // boot effect (R3 ловушка in spec/.../r1/phases/01-easy-critical.md).
+  bootReady: boolean;
+
   setPage: (page: Page) => void;
   setHorizonHighlight: (h: HorizonHighlight) => void;
   setRvPeriod: (p: ReviewPeriod) => void;
   setSelectedEntity: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
   setSaveStatus: (status: SaveStatus, error?: string | null) => void;
+  setBootReady: (ready: boolean) => void;
   requestNewBlock: () => void;
   togglePool: () => void;
 
@@ -395,6 +408,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   rvPeriod: "week",
 
+  bootReady: false,
+
   // When we navigate away from the Horizon page, the cross-highlight
   // becomes orphan UI state that lights up nothing visible — clear it
   // here rather than via a useEffect cleanup, which would run after
@@ -415,6 +430,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
       saveError,
       savedAt: saveStatus === "saved" ? new Date() : prev.savedAt,
     })),
+  setBootReady: (bootReady) => set({ bootReady }),
   requestNewBlock: () =>
     set((prev) => ({ newBlockTrigger: prev.newBlockTrigger + 1 })),
   togglePool: () =>

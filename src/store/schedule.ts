@@ -270,23 +270,28 @@ export async function applyToWeek(
     return;
   }
 
-  const path = await getDataPath("schedule", `${weekId}.json`);
-  let file = await getCachedWeek(weekId);
-  if (!file) {
-    if (!(await fileExists(path))) {
-      throw new Error(`Week ${weekId} does not exist; create_week first`);
-    }
-    file = await readJsonFile(path, WeekFileSchema);
-    setCachedWeek(weekId, file);
-  }
-  const next = mutate(file.blocks);
-  const snap: WeekSnapshot = {
-    currentWeek: weekId,
-    startDate: file.start_date,
-    templateApplied: file.template_applied,
-  };
+  // Read-modify-write must run inside the queue so two off-current
+  // mutations don't both read the same starting file and clobber
+  // each other. Mirrors `applyToPoolWeek` in pool-actions.ts:39-66.
   await trackSave(() =>
-    enqueueWeekWrite(weekId, () => persistWeek(snap, next)),
+    enqueueWeekWrite(weekId, async () => {
+      const path = await getDataPath("schedule", `${weekId}.json`);
+      let file = await getCachedWeek(weekId);
+      if (!file) {
+        if (!(await fileExists(path))) {
+          throw new Error(`Week ${weekId} does not exist; create_week first`);
+        }
+        file = await readJsonFile(path, WeekFileSchema);
+        setCachedWeek(weekId, file);
+      }
+      const next = mutate(file.blocks);
+      const snap: WeekSnapshot = {
+        currentWeek: weekId,
+        startDate: file.start_date,
+        templateApplied: file.template_applied,
+      };
+      await persistWeek(snap, next);
+    }),
   );
 }
 

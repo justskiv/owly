@@ -8,6 +8,7 @@ import {
 } from "../services/file-io";
 import { DEFAULT_CONFIG } from "../services/defaults";
 import { trackSave } from "../services/save-status";
+import { enqueueConfigWrite } from "../services/config-write-queue";
 
 // Stable empty array used by selectors during the brief boot window
 // before config loads (and as a defensive fallback). Returning a fresh
@@ -66,7 +67,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
   saveConfig: async () => {
     const cfg = get().config;
     if (!cfg) return;
-    await trackSave(() => persistConfig(cfg));
+    await trackSave(() => enqueueConfigWrite(() => persistConfig(cfg)));
   },
 
   // Set in-memory FIRST, then write. Rapid keystrokes in Settings
@@ -79,7 +80,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     if (!cfg) return;
     const next: ConfigFile = { ...cfg, areas };
     set({ config: next });
-    await trackSave(() => persistConfig(next));
+    await trackSave(() => enqueueConfigWrite(() => persistConfig(next)));
   },
 
   setPipelineStages: async (stages) => {
@@ -87,7 +88,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     if (!cfg) return;
     const next: ConfigFile = { ...cfg, pipeline_stages: stages };
     set({ config: next });
-    await trackSave(() => persistConfig(next));
+    await trackSave(() => enqueueConfigWrite(() => persistConfig(next)));
   },
 
   setSchedulingPrefs: async (scheduling_preferences) => {
@@ -95,6 +96,6 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     if (!cfg) return;
     const next: ConfigFile = { ...cfg, scheduling_preferences };
     set({ config: next });
-    await trackSave(() => persistConfig(next));
+    await trackSave(() => enqueueConfigWrite(() => persistConfig(next)));
   },
 }));

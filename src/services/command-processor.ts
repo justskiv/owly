@@ -48,16 +48,24 @@ let chain: Promise<unknown> = Promise.resolve();
 // `started` so React StrictMode's double-mount can't install twice.
 export async function startCommandProcessor(): Promise<void> {
   if (started) return;
-  started = true;
 
   // Install the listener BEFORE drain. Anything that arrives between
   // the listener install and the drain finishing is captured by both;
   // the inflight Set dedupes so it runs exactly once.
   await listen<string>("command-received", (e) => {
+    // shouldSkip mirrors drainPending — without it, atomic-write
+    // .tmp.<pid>.* siblings would land in inflight and fail to parse.
+    const base = e.payload.split("/").pop() ?? "";
+    if (shouldSkip(base)) return;
     enqueue(e.payload);
   });
 
   await drainPending();
+
+  // Set the started flag only after listen() resolves. If listen
+  // throws, leaving the flag false lets a retry re-attempt; setting
+  // it true early would freeze the processor permanently.
+  started = true;
 }
 
 async function drainPending(): Promise<void> {

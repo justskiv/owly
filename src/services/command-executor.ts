@@ -7,6 +7,7 @@ import {
 } from "../store/schedule";
 import { useEntityStore } from "../store/entities";
 import { useHorizonStore } from "../store/horizon";
+import { usePoolStore } from "../store/pool";
 import {
   applyToPoolWeek,
   deletePoolItemCascade,
@@ -95,8 +96,21 @@ export async function executeCommand(cmd: Command): Promise<void> {
       // block that source already deleted.
       const cur = await findBlockById(fromWeek, block_id);
       if (!cur) throw new Error(`Block ${block_id} vanished mid-move`);
-      const movedBlock: Block = { ...cur, date: new_date, start: new_start };
-      await applyToWeek(toWeek, (bs) => [...bs, movedBlock]);
+      // Pool items are per-week. A cross-week move would orphan the
+      // pool_item_id reference in the destination — null it so the
+      // moved block becomes a plain ad-hoc block in the target week.
+      const movedBlock: Block = {
+        ...cur,
+        date: new_date,
+        start: new_start,
+        pool_item_id: null,
+      };
+      // Idempotency: a retry from failed/ (e.g. earlier source-cleanup
+      // throw with destination already written) would otherwise
+      // duplicate the block. Skip the append if it's already there.
+      await applyToWeek(toWeek, (bs) =>
+        bs.some((b) => b.id === block_id) ? bs : [...bs, movedBlock],
+      );
       try {
         await applyToWeek(fromWeek, (bs) =>
           bs.filter((b) => b.id !== block_id),
@@ -189,7 +203,23 @@ export async function executeCommand(cmd: Command): Promise<void> {
     }
 
     case "delete_entity": {
-      await useEntityStore.getState().deleteEntity(cmd.data.entity_id);
+      const id = cmd.data.entity_id;
+      await useEntityStore.getState().deleteEntity(id);
+      // Active-week cascade: drop any blocks / pool items pointing
+      // at this entity in the currently-loaded week. A full
+      // cross-week sweep is Phase 3 (#1) — for now an agent-driven
+      // delete doesn't leave dangling source_entity_id references
+      // visible on the user's current grid. Other weeks may still
+      // hold orphan references (acceptable per Phase 1 — the UI
+      // tolerates orphan source_entity_id and shows the stored
+      // block.title fallback).
+      const activeWeek = usePoolStore.getState().currentWeek;
+      await applyToWeek(activeWeek, (bs) =>
+        bs.filter((b) => b.source_entity_id !== id),
+      );
+      await applyToPoolWeek(activeWeek, (items) =>
+        items.filter((it) => it.source_entity_id !== id),
+      );
       return;
     }
 

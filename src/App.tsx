@@ -94,6 +94,11 @@ function App() {
         // schedule/entities snapshots and fail with confusing errors.
         await startCommandProcessor();
         await installDashboardHotReload();
+        // Open the gate for cross-store subscriptions (entity →
+        // horizon, schedule → pool). Until this flag flips, those
+        // callbacks no-op so a partially-hydrated store can't be
+        // mirrored into another with stale defaults.
+        useUIStore.getState().setBootReady(true);
       } catch (e) {
         if (cancelled) return;
         window.clearTimeout(safety);
@@ -118,9 +123,11 @@ function App() {
   // Sync pool when the user navigates between weeks. The schedule
   // store owns currentWeek; pool is a parallel per-week file. Without
   // this subscription the pool sidebar would still show last week's
-  // items after the grid switched.
+  // items after the grid switched. Gated on bootReady — initial
+  // loadWeek already loaded the matching pool inside Promise.all.
   useEffect(() => {
     const unsub = useScheduleStore.subscribe((state, prev) => {
+      if (!useUIStore.getState().bootReady) return;
       if (state.currentWeek !== prev.currentWeek) {
         void usePoolStore.getState().loadWeek(state.currentWeek);
       }
@@ -128,14 +135,18 @@ function App() {
     return () => unsub();
   }, []);
 
-  // Auto-sync project entities into horizon. Diff-based: we only react
-  // to changes between consecutive snapshots, never to the full set,
-  // so the initial loadEntities → set() pass doesn't blast addProject
-  // into a freshly-loaded horizon. Reconciliation in the boot effect
-  // already handled the catch-up; this only services new
-  // creations/deletions going forward.
+  // Auto-sync project entities into horizon. Diff-based, but the
+  // initial loadEntities() set still produces a non-empty diff
+  // against the pristine empty store — without the bootReady gate,
+  // addProject would fire for every loaded project against a
+  // possibly half-hydrated horizon (Promise.all order is unspecified)
+  // and persist horizon.json with default sizes/months, clobbering
+  // the real values that horizon.load() wrote. Reconciliation in the
+  // boot effect already handled the catch-up; this subscription
+  // only services new creations/deletions going forward.
   useEffect(() => {
     const unsub = useEntityStore.subscribe((state, prev) => {
+      if (!useUIStore.getState().bootReady) return;
       const cur = new Set(
         state.entities.filter((e) => e.type === "project").map((e) => e.id),
       );

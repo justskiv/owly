@@ -15,6 +15,7 @@ import {
 import { EMPTY_ENTITIES_FILE } from "../services/defaults";
 import { generateId, nowISO } from "../services/time-utils";
 import { trackSave } from "../services/save-status";
+import { enqueueEntitiesWrite } from "../services/entities-write-queue";
 
 // Types shown in the Task Pool. Contacts/goals/notes/metrics live in
 // the Entities page, not on the weekly grid.
@@ -110,7 +111,9 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
   },
 
   saveEntities: async () => {
-    await trackSave(() => persistEntities(get().entities));
+    await trackSave(() =>
+      enqueueEntitiesWrite(() => persistEntities(get().entities)),
+    );
   },
 
   // In-memory set before disk write. persistEntities throws on a
@@ -128,7 +131,9 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
     } as Entity;
     const next = [...get().entities, entity];
     set({ entities: next });
-    await trackSave(() => persistEntities(next));
+    await trackSave(() =>
+      enqueueEntitiesWrite(() => persistEntities(next)),
+    );
     return entity;
   },
 
@@ -139,13 +144,17 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
         : e,
     );
     set({ entities: next });
-    await trackSave(() => persistEntities(next));
+    await trackSave(() =>
+      enqueueEntitiesWrite(() => persistEntities(next)),
+    );
   },
 
   deleteEntity: async (id) => {
     const next = get().entities.filter((e) => e.id !== id);
     set({ entities: next });
-    await trackSave(() => persistEntities(next));
+    await trackSave(() =>
+      enqueueEntitiesWrite(() => persistEntities(next)),
+    );
   },
 
   // Single-transaction cascade: rebuild the entities array in one
@@ -167,7 +176,9 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
       )
       .filter((e) => e.id !== directionId);
     set({ entities: next });
-    await trackSave(() => persistEntities(next));
+    await trackSave(() =>
+      enqueueEntitiesWrite(() => persistEntities(next)),
+    );
   },
 
   getByType: (type) => get().entities.filter((e) => e.type === type),
