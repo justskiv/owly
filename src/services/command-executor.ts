@@ -18,6 +18,7 @@ import {
   weekFileExists,
 } from "./week-manager";
 import { dateToWeekId, formatDate, generateId, nowISO } from "./time-utils";
+import { errMsg } from "./format";
 
 // Errors thrown from a sub-command inside batch carry these extras
 // so the processor can record `partial: { succeeded, failed_at_index }`
@@ -119,7 +120,7 @@ export async function executeCommand(cmd: Command): Promise<void> {
         throw new Error(
           `move_block: destination written but source cleanup failed — ` +
             `block ${block_id} now duplicated in ${fromWeek} and ${toWeek}: ` +
-            `${(e as Error).message}`,
+            `${errMsg(e)}`,
         );
       }
       return;
@@ -386,7 +387,7 @@ export async function executeCommand(cmd: Command): Promise<void> {
         try {
           await executeCommand(sub as Command);
         } catch (e) {
-          const msg = (e as Error).message;
+          const msg = errMsg(e);
           const wrapped: BatchPartialError = Object.assign(
             new Error(`Sub-command #${i} (${sub.action}) failed: ${msg}`),
             { partialIndex: i, partialSucceeded: i },

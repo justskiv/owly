@@ -2,6 +2,13 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import type { ProjectEntity } from "../../schemas";
 import { useEntityStore } from "../../store/entities";
 import { BOARDS, getBoardById } from "../../services/boards";
+import { errMsg } from "../../services/format";
+import { toast } from "../shared/Toast";
+
+const handlePersistError = (e: unknown, reset?: () => void) => {
+  toast.error(`Не удалось: ${errMsg(e)}`);
+  reset?.();
+};
 
 interface Props {
   project: ProjectEntity;
@@ -31,7 +38,9 @@ export function InlineProjectEditor({ project }: Props) {
     // a background rename would otherwise be reverted by an unchanged
     // (relative to mount-time) draft.
     if (t && t !== cur.title) {
-      void updateEntity(project.id, { title: t });
+      void updateEntity(project.id, { title: t }).catch((e) =>
+        handlePersistError(e, () => setTitleDraft(cur.title)),
+      );
     } else {
       setTitleDraft(cur.title);
     }
@@ -55,7 +64,7 @@ export function InlineProjectEditor({ project }: Props) {
     if (!target) return;
     void updateEntity(project.id, {
       fields: { ...cur.fields, board_id: boardId, column_index: 0 },
-    });
+    }).catch((e) => handlePersistError(e));
   };
 
   // Stop propagation so clicks inside the editor don't reach the

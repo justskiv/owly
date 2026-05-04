@@ -3,7 +3,15 @@ import type { DirectionEntity } from "../../../schemas";
 import { useEntityStore } from "../../../store/entities";
 import { useAreas } from "../../../store/config";
 import { formatDate, getStartOfDay } from "../../../services/time-utils";
+import { errMsg } from "../../../services/format";
 import { toast } from "../../shared/Toast";
+
+// Surface a failed updateEntity / deleteCascade to the user. See
+// BlockPopup for the originating pattern.
+const handlePersistError = (e: unknown, reset?: () => void) => {
+  toast.error(`Не удалось: ${errMsg(e)}`);
+  reset?.();
+};
 
 interface Props {
   direction: DirectionEntity;
@@ -74,7 +82,9 @@ export function DirectionPopup({ direction, onClose }: Props) {
     const cur = fresh();
     if (!cur) return;
     const nonArea = cur.tags.filter((t) => !areaIds.has(t));
-    void updateEntity(direction.id, { tags: [...nonArea, id] });
+    void updateEntity(direction.id, { tags: [...nonArea, id] }).catch((e) =>
+      handlePersistError(e),
+    );
   };
 
   const persistTitle = () => {
@@ -82,7 +92,9 @@ export function DirectionPopup({ direction, onClose }: Props) {
     if (!cur) return;
     const t = titleDraft.trim();
     if (t && t !== cur.title) {
-      void updateEntity(direction.id, { title: t });
+      void updateEntity(direction.id, { title: t }).catch((e) =>
+        handlePersistError(e, () => setTitleDraft(cur.title)),
+      );
     } else {
       setTitleDraft(cur.title);
     }
@@ -110,7 +122,11 @@ export function DirectionPopup({ direction, onClose }: Props) {
       if (cur.fields.cadence === null && cur.fields.last_act === null) return;
       void updateEntity(direction.id, {
         fields: { ...cur.fields, cadence: null, last_act: null },
-      });
+      }).catch((e) =>
+        handlePersistError(e, () =>
+          setCadDraft(cur.fields.cadence?.toString() ?? ""),
+        ),
+      );
       return;
     }
     const today = formatDate(getStartOfDay());
@@ -127,7 +143,11 @@ export function DirectionPopup({ direction, onClose }: Props) {
         cadence: parsed,
         last_act: nextLastAct,
       },
-    });
+    }).catch((e) =>
+      handlePersistError(e, () =>
+        setCadDraft(cur.fields.cadence?.toString() ?? ""),
+      ),
+    );
   };
 
   const persistLabel = () => {
@@ -137,7 +157,11 @@ export function DirectionPopup({ direction, onClose }: Props) {
     if (cur.fields.cadence_label === v) return;
     void updateEntity(direction.id, {
       fields: { ...cur.fields, cadence_label: v },
-    });
+    }).catch((e) =>
+      handlePersistError(e, () =>
+        setLabelDraft(cur.fields.cadence_label ?? ""),
+      ),
+    );
   };
 
   const persistTarget = () => {
@@ -147,7 +171,9 @@ export function DirectionPopup({ direction, onClose }: Props) {
     if (cur.fields.target === v) return;
     void updateEntity(direction.id, {
       fields: { ...cur.fields, target: v },
-    });
+    }).catch((e) =>
+      handlePersistError(e, () => setTargetDraft(cur.fields.target ?? "")),
+    );
   };
 
   const persistCurrent = () => {
@@ -157,7 +183,9 @@ export function DirectionPopup({ direction, onClose }: Props) {
     if (cur.fields.current === v) return;
     void updateEntity(direction.id, {
       fields: { ...cur.fields, current: v },
-    });
+    }).catch((e) =>
+      handlePersistError(e, () => setCurrentDraft(cur.fields.current ?? "")),
+    );
   };
 
   const onTitleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -177,9 +205,13 @@ export function DirectionPopup({ direction, onClose }: Props) {
   };
 
   const onDelete = async () => {
-    await deleteCascade(direction.id);
-    toast.success(`Удалено: ${direction.title}`);
-    onClose();
+    try {
+      await deleteCascade(direction.id);
+      toast.success(`Удалено: ${direction.title}`);
+      onClose();
+    } catch (e) {
+      handlePersistError(e);
+    }
   };
 
   return (

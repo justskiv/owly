@@ -7,6 +7,7 @@ import { getAreaColor, pickAreaTag } from "../../../services/categories";
 import { removePoolItemAndBlocks } from "../../../services/pool-actions";
 import { toast } from "../../shared/Toast";
 import { SItem } from "./SItem";
+import { errMsg } from "../../../services/format";
 
 const STALE_THRESHOLD = 14;
 const EMPTY_AREAS: never[] = [];
@@ -61,7 +62,7 @@ export function PoolTabProjects() {
       });
       toast.success(`В пул: ${p.title}`, { category: cat });
     } catch (e) {
-      toast.error(`Не удалось: ${(e as Error).message}`);
+      toast.error(`Не удалось: ${errMsg(e)}`);
     }
   };
 

@@ -1,6 +1,7 @@
 import type { WeekFile } from "../schemas";
 import { WeekFileSchema } from "../schemas";
 import { fileExists, getDataPath, readJsonFile } from "./file-io";
+import { errMsg } from "./format";
 
 // In-memory cache of parsed week files. Stats services
 // (routine-stats, carry-over) used to re-read all 26 week files on
@@ -42,7 +43,7 @@ export async function getCachedWeek(
       // them in dev via console; the file-io recovery path will deal
       // with them on the next user-initiated load.
       console.warn(
-        `[week-cache] skip ${weekId}: ${(e as Error).message}`,
+        `[week-cache] skip ${weekId}: ${errMsg(e)}`,
       );
       cache.set(weekId, null);
       return null;

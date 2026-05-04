@@ -3,6 +3,17 @@ import type { DirectionEntity, ProjectEntity } from "../../../schemas";
 import { useEntityStore } from "../../../store/entities";
 import { useAreas } from "../../../store/config";
 import { BOARDS, getBoardById } from "../../../services/boards";
+import { errMsg } from "../../../services/format";
+import { toast } from "../../shared/Toast";
+
+// Surface a failed updateEntity to the user and let the caller reset
+// the draft to the last known good value. Mirrors BlockPopup —
+// without it, a save failure left the visible draft diverged from
+// the persisted state and the user wouldn't know.
+const handlePersistError = (e: unknown, reset?: () => void) => {
+  toast.error(`Не удалось: ${errMsg(e)}`);
+  reset?.();
+};
 
 interface Props {
   project: ProjectEntity;
@@ -50,7 +61,9 @@ export function ProjectPopup({ project, onClose }: Props) {
     const cur = fresh();
     if (!cur) return;
     const nonArea = cur.tags.filter((t) => !areaIds.has(t));
-    void updateEntity(project.id, { tags: [...nonArea, id] });
+    void updateEntity(project.id, { tags: [...nonArea, id] }).catch((e) =>
+      handlePersistError(e),
+    );
   };
 
   const setBoard = (newBoardId: string) => {
@@ -64,7 +77,7 @@ export function ProjectPopup({ project, onClose }: Props) {
         : cur.fields.column_index;
     void updateEntity(project.id, {
       fields: { ...cur.fields, board_id: newBoardId, column_index: col },
-    });
+    }).catch((e) => handlePersistError(e));
   };
 
   const setDirection = (id: string) => {
@@ -72,13 +85,18 @@ export function ProjectPopup({ project, onClose }: Props) {
     if (!cur) return;
     void updateEntity(project.id, {
       fields: { ...cur.fields, direction_id: id || null },
-    });
+    }).catch((e) => handlePersistError(e));
   };
 
   const persistTitle = () => {
     const t = titleDraft.trim();
-    if (t && t !== project.title) void updateEntity(project.id, { title: t });
-    else setTitleDraft(project.title);
+    if (t && t !== project.title) {
+      void updateEntity(project.id, { title: t }).catch((e) =>
+        handlePersistError(e, () => setTitleDraft(project.title)),
+      );
+    } else {
+      setTitleDraft(project.title);
+    }
   };
 
   const onTitleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {

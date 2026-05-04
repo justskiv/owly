@@ -3,6 +3,7 @@ import type { Entity } from "../../../../schemas";
 import { useEntityStore } from "../../../../store/entities";
 import { useUIStore } from "../../../../store/ui";
 import { toast } from "../../../shared/Toast";
+import { errMsg } from "../../../../services/format";
 
 export function DetailActions({ entity }: { entity: Entity }) {
   const openEdit = useUIStore((s) => s.openEntityEditorEdit);
@@ -36,7 +37,7 @@ export function DetailActions({ entity }: { entity: Entity }) {
       setSelected(null);
       toast.success(`✕ Удалён: ${title}`);
     } catch (e) {
-      toast.error(`Не удалось удалить: ${(e as Error).message}`);
+      toast.error(`Не удалось удалить: ${errMsg(e)}`);
     }
   };
 

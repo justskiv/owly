@@ -14,6 +14,7 @@ import {
   minutesToTime,
   timeToMinutes,
 } from "../services/time-utils";
+import { errMsg } from "../services/format";
 
 interface CommandsArgs {
   weekDates: string[];
@@ -52,7 +53,7 @@ export function usePlannerCommands({
         await useScheduleStore.getState().setBlockStatus(block.id, status);
         toast.success(label);
       } catch (e) {
-        toast.error(`Не удалось сохранить: ${(e as Error).message}`);
+        toast.error(`Не удалось сохранить: ${errMsg(e)}`);
       }
     },
     [],
@@ -75,7 +76,7 @@ export function usePlannerCommands({
         setSelected(null);
         toast.success(`✕ Удалён: ${block.title}`);
       } catch (e) {
-        toast.error(`Не удалось удалить: ${(e as Error).message}`);
+        toast.error(`Не удалось удалить: ${errMsg(e)}`);
       }
     },
     [setSelected],
@@ -91,7 +92,7 @@ export function usePlannerCommands({
         .updateBlock(block.id, { start: minutesToTime(next) });
       toast.success(minutesToTime(next));
     } catch (e) {
-      toast.error(`Не удалось сохранить: ${(e as Error).message}`);
+      toast.error(`Не удалось сохранить: ${errMsg(e)}`);
     }
   }, []);
 
@@ -113,7 +114,7 @@ export function usePlannerCommands({
         setSelected(created.id);
         toast.success(`⧉ Дублирован: ${block.title}`);
       } catch (e) {
-        toast.error(`Не удалось дублировать: ${(e as Error).message}`);
+        toast.error(`Не удалось дублировать: ${errMsg(e)}`);
       }
     },
     [setSelected],
@@ -128,7 +129,7 @@ export function usePlannerCommands({
           .updateBlock(block.id, { category: categoryId });
         toast.success(`Категория: ${categoryId}`);
       } catch (e) {
-        toast.error(`Не удалось сохранить: ${(e as Error).message}`);
+        toast.error(`Не удалось сохранить: ${errMsg(e)}`);
       }
     },
     [],
@@ -155,7 +156,7 @@ export function usePlannerCommands({
         toast.success(`✓ Создан: ${title}`);
         return created;
       } catch (e) {
-        toast.error(`Не удалось создать: ${(e as Error).message}`);
+        toast.error(`Не удалось создать: ${errMsg(e)}`);
         return null;
       }
     },

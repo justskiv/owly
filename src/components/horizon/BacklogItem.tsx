@@ -5,6 +5,7 @@ import { useUIStore } from "../../store/ui";
 import { useHorizonStore } from "../../store/horizon";
 import { toast } from "../shared/Toast";
 import { offsetToMonthLabel } from "../../services/horizon-helpers";
+import { errMsg } from "../../services/format";
 
 interface Props {
   state: HorizonProjectState;
@@ -54,7 +55,7 @@ export function BacklogItem({
         .getState()
         .setHidden(project.id, false)
         .catch((e: unknown) => {
-          toast.error(`Не удалось: ${(e as Error).message}`);
+          toast.error(`Не удалось: ${errMsg(e)}`);
         });
       return;
     }

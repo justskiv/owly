@@ -10,6 +10,7 @@ import { getAreaColor, pickAreaTag } from "../../services/categories";
 import { useHorizonStore } from "../../store/horizon";
 import { toast } from "../shared/Toast";
 import { HorizonSizeMenu } from "./HorizonSizeMenu";
+import { errMsg } from "../../services/format";
 
 interface Props {
   state: HorizonProjectState;
@@ -49,7 +50,7 @@ export function HorizonRow({
       .getState()
       .setSize(project.id, size)
       .catch((err: unknown) => {
-        toast.error(`Не удалось: ${(err as Error).message}`);
+        toast.error(`Не удалось: ${errMsg(err)}`);
       });
     setSizeMenuOpen(false);
   };
@@ -63,7 +64,7 @@ export function HorizonRow({
       .getState()
       .setMonths(project.id, next)
       .catch((e: unknown) => {
-        toast.error(`Не удалось: ${(e as Error).message}`);
+        toast.error(`Не удалось: ${errMsg(e)}`);
       });
   };
 
@@ -73,7 +74,7 @@ export function HorizonRow({
       .getState()
       .setHidden(project.id, true)
       .catch((err: unknown) => {
-        toast.error(`Не удалось: ${(err as Error).message}`);
+        toast.error(`Не удалось: ${errMsg(err)}`);
       });
   };
 
@@ -87,7 +88,7 @@ export function HorizonRow({
       .getState()
       .setMonths(project.id, [])
       .catch((err: unknown) => {
-        toast.error(`Не удалось: ${(err as Error).message}`);
+        toast.error(`Не удалось: ${errMsg(err)}`);
       });
   };
 

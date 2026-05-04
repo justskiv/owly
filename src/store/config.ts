@@ -9,6 +9,7 @@ import {
 import { DEFAULT_CONFIG } from "../services/defaults";
 import { trackSave } from "../services/save-status";
 import { enqueueConfigWrite } from "../services/config-write-queue";
+import { errMsg } from "../services/format";
 
 // Stable empty array used by selectors during the brief boot window
 // before config loads (and as a defensive fallback). Returning a fresh
@@ -59,7 +60,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
       );
       set({ config, loading: false });
     } catch (e) {
-      set({ error: (e as Error).message, loading: false });
+      set({ error: errMsg(e), loading: false });
       throw e;
     }
   },

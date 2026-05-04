@@ -5,6 +5,7 @@ import { CAT_COLORS, type Category } from "../../../services/categories";
 import { removePoolItemAndBlocks } from "../../../services/pool-actions";
 import { toast } from "../../shared/Toast";
 import { SItem } from "./SItem";
+import { errMsg } from "../../../services/format";
 
 interface Props {
   items: PoolItemView[];
@@ -20,7 +21,7 @@ async function handleRemove(item: PoolItemView) {
     await removePoolItemAndBlocks(item.id);
     toast.success(`Удалено: ${item.title}`);
   } catch (e) {
-    toast.error((e as Error).message);
+    toast.error(errMsg(e));
   }
 }
 

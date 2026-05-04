@@ -8,6 +8,7 @@ import { fileExists, getDataPath, readJsonFile } from "./file-io";
 import { recalcPool, type PoolItemView } from "./recalc-pool";
 import { daysSince } from "./urgency";
 import { getCachedWeek } from "./week-cache";
+import { errMsg } from "./format";
 
 export interface WeekBundle {
   blocks: Block[];
@@ -70,7 +71,7 @@ async function readPoolFile(weekId: string): Promise<PoolItem[] | null> {
     return file.items;
   } catch (e) {
     console.warn(
-      `[review-aggregations] skip pool ${weekId}: ${(e as Error).message}`,
+      `[review-aggregations] skip pool ${weekId}: ${errMsg(e)}`,
     );
     poolCache.set(weekId, null);
     return null;

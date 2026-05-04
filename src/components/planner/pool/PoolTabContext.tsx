@@ -13,6 +13,7 @@ import { removePoolItemAndBlocks } from "../../../services/pool-actions";
 import { formatDate, getStartOfDay } from "../../../services/time-utils";
 import { toast } from "../../shared/Toast";
 import { SItem } from "./SItem";
+import { errMsg } from "../../../services/format";
 
 const EMPTY_AREAS: never[] = [];
 
@@ -65,7 +66,7 @@ export function PoolTabContext() {
       });
       toast.success(`✓ ${d.title}`);
     } catch (e) {
-      toast.error(`Не удалось: ${(e as Error).message}`);
+      toast.error(`Не удалось: ${errMsg(e)}`);
     }
   };
 
@@ -125,7 +126,7 @@ export function PoolTabContext() {
       });
       toast.success(`В пул: ${freshest.title}`, { category: cat });
     } catch (e) {
-      toast.error(`Не удалось: ${(e as Error).message}`);
+      toast.error(`Не удалось: ${errMsg(e)}`);
     }
   };
 

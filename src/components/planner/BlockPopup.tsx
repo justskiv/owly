@@ -15,6 +15,7 @@ import {
 } from "../../services/time-utils";
 import { toast } from "../shared/Toast";
 import { EntityPopup } from "../shared/EntityPopup";
+import { errMsg } from "../../services/format";
 
 export function BlockPopupHost() {
   const state = useUIStore((s) => s.blockPopup);
@@ -90,7 +91,7 @@ function BlockPopupContent({
   // from the prop. Without this, the input keeps showing the
   // user-typed value while the store and disk hold the old one.
   const handlePersistError = (e: unknown, reset: () => void) => {
-    toast.error(`Не удалось: ${(e as Error).message}`);
+    toast.error(`Не удалось: ${errMsg(e)}`);
     reset();
   };
 
@@ -181,7 +182,7 @@ function BlockPopupContent({
       toast.success(`Удалён: ${block.title}`);
       onClose();
     } catch (e) {
-      toast.error(`Не удалось: ${(e as Error).message}`);
+      toast.error(`Не удалось: ${errMsg(e)}`);
     }
   };
 

@@ -13,6 +13,8 @@ import {
   getAreaLabel,
   pickAreaTag,
 } from "../../services/categories";
+import { errMsg } from "../../services/format";
+import { toast } from "../shared/Toast";
 import { Tooltip } from "../shared/Tooltip";
 
 const PRIO_LABEL: Record<NonNullable<TaskEntity["priority"]>, string> = {
@@ -39,7 +41,9 @@ export function TaskRow({ task }: { task: TaskEntity }) {
 
   const toggleDone = (e: MouseEvent) => {
     e.stopPropagation();
-    void updateEntity(task.id, { status: done ? "active" : "done" });
+    void updateEntity(task.id, { status: done ? "active" : "done" }).catch(
+      (err) => toast.error(`Не удалось: ${errMsg(err)}`),
+    );
   };
 
   const onRowClick = () => {

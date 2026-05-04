@@ -11,6 +11,7 @@ import {
 } from "../../services/time-utils";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { toast } from "../shared/Toast";
+import { errMsg } from "../../services/format";
 
 export function WeekNotFoundDialog({ weekId }: { weekId: string }) {
   const setPrompt = useUIStore((s) => s.setWeekPrompt);
@@ -56,7 +57,7 @@ export function WeekNotFoundDialog({ weekId }: { weekId: string }) {
         .loadWeek(weekId, { silentCreate: true });
       toast.success("✓ Неделя создана из шаблона");
     } catch (e) {
-      toast.error(`Не удалось: ${(e as Error).message}`);
+      toast.error(`Не удалось: ${errMsg(e)}`);
       setBusy(false);
     }
   };
@@ -71,7 +72,7 @@ export function WeekNotFoundDialog({ weekId }: { weekId: string }) {
         .loadWeek(weekId, { silentCreate: true });
       toast.success("✓ Пустая неделя создана");
     } catch (e) {
-      toast.error(`Не удалось: ${(e as Error).message}`);
+      toast.error(`Не удалось: ${errMsg(e)}`);
       setBusy(false);
     }
   };

@@ -3,6 +3,7 @@ import type { Area } from "../../schemas";
 import { DirectionFieldsSchema } from "../../schemas/entity";
 import { useEntityStore } from "../../store/entities";
 import { toast } from "../shared/Toast";
+import { errMsg } from "../../services/format";
 
 interface Props {
   area: Area;
@@ -58,7 +59,7 @@ export function InlineCreateDirection({ area }: Props) {
         }, 0);
       }
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(errMsg(e));
     } finally {
       inFlightRef.current = false;
     }

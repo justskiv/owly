@@ -35,7 +35,10 @@ export function TasksPage() {
   const taskSearch = useUIStore((s) => s.taskSearch);
   const taskFilter = useUIStore((s) => s.taskFilter);
 
-  const areas = config?.areas ?? [];
+  // Wrapped so downstream effect/memo deps don't see a fresh array
+  // every render (the `?? []` fallback would otherwise allocate on
+  // each call and re-fire the init effect).
+  const areas = useMemo(() => config?.areas ?? [], [config?.areas]);
 
   // Initialise taskAddCat once areas are available. Prefer 'life' per
   // spec §11.9; otherwise fall back to the first configured area.

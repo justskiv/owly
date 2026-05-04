@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useHorizonStore } from "../store/horizon";
 import { toast } from "../components/shared/Toast";
+import { errMsg } from "../services/format";
 
 // Spec §10 reads "HTML5 drag (как в Projects экране)" but Projects
 // itself never uses HTML5 drag — `useKanbanGesture` documents why
@@ -136,7 +137,7 @@ export function useHorizonDrag() {
           await useHorizonStore.getState().setHidden(projectId, false);
         }
       } catch (e) {
-        toast.error(`Не удалось: ${(e as Error).message}`);
+        toast.error(`Не удалось: ${errMsg(e)}`);
       } finally {
         ghost?.remove();
         setDraggingProjectId(null);

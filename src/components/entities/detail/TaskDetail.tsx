@@ -2,6 +2,7 @@ import type { TaskEntity } from "../../../schemas";
 import { useEntityStore } from "../../../store/entities";
 import { toast } from "../../shared/Toast";
 import { Checklist } from "./parts/Checklist";
+import { errMsg } from "../../../services/format";
 
 export function TaskDetail({ entity }: { entity: TaskEntity }) {
   const items = entity.fields.checklist;
@@ -27,7 +28,7 @@ export function TaskDetail({ entity }: { entity: TaskEntity }) {
       .updateEntity(entity.id, {
         fields: { ...fresh.fields, checklist: next },
       } as Partial<TaskEntity>)
-      .catch((e) => toast.error(`Не удалось: ${(e as Error).message}`));
+      .catch((e) => toast.error(`Не удалось: ${errMsg(e)}`));
   };
 
   return (

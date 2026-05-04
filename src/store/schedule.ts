@@ -20,6 +20,7 @@ import { trackSave } from "../services/save-status";
 import { getCachedWeek, setCachedWeek } from "../services/week-cache";
 import { enqueueWeekWrite } from "../services/week-write-queue";
 import { useUIStore } from "./ui";
+import { errMsg } from "../services/format";
 
 interface LoadWeekOptions {
   // When true, a missing week file is created empty silently; when
@@ -176,7 +177,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       }
     } catch (e) {
       if (myToken !== loadToken) return;
-      set({ error: (e as Error).message, loading: false });
+      set({ error: errMsg(e), loading: false });
       throw e;
     }
   },

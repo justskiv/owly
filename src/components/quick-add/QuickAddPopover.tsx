@@ -15,9 +15,10 @@ export function QuickAddPopover() {
   // Compute on each render so the popover's relative labels stay
   // correct across midnight rollovers while the overlay stays open.
   const baseDate = getStartOfDay();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- baseDate
-  // changes value only at midnight; intentionally not memoized to keep
-  // labels fresh while still memoising on the user-driven `filter`.
+  // baseDate changes value only at midnight; intentionally not
+  // memoized so labels stay fresh while we still memoize on the
+  // user-driven `filter`.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const items = useMemo(() => buildPopoverItems(filter, baseDate), [filter]);
   const selectedRef = useRef<HTMLButtonElement>(null);
 

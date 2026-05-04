@@ -13,6 +13,7 @@ import { getAreaColor } from "../../../services/categories";
 import { fmtShortDate } from "../../../services/format";
 import { toast } from "../../shared/Toast";
 import { ContactStatusWidget } from "./widgets/ContactStatus";
+import { errMsg } from "../../../services/format";
 
 export function ContactDetail({ entity }: { entity: ContactEntity }) {
   const areas = useConfigStore((s) => s.config?.areas) ?? [];
@@ -48,7 +49,7 @@ export function ContactDetail({ entity }: { entity: ContactEntity }) {
       .updateEntity(entity.id, {
         fields: { ...fresh.fields, topics: next },
       } as Partial<ContactEntity>)
-      .catch((e) => toast.error(`Не удалось: ${(e as Error).message}`));
+      .catch((e) => toast.error(`Не удалось: ${errMsg(e)}`));
   };
 
   const removeTopic = (idx: number) => {
@@ -63,7 +64,7 @@ export function ContactDetail({ entity }: { entity: ContactEntity }) {
         fields: { ...fresh.fields, topics: next },
       } as Partial<ContactEntity>)
       .then(() => toast.success("✕ Тема убрана"))
-      .catch((e) => toast.error(`Не удалось: ${(e as Error).message}`));
+      .catch((e) => toast.error(`Не удалось: ${errMsg(e)}`));
   };
 
   return (

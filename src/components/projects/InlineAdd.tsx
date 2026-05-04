@@ -5,6 +5,7 @@ import { useEntityStore } from "../../store/entities";
 import { useUIStore } from "../../store/ui";
 import { getAreaColor } from "../../services/categories";
 import { toast } from "../shared/Toast";
+import { errMsg } from "../../services/format";
 
 interface Props {
   boardId: string;
@@ -79,7 +80,7 @@ export function InlineAdd({
         inputRef.current?.focus();
       }
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(errMsg(e));
     } finally {
       inFlightRef.current = false;
     }

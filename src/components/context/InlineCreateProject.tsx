@@ -5,6 +5,7 @@ import { useEntityStore } from "../../store/entities";
 import { pickAreaTag } from "../../services/categories";
 import { FALLBACK_BOARD_ID } from "../../services/boards";
 import { toast } from "../shared/Toast";
+import { errMsg } from "../../services/format";
 
 interface Props {
   direction: DirectionEntity;
@@ -54,7 +55,7 @@ export function InlineCreateProject({ direction, areas, open, onClose }: Props) 
       });
       toast.success(`✓ ${ent.title} → ${direction.title}`, { category: cat });
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(errMsg(e));
     } finally {
       inFlightRef.current = false;
       onClose();

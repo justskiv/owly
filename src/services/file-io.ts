@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { toast } from "../components/shared/Toast";
+import { errMsg } from "./format";
 
 let cachedDataDir: string | null = null;
 
@@ -75,7 +76,7 @@ export async function readJsonFile<T>(
   } catch (e) {
     throw new JsonReadError(
       path,
-      `Невалидный JSON: ${(e as Error).message}`,
+      `Невалидный JSON: ${errMsg(e)}`,
       e,
     );
   }

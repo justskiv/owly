@@ -5,6 +5,7 @@ import { useRestoreFocus } from "../../hooks/useRestoreFocus";
 import { useDashboardStore } from "../../store/dashboards";
 import { useUIStore } from "../../store/ui";
 import { toast } from "../shared/Toast";
+import { errMsg } from "../../services/format";
 
 export function AddDashboardModal() {
   const close = useUIStore((s) => s.closeDashboardEditor);
@@ -44,7 +45,7 @@ export function AddDashboardModal() {
       setSelected(entry.id);
       close();
     } catch (e) {
-      toast.error(`Не удалось: ${(e as Error).message}`);
+      toast.error(`Не удалось: ${errMsg(e)}`);
       setBusy(false);
     }
   };

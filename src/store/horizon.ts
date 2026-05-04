@@ -12,6 +12,7 @@ import {
 } from "../services/file-io";
 import { trackSave } from "../services/save-status";
 import { enqueueHorizonWrite } from "../services/horizon-write-queue";
+import { errMsg } from "../services/format";
 
 // First day of the current month, formatted as YYYY-MM-DD. Used as the
 // default `base_month` when no horizon.json exists yet, so a fresh
@@ -138,7 +139,7 @@ export const useHorizonStore = create<HorizonStore>((set, get) => {
           loading: false,
         });
       } catch (e) {
-        set({ error: (e as Error).message, loading: false });
+        set({ error: errMsg(e), loading: false });
         throw e;
       }
     },

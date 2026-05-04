@@ -3,6 +3,7 @@ import * as React from "react";
 import { useState, useEffect, useMemo } from "react";
 import type { ComponentType } from "react";
 import type { DashboardWidgets } from "../components/dashboards/widgets";
+import { errMsg } from "./format";
 
 export interface DashboardProps {
   entities: unknown[];
@@ -50,7 +51,7 @@ export function compileDashboard(
   } catch (e) {
     throw new DashboardCompileError(
       jsxSource,
-      `JSX transform failed: ${(e as Error).message}`,
+      `JSX transform failed: ${errMsg(e)}`,
       e,
     );
   }
@@ -64,7 +65,6 @@ export function compileDashboard(
 
   let factory: Function;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     factory = new Function(
       "module",
       "exports",
@@ -77,7 +77,7 @@ export function compileDashboard(
   } catch (e) {
     throw new DashboardCompileError(
       jsxSource,
-      `Syntax error: ${(e as Error).message}`,
+      `Syntax error: ${errMsg(e)}`,
       e,
     );
   }
@@ -91,7 +91,7 @@ export function compileDashboard(
   } catch (e) {
     throw new DashboardCompileError(
       jsxSource,
-      `Top-level execution failed: ${(e as Error).message}`,
+      `Top-level execution failed: ${errMsg(e)}`,
       e,
     );
   }

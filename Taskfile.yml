@@ -74,9 +74,15 @@ tasks:
     cmds:
       - npm test
 
+  lint:
+    desc: ESLint with --max-warnings=0
+    cmds:
+      - npx eslint . --max-warnings=0
+
   check:
-    desc: Pre-commit sanity check (typecheck + test + fe:build)
+    desc: Pre-commit sanity check (typecheck + lint + test + fe:build)
     cmds:
       - task: typecheck
+      - task: lint
       - task: test
       - task: fe:build

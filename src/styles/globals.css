@@ -806,6 +806,18 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
 .sbar-failed{color:var(--error);opacity:.85}
 .sbar-failed:hover{color:var(--error);opacity:1;background:color-mix(in srgb,var(--error) 10%,transparent)}
 .sbar-failed:active{background:color-mix(in srgb,var(--error) 16%,transparent)}
+.sbar-dot-wrap{position:relative;display:inline-flex;align-items:center}
+.dot-button{padding:0;border:0;cursor:pointer;opacity:1;width:6px;height:6px}
+.dot-button:hover{outline:1px solid color-mix(in srgb,var(--error) 50%,transparent);outline-offset:2px}
+.sbar-error-popover{position:absolute;left:0;bottom:calc(100% + 8px);z-index:50;min-width:240px;max-width:420px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;box-shadow:var(--shadow-md);font-family:var(--sans);color:var(--text-primary)}
+.sbar-error-title{font-size:var(--fs-xs);font-weight:500;color:var(--error);margin-bottom:6px}
+.sbar-error-msg{font-size:var(--fs-xs);color:var(--text-secondary);line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.error-boundary{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg-base);font-family:var(--sans);color:var(--text-primary);padding:24px}
+.eb-card{max-width:420px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px 22px;box-shadow:var(--shadow-md)}
+.eb-title{font-size:var(--fs-md);font-weight:500;color:var(--error);margin-bottom:10px}
+.eb-msg{font-size:var(--fs-sm);color:var(--text-secondary);line-height:1.5;margin-bottom:16px;white-space:pre-wrap;word-break:break-word}
+.eb-reload{appearance:none;border:1px solid var(--border);background:var(--bg-tint-1);color:var(--text-primary);font-family:inherit;font-size:var(--fs-sm);padding:6px 14px;border-radius:var(--radius-sm);cursor:pointer}
+.eb-reload:hover{background:var(--bg-tint-2)}
 
 /* === commands log panel (Done | Failed tabs) === */
 .cmd-log-tabs{display:flex;gap:4px;padding:0 16px;border-bottom:1px solid var(--border)}

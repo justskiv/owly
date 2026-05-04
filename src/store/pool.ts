@@ -10,6 +10,7 @@ import { invalidatePoolCache } from "../services/review-aggregations";
 import { trackSave } from "../services/save-status";
 import { enqueuePoolWrite } from "../services/pool-write-queue";
 import { generateId, getCurrentWeekId, nowISO } from "../services/time-utils";
+import { errMsg } from "../services/format";
 
 type PoolItemDraft = Omit<PoolItem, "id" | "created_at" | "updated_at"> & {
   id?: string;
@@ -72,7 +73,7 @@ export const usePoolStore = create<PoolStore>((set, get) => ({
       set({ items: file.items, loading: false });
     } catch (e) {
       if (myToken !== loadToken) return;
-      set({ error: (e as Error).message, loading: false });
+      set({ error: errMsg(e), loading: false });
       throw e;
     }
   },

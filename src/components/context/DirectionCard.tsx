@@ -13,6 +13,7 @@ import { formatDate, getStartOfDay } from "../../services/time-utils";
 import { toast } from "../shared/Toast";
 import { DirectionProjectRow } from "./DirectionProjectRow";
 import { InlineCreateProject } from "./InlineCreateProject";
+import { errMsg } from "../../services/format";
 
 const POOL_DIRECTION_HOURS = 2;
 const POOL_PROJECT_HOURS = 4;
@@ -146,7 +147,7 @@ export function DirectionCard({ direction, areas }: Props) {
         toast.success(`В пул: ${freshest.title}`, { category: cat });
       }
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(errMsg(e));
     } finally {
       poolInFlightRef.current = false;
     }
@@ -162,7 +163,7 @@ export function DirectionCard({ direction, areas }: Props) {
         category: areaTag ?? undefined,
       });
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(errMsg(e));
     }
   };
 
@@ -181,7 +182,7 @@ export function DirectionCard({ direction, areas }: Props) {
       });
       toast.success(`Отвязано: ${p.title}`);
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(errMsg(e));
     }
   };
 

@@ -13,6 +13,8 @@ import {
   type DoneCommandFile,
   type FailedCommandFile,
 } from "../schemas";
+import { errMsg } from "../services/format";
+import { toast } from "../components/shared/Toast";
 
 export interface FailedRecord {
   // Absolute path on disk; doubles as a stable id for the panel.
@@ -133,17 +135,34 @@ export const useCommandStore = create<CommandStore>((set, get) => ({
   },
 
   clearAllFailed: async () => {
-    const list = get().failed;
-    for (const r of list) {
-      if (await fileExists(r.path)) {
-        try {
-          await deleteFile(r.path);
-        } catch {
-          // ignore
-        }
+    // List the on-disk dir, not just the in-memory list — failed/
+    // is uncapped today but a future cap (or hand-edited file) would
+    // otherwise leave files behind that resurrect into the panel
+    // on next loadFailed.
+    const dir = await getCommandsPath("failed");
+    let names: string[] = [];
+    try {
+      names = await listFiles(dir);
+    } catch {
+      // Directory may not exist yet — nothing to clear.
+    }
+    const survivors: FailedRecord[] = [];
+    for (const name of names) {
+      if (!name.endsWith(".json") || name.startsWith(".")) continue;
+      const path = await getCommandsPath("failed", name);
+      try {
+        await deleteFile(path);
+      } catch (e) {
+        toast.error(`Не удалось удалить ${name}: ${errMsg(e)}`);
+        // Keep the on-disk failure visible in the panel so the
+        // user can retry — fall back to whatever we knew about it
+        // from the previous in-memory list (or skip if it wasn't
+        // there).
+        const prev = get().failed.find((x) => x.path === path);
+        if (prev) survivors.push(prev);
       }
     }
-    set({ failed: [] });
+    set({ failed: survivors });
   },
 
   loadDone: async () => {
@@ -188,16 +207,33 @@ export const useCommandStore = create<CommandStore>((set, get) => ({
   },
 
   clearAllDone: async () => {
-    const list = get().done;
-    for (const r of list) {
-      if (await fileExists(r.path)) {
-        try {
-          await deleteFile(r.path);
-        } catch {
-          // ignore
-        }
+    // List the on-disk dir, not just `get().done`. The in-memory
+    // list is capped at DONE_LIMIT — without listing the dir, a
+    // user with > 200 done files would clear only the latest 200,
+    // and the older ones would reappear (truncation flag flipped
+    // back on) at next loadDone.
+    const dir = await getCommandsPath("done");
+    let names: string[] = [];
+    try {
+      names = await listFiles(dir);
+    } catch {
+      // Directory may not exist yet — nothing to clear.
+    }
+    const survivors: DoneRecord[] = [];
+    for (const name of names) {
+      if (!name.endsWith(".json") || name.startsWith(".")) continue;
+      const path = await getCommandsPath("done", name);
+      try {
+        await deleteFile(path);
+      } catch (e) {
+        toast.error(`Не удалось удалить ${name}: ${errMsg(e)}`);
+        const prev = get().done.find((x) => x.path === path);
+        if (prev) survivors.push(prev);
       }
     }
-    set({ done: [], doneTruncated: false });
+    set({
+      done: survivors,
+      doneTruncated: false,
+    });
   },
 }));

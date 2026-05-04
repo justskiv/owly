@@ -54,6 +54,10 @@ export function TaskPool({ onPoolItemPointerDown }: TaskPoolProps) {
   // the result until the two subscriptions fire.
   const unscheduled = useMemo(
     () => useEntityStore.getState().getUnscheduled(blocks),
+    // `entities` isn't textually read inside — getUnscheduled goes
+    // through the store directly — but listing it is what triggers
+    // recompute when entities change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [entities, blocks],
   );
 

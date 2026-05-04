@@ -11,6 +11,7 @@ import {
   writeJsonFile,
 } from "./file-io";
 import { nowISO } from "./time-utils";
+import { errMsg } from "./format";
 
 const ACTION_RU: Record<string, string> = {
   create_block: "Блок создан",
@@ -74,7 +75,7 @@ async function drainPending(): Promise<void> {
   try {
     names = await listFiles(dir);
   } catch (e) {
-    console.warn("[commands] cannot list pending:", (e as Error).message);
+    console.warn("[commands] cannot list pending:", errMsg(e));
     return;
   }
   // Sort by name — convention is timestamp-prefixed, so this gives
@@ -142,7 +143,7 @@ async function processOne(path: string): Promise<void> {
       parseError = null;
       break;
     } catch (e) {
-      parseError = (e as Error).message;
+      parseError = errMsg(e);
       if (attempt === 0) await sleep(PARSE_RETRY_MS);
     }
   }
@@ -163,7 +164,7 @@ async function processOne(path: string): Promise<void> {
   try {
     await executeCommand(parsed.data);
   } catch (e) {
-    await fail(path, raw, (e as Error).message, batchPartialOf(e));
+    await fail(path, raw, errMsg(e), batchPartialOf(e));
     return;
   }
 

@@ -14,6 +14,7 @@ import {
   EMPTY_DASHBOARD_REGISTRY,
 } from "../services/defaults";
 import { trackSave } from "../services/save-status";
+import { errMsg } from "../services/format";
 
 type LoadingState = "idle" | "loading" | "ready" | "error";
 
@@ -119,7 +120,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       set({ registry: sorted, loadingState: "ready" });
     } catch (e) {
       set({
-        registryError: (e as Error).message,
+        registryError: errMsg(e),
         loadingState: "error",
       });
       throw e;

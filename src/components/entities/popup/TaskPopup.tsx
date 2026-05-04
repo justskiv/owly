@@ -2,8 +2,16 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import type { TaskEntity } from "../../../schemas";
 import { useEntityStore } from "../../../store/entities";
 import { useConfigStore } from "../../../store/config";
+import { errMsg } from "../../../services/format";
 import { toast } from "../../shared/Toast";
 import { DeadlineField } from "./DeadlineField";
+
+// Surface a failed updateEntity / deleteEntity to the user. See
+// BlockPopup for the originating pattern.
+const handlePersistError = (e: unknown, reset?: () => void) => {
+  toast.error(`Не удалось: ${errMsg(e)}`);
+  reset?.();
+};
 
 const PRIOS: Array<{ key: "high" | "medium" | "low"; icon: string; label: string }> = [
   { key: "high", icon: "⚡", label: "Высокий" },
@@ -56,21 +64,32 @@ export function TaskPopup({ task, onClose }: Props) {
 
   const setCategory = (id: string) => {
     const nonArea = tags.filter((t) => !areaIds.has(t));
-    void updateEntity(task.id, { tags: [...nonArea, id] });
+    void updateEntity(task.id, { tags: [...nonArea, id] }).catch((e) =>
+      handlePersistError(e),
+    );
   };
 
   const setPrio = (p: "high" | "medium" | "low") => {
-    void updateEntity(task.id, { priority: p });
+    void updateEntity(task.id, { priority: p }).catch((e) =>
+      handlePersistError(e),
+    );
   };
 
   const setDeadline = (iso: string | null) => {
-    void updateEntity(task.id, { deadline: iso });
+    void updateEntity(task.id, { deadline: iso }).catch((e) =>
+      handlePersistError(e),
+    );
   };
 
   const persistTitle = () => {
     const t = titleDraft.trim();
-    if (t && t !== task.title) void updateEntity(task.id, { title: t });
-    else setTitleDraft(task.title);
+    if (t && t !== task.title) {
+      void updateEntity(task.id, { title: t }).catch((e) =>
+        handlePersistError(e, () => setTitleDraft(task.title)),
+      );
+    } else {
+      setTitleDraft(task.title);
+    }
   };
 
   const onTitleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -81,10 +100,15 @@ export function TaskPopup({ task, onClose }: Props) {
     }
   };
 
+  // Optimistic UX: close immediately so the user sees the popup go
+  // away. Toast confirms success or surfaces any persist error
+  // (the row reappears if delete failed because we never mutated
+  // local state — the store is the source of truth).
   const onDelete = () => {
-    void deleteEntity(task.id);
-    toast.success(`Удалено: ${task.title}`);
     onClose();
+    void deleteEntity(task.id)
+      .then(() => toast.success(`Удалено: ${task.title}`))
+      .catch((e) => handlePersistError(e));
   };
 
   const activeCat = tags.find((t) => areaIds.has(t)) ?? null;

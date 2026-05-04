@@ -9,6 +9,7 @@ import {
   minutesToTime,
   timeToMinutes,
 } from "../../services/time-utils";
+import { errMsg } from "../../services/format";
 
 interface Props {
   x: number;
@@ -116,7 +117,7 @@ export function BlockContextMenu({ x, y, block, onClose }: Props) {
       }
       onClose();
     } catch (e) {
-      toast.error(`Не удалось: ${(e as Error).message}`);
+      toast.error(`Не удалось: ${errMsg(e)}`);
     }
   };
 

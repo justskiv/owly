@@ -17,6 +17,7 @@ import {
   JsonReadError,
 } from "./file-io";
 import { generateId } from "./time-utils";
+import { errMsg } from "./format";
 
 // Each seed file must validate against the corresponding schema after
 // `@key` substitution but BEFORE we touch disk. A schema drift between
@@ -186,7 +187,7 @@ async function copySeedToData(seedRoot: string): Promise<void> {
       } catch (e) {
         throw new Error(
           `Seed migration v2: ${f} is not valid JSON after key ` +
-            `substitution: ${(e as Error).message}`,
+            `substitution: ${errMsg(e)}`,
         );
       }
       const result = schema.safeParse(parsedJson);

@@ -16,6 +16,7 @@ import { useScheduleStore } from "../store/schedule";
 import { useUIStore } from "../store/ui";
 import { useEntityStore } from "../store/entities";
 import { toast } from "../components/shared/Toast";
+import { errMsg } from "../services/format";
 
 const NOW_TICK_MS = 60_000;
 const POPUP_ENABLED_TYPES = new Set<Entity["type"]>([
@@ -43,6 +44,9 @@ function useNowInWeek(weekDates: string[], tick: number) {
     const minutes = now.getHours() * 60 + now.getMinutes();
     const visible = minutes >= START_HOUR * 60 && minutes < END_HOUR * 60;
     return { todayIdx: idx, nowMinutes: visible ? minutes : null };
+    // tick isn't textually used in the body but is the trigger that
+    // forces a recompute every minute (so the now-line moves).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekDates, tick]);
 }
 
@@ -163,7 +167,7 @@ export function PlannerPage() {
             setSelected(null);
             toast.success(`Удалён: ${t2}`);
           })
-          .catch((err) => toast.error((err as Error).message));
+          .catch((err) => toast.error(errMsg(err)));
       }
     };
     window.addEventListener("keydown", handler);

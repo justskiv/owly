@@ -5,6 +5,7 @@ import { createFromQuickAdd } from "../../services/quick-add-create";
 import { getAreaColor } from "../../services/categories";
 import { CatPickerPopup } from "../shared/CatPickerPopup";
 import { toast } from "../shared/Toast";
+import { errMsg } from "../../services/format";
 
 const EMPTY_AREAS: never[] = [];
 
@@ -60,7 +61,7 @@ export function TaskBar() {
       setAddText("");
       addInputRef.current?.focus();
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(errMsg(e));
     }
   };
 

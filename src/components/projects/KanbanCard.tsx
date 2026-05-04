@@ -10,6 +10,7 @@ import {
 } from "../../services/categories";
 import { STALE_THRESHOLD_DAYS } from "../../services/projects-helpers";
 import { toast } from "../shared/Toast";
+import { errMsg } from "../../services/format";
 
 const POOL_DEFAULT_HOURS = 4;
 const FALLBACK_AREA_COLOR = "var(--text-tertiary)";
@@ -86,7 +87,7 @@ function KanbanCardImpl({
         });
       }
     } catch (err) {
-      toast.error(`Не удалось: ${(err as Error).message}`);
+      toast.error(`Не удалось: ${errMsg(err)}`);
     } finally {
       poolInFlightRef.current = false;
     }

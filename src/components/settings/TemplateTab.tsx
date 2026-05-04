@@ -9,6 +9,7 @@ import {
 } from "../../services/file-io";
 import { EMPTY_TEMPLATE_FILE } from "../../services/defaults";
 import { toast } from "../shared/Toast";
+import { errMsg } from "../../services/format";
 
 const DAYS: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAYS_RU: Record<DayOfWeek, string> = {
@@ -52,7 +53,7 @@ export function TemplateTab() {
         }
       } catch (e) {
         if (!cancelled) {
-          toast.error(`Не удалось загрузить шаблон: ${(e as Error).message}`);
+          toast.error(`Не удалось загрузить шаблон: ${errMsg(e)}`);
           setLoading(false);
         }
       }
@@ -94,7 +95,7 @@ export function TemplateTab() {
       await writeJsonFile(path, parsed.data);
       pendingRef.current = null;
     } catch (e) {
-      toast.error(`Не удалось сохранить: ${(e as Error).message}`);
+      toast.error(`Не удалось сохранить: ${errMsg(e)}`);
     }
   }
 

@@ -10,6 +10,7 @@ import { removePoolItemAndBlocks } from "../../../services/pool-actions";
 import { pickAreaTag } from "../../../services/categories";
 import { toast } from "../../shared/Toast";
 import { SItem } from "./SItem";
+import { errMsg } from "../../../services/format";
 
 interface Props {
   onDragStart: (e: ReactPointerEvent<HTMLDivElement>, entity: Entity) => void;
@@ -81,7 +82,7 @@ export function PoolTabTasks({ onDragStart }: Props) {
       });
       toast.success(`В пул: ${t.title}`, { category: cat });
     } catch (e) {
-      toast.error(`Не удалось: ${(e as Error).message}`);
+      toast.error(`Не удалось: ${errMsg(e)}`);
     }
   };
 

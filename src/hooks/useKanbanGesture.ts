@@ -4,6 +4,7 @@ import type { Area, ProjectEntity } from "../schemas";
 import { useEntityStore } from "../store/entities";
 import { pickAreaTag } from "../services/categories";
 import { toast } from "../components/shared/Toast";
+import { errMsg } from "../services/format";
 
 // Native HTML5 drag does not start reliably in this Tauri/WKWebView
 // stack — body has `user-select: none`, the cards are generic divs,
@@ -196,7 +197,7 @@ export function useKanbanGesture(areas: readonly Area[]) {
           },
         });
       } catch (e) {
-        toast.error(`Не удалось переместить: ${(e as Error).message}`);
+        toast.error(`Не удалось переместить: ${errMsg(e)}`);
       } finally {
         ghost?.remove();
         setDraggingProjectId(null);

@@ -16,6 +16,7 @@ import {
   minutesToTime,
   parseHHMMStrict,
 } from "../../services/time-utils";
+import { errMsg } from "../../services/format";
 
 export interface EditorPrefill {
   date?: string;
@@ -135,7 +136,7 @@ export function BlockEditor({
       }
       onClose();
     } catch (e) {
-      toast.error(`Не удалось сохранить: ${(e as Error).message}`);
+      toast.error(`Не удалось сохранить: ${errMsg(e)}`);
     }
   };
 
@@ -148,7 +149,7 @@ export function BlockEditor({
       toast.success(`✕ Удалён: ${t}`);
       onClose();
     } catch (e) {
-      toast.error(`Не удалось удалить: ${(e as Error).message}`);
+      toast.error(`Не удалось удалить: ${errMsg(e)}`);
     }
   };
 

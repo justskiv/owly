@@ -12,6 +12,7 @@ import { QuickAddPopover } from "./QuickAddPopover";
 import { QuickAddDatePicker } from "./QuickAddDatePicker";
 import { QuickAddPreview } from "./QuickAddPreview";
 import { Tooltip } from "../shared/Tooltip";
+import { errMsg } from "../../services/format";
 
 const TYPE_LABEL_RU: Record<QAType, string> = {
   task: "Задача",
@@ -91,7 +92,7 @@ export function QuickAdd() {
       });
       toast.success(`✓ ${entity.title}`, { category });
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(errMsg(e));
     }
     close();
   };

@@ -17,6 +17,7 @@ import { startCommandProcessor } from "./services/command-processor";
 import { installDashboardHotReload } from "./services/dashboard-hot-reload";
 import { maybeMigrateToV2 } from "./services/seed-migration";
 import { reconcile as reconcileHorizon } from "./services/horizon-reconcile";
+import { errMsg } from "./services/format";
 
 function App() {
   useEffect(() => {
@@ -105,7 +106,7 @@ function App() {
         const msg =
           e instanceof JsonReadError
             ? `Файл ${e.path}\n\n${e.message}`
-            : (e as Error).message;
+            : errMsg(e);
         await message(`Не удалось запустить TuzovOS:\n\n${msg}`, {
           title: "TuzovOS",
           kind: "error",

@@ -18,6 +18,7 @@ import {
   yToMin,
 } from "../services/time-utils";
 import { pickCategory } from "../services/categories";
+import { errMsg } from "../services/format";
 
 // Pool ghost has no parent column, so it can't take the day-column
 // width. Mirrors mock line 674 — wide enough to show title+meta,
@@ -123,11 +124,33 @@ export function useBlockGesture() {
   const [activeDragBlockId, setActiveDragBlockId] = useState<string | null>(
     null,
   );
-  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [dropTarget, setDropTargetRaw] = useState<DropTarget | null>(null);
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
   const [gesturing, setGesturing] = useState(false);
   const activeRef = useRef<Active | null>(null);
   const lastCursorRef = useRef<{ x: number; y: number } | null>(null);
+  // Tracks the last value committed via setDropTarget so identical
+  // fresh objects on every pointermove (60–120 Hz) don't cascade
+  // re-renders down PlannerPage → WeekGrid → DayColumn. Each move
+  // creates a fresh `{date, minute, duration}` object; React's
+  // setState compares by Object.is and would otherwise treat each
+  // one as a change.
+  const lastDropTargetRef = useRef<DropTarget | null>(null);
+  const setDropTarget = useCallback((next: DropTarget | null) => {
+    const prev = lastDropTargetRef.current;
+    if (
+      (next === null && prev === null) ||
+      (next !== null &&
+        prev !== null &&
+        next.date === prev.date &&
+        next.minute === prev.minute &&
+        next.duration === prev.duration)
+    ) {
+      return;
+    }
+    lastDropTargetRef.current = next;
+    setDropTargetRaw(next);
+  }, []);
 
   const teardown = useCallback(
     (commit: "move" | "resize" | "select" | "cancel" | "pool-drop") => {
@@ -236,7 +259,7 @@ export function useBlockGesture() {
                 minutesToTime(pendingDrop.minute),
               );
           } catch (e) {
-            toast.error(`Не удалось: ${(e as Error).message}`);
+            toast.error(`Не удалось: ${errMsg(e)}`);
           } finally {
             if (ghost) ghost.remove();
             setActiveDragBlockId(null);
@@ -261,7 +284,7 @@ export function useBlockGesture() {
                 .getState()
                 .resizeBlock(block.id, pendingResize);
             } catch (e) {
-              toast.error(`Не удалось: ${(e as Error).message}`);
+              toast.error(`Не удалось: ${errMsg(e)}`);
             } finally {
               setResizeState(null);
               releaseActive();
@@ -325,7 +348,7 @@ export function useBlockGesture() {
               });
             }
           } catch (e) {
-            toast.error(`Не удалось: ${(e as Error).message}`);
+            toast.error(`Не удалось: ${errMsg(e)}`);
           } finally {
             releaseActive();
           }
@@ -333,7 +356,9 @@ export function useBlockGesture() {
         return;
       }
     },
-    [],
+    // setDropTarget is a stable useCallback ref (no deps) — listing
+    // it satisfies the linter without triggering re-renders.
+    [setDropTarget],
   );
 
   const onBlockPointerDown = useCallback(
@@ -500,7 +525,7 @@ export function useBlockGesture() {
       // don't bubble).
       document.addEventListener("scroll", onScroll, true);
     },
-    [teardown],
+    [teardown, setDropTarget],
   );
 
   const onPoolItemPointerDown = useCallback(
@@ -637,7 +662,7 @@ export function useBlockGesture() {
       window.addEventListener("blur", onBlur);
       document.addEventListener("scroll", onScroll, true);
     },
-    [teardown],
+    [teardown, setDropTarget],
   );
 
   const onPoolItemDragStart = useCallback(
@@ -772,7 +797,7 @@ export function useBlockGesture() {
       window.addEventListener("blur", onBlur);
       document.addEventListener("scroll", onScroll, true);
     },
-    [teardown],
+    [teardown, setDropTarget],
   );
 
   const cancelGesture = useCallback(() => {

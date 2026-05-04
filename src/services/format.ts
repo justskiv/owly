@@ -47,3 +47,13 @@ export function isOverdue(isoDate: string): boolean {
   const d = new Date(`${isoDate}T00:00:00`);
   return d.getTime() < today.getTime();
 }
+
+// Safe error-message extractor for `unknown` catches. Replaces the
+// scattered `(e as Error).message` casts that throw on a non-Error
+// rejection (string thrown, number, plain object). Use everywhere
+// outside test files, where casts are controlled.
+export function errMsg(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  return String(e);
+}

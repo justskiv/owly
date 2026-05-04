@@ -16,6 +16,7 @@ import { EMPTY_ENTITIES_FILE } from "../services/defaults";
 import { generateId, nowISO } from "../services/time-utils";
 import { trackSave } from "../services/save-status";
 import { enqueueEntitiesWrite } from "../services/entities-write-queue";
+import { errMsg } from "../services/format";
 
 // Types shown in the Task Pool. Contacts/goals/notes/metrics live in
 // the Entities page, not on the weekly grid.
@@ -105,7 +106,7 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
       }
       set({ entities: file.entities, loading: false });
     } catch (e) {
-      set({ error: (e as Error).message, loading: false });
+      set({ error: errMsg(e), loading: false });
       throw e;
     }
   },

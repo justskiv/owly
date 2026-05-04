@@ -20,6 +20,7 @@ import {
 import { formatDate } from "../../services/time-utils";
 import { TagsField } from "./editor/TagsField";
 import { TypeSpecificFields } from "./editor/TypeSpecificFields";
+import { errMsg } from "../../services/format";
 
 // ---- Default fields per type ---------------------------------------
 
@@ -245,7 +246,7 @@ export function EntityEditor({ state }: Props) {
       }
       close();
     } catch (e) {
-      toast.error(`Не удалось сохранить: ${(e as Error).message}`);
+      toast.error(`Не удалось сохранить: ${errMsg(e)}`);
     }
   };
 
@@ -268,7 +269,7 @@ export function EntityEditor({ state }: Props) {
       toast.success(`✕ Удалён: ${title}`, { category: form.tags[0] });
       close();
     } catch (e) {
-      toast.error(`Не удалось удалить: ${(e as Error).message}`);
+      toast.error(`Не удалось удалить: ${errMsg(e)}`);
     }
   };
 

@@ -8,6 +8,7 @@ import { usePoolStore } from "../../store/pool";
 import { useConfigStore } from "../../store/config";
 import { useEscape } from "../../hooks/useEscape";
 import { toast } from "../shared/Toast";
+import { errMsg } from "../../services/format";
 
 export function PoolAddModal() {
   const modal = useUIStore((s) => s.poolModalOpen);
@@ -71,7 +72,7 @@ function NewTaskForm({ onClose }: { onClose: () => void }) {
       toast.success(`✓ ${ent.title}`, { category });
       onClose();
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(errMsg(err));
       setSubmitting(false);
     }
   };
@@ -174,7 +175,7 @@ function NewPoolItemForm({ onClose }: { onClose: () => void }) {
       toast.success(`В пул: ${item.title}`, { category });
       onClose();
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(errMsg(err));
       setSubmitting(false);
     }
   };

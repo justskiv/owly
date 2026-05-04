@@ -65,7 +65,13 @@ export function WeekCards({ data }: Props) {
   );
 
   const entry = data.weeks[0];
-  const blocks: Block[] = entry?.bundle?.blocks ?? [];
+  // Wrapped so downstream useMemo deps don't see a fresh array on
+  // every render (the `?? []` fallback otherwise allocates on each
+  // call and recomputes catHours every time).
+  const blocks = useMemo<Block[]>(
+    () => entry?.bundle?.blocks ?? [],
+    [entry?.bundle?.blocks],
+  );
   const pool: PoolItemView[] = entry?.bundle?.pool ?? [];
 
   const exec = execPctForBlocks(blocks);
