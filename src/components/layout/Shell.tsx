@@ -50,9 +50,10 @@ export function Shell() {
 
       if (isEditable) return;
 
-      // Cmd+Shift+E / Cmd+Shift+D — debug entry points to the legacy
-      // screens. Kept while phases 1..8 are in flight; Phase 9 decides
-      // their final fate.
+      // Cmd+Shift+E / Cmd+Shift+D — debug entry points to legacy
+      // EntitiesPage / DashboardsPage. Kept per Phase 9 D1/D2 (the
+      // spec defaults) so v1 entity types and dashboards stay
+      // accessible without cluttering the v2 top nav.
       if (e.metaKey && e.shiftKey && !e.altKey) {
         if (e.code === "KeyE") {
           e.preventDefault();

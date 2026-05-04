@@ -329,10 +329,24 @@ export async function executeCommand(cmd: Command): Promise<void> {
       }
       // Spread current fields — replacing `fields` outright would wipe
       // cadence / target / current / progress for any direction the
-      // agent never set explicitly via mark_cadence.
-      await useEntityStore.getState().updateEntity(direction_id, {
+      // agent never set explicitly via mark_cadence. Re-validate the
+      // merged entity (mirrors update_entity) so a hand-edited file
+      // with type-drifted fields can't quietly persist.
+      const merged = {
+        ...cur,
         fields: { ...cur.fields, last_act: formatDate(new Date()) },
-      });
+      };
+      const parsed = EntitySchema.safeParse(merged);
+      if (!parsed.success) {
+        const issues = parsed.error.issues
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; ");
+        throw new Error(`mark_cadence rejected: ${issues}`);
+      }
+      // parsed.data is a discriminated Entity; updateEntity merges the
+      // partial onto the current row, so passing the whole entity is
+      // equivalent here (type/id/timestamps stay identical).
+      await useEntityStore.getState().updateEntity(direction_id, parsed.data);
       return;
     }
 

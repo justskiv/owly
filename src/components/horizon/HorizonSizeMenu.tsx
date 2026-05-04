@@ -15,8 +15,14 @@ const SIZES: { id: HorizonSize; label: string }[] = [
 
 export function HorizonSizeMenu({ active, onSelect, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const activeBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
+    // Focus the currently-selected size on mount so keyboard users can
+    // confirm with Enter or arrow-step into siblings via the browser's
+    // default focus-ring traversal.
+    activeBtnRef.current?.focus();
+
     const onAway = (e: MouseEvent) => {
       if (!ref.current?.contains(e.target as Node)) onClose();
     };
@@ -33,17 +39,22 @@ export function HorizonSizeMenu({ active, onSelect, onClose }: Props) {
 
   return (
     <div ref={ref} className="hz-size-menu" role="menu">
-      {SIZES.map((s) => (
-        <button
-          key={s.id}
-          type="button"
-          role="menuitem"
-          onClick={() => onSelect(s.id)}
-        >
-          <span>{s.label}</span>
-          {active === s.id && <span className="hz-size-check">✓</span>}
-        </button>
-      ))}
+      {SIZES.map((s) => {
+        const isActive = active === s.id;
+        return (
+          <button
+            key={s.id}
+            type="button"
+            role="menuitemradio"
+            aria-checked={isActive}
+            ref={isActive ? activeBtnRef : null}
+            onClick={() => onSelect(s.id)}
+          >
+            <span>{s.label}</span>
+            {isActive && <span className="hz-size-check">✓</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }

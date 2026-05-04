@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from "react";
+import { useCallback, useState, type MouseEvent } from "react";
 import { EyeOff, X } from "lucide-react";
 import type {
   Area,
@@ -35,6 +35,9 @@ export function HorizonRow({
   const areaTag = pickAreaTag(project.tags, areas);
   const color = areaTag ? getAreaColor(areaTag, areas) : FALLBACK_COLOR;
   const [sizeMenuOpen, setSizeMenuOpen] = useState(false);
+  // Stable ref so HorizonSizeMenu's effect doesn't rebind document
+  // listeners on every parent render while the menu is open.
+  const closeSizeMenu = useCallback(() => setSizeMenuOpen(false), []);
 
   const onContextMenu = (e: MouseEvent) => {
     e.preventDefault();
@@ -98,7 +101,7 @@ export function HorizonRow({
             <HorizonSizeMenu
               active={state.size}
               onSelect={onSelectSize}
-              onClose={() => setSizeMenuOpen(false)}
+              onClose={closeSizeMenu}
             />
           )}
           <div className="hz-actions">

@@ -1,3 +1,5 @@
+// Kept as a debug entry per Phase 9 D2 (spec §7-A) — v1 dashboard
+// system stays available via Cmd+Shift+D, off the v2 top nav.
 import { useCallback, useEffect } from "react";
 import { useEscape } from "../hooks/useEscape";
 import { useDashboardStore } from "../store/dashboards";

@@ -313,16 +313,10 @@ export type Page =
 
 #### 3.2. Hotkey-карта
 
-```ts
-const KEY_PAGE: Record<string, Page> = {
-  Digit1: "plan",
-  Digit2: "tasks",
-  Digit3: "projects",
-  Digit4: "context",
-  Digit5: "horizon",
-  Digit6: "review",
-};
-```
+> **Phase 9 update:** хоткеи `Digit1..Digit6` для переключения
+> табов удалены (юзер-feedback после smoke). Сейчас только
+> Cmd+Shift+E / Cmd+Shift+D живы для debug-входов. Top nav
+> работает только мышью.
 
 Cmd+Shift+E → `entities` (debug). Cmd+Shift+D → `dashboards`
 (debug). Реализовать через тот же handler в `Shell.tsx`.
@@ -620,8 +614,9 @@ data для `create_entity` / `update_entity`. После расширения
   «Сегодня» возвращает к текущей и скрывается при offset=0.
 - [ ] `+` в Top Nav открывает существующий EntityEditor (заглушка
   для Quick Add).
-- [ ] Hotkeys 1-6 переключают табы. Cmd+Shift+E открывает старую
-  EntitiesPage. Cmd+Shift+D — DashboardsPage.
+- [ ] Cmd+Shift+E открывает старую EntitiesPage. Cmd+Shift+D —
+  DashboardsPage. (Хоткеи `Digit1..6` для табов, изначально
+  планировавшиеся, удалены в Phase 9.)
 - [ ] Direction добавлен в EntitySchema, можно создать direction
   через старую EntitiesPage → CreateDropdown (если он умеет;
   иначе через временное API). Запись валидируется и пишется в
@@ -655,8 +650,8 @@ data для `create_entity` / `update_entity`. После расширения
    старые задачи на месте, видны через Cmd+Shift+E. На новых
    табах — заглушки.
 3. **Top Nav UX.**
-   Клик по каждому из 6 табов. Hotkey 1–6. Стрелки недели влево/вправо.
-   «Сегодня» появляется/исчезает.
+   Клик по каждому из 6 табов. Стрелки недели влево/вправо.
+   «Сегодня» появляется/исчезает. (Hotkey 1–6 убран в Phase 9.)
 4. **Direction creation.**
    Через Cmd+Shift+E → старая Entities → Create → выбрать
    «Direction» (новый пункт). Заполнить минимум: title=«Тест»,

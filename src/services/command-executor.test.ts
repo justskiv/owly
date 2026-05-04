@@ -444,6 +444,17 @@ describe("mark_cadence", () => {
       executeCommand(cmd("mark_cadence", { direction_id: "missing" })),
     ).rejects.toThrow(/not found/);
   });
+
+  it("rejects when stored direction fields are type-corrupt", async () => {
+    // Hand-edited file: cadence wrote a string instead of a number.
+    // The merge-then-safeParse guard should refuse to persist.
+    const bad = makeDirection();
+    (bad.fields as unknown as { cadence: string }).cadence = "seven";
+    useEntityStore.setState({ entities: [bad] });
+    await expect(
+      executeCommand(cmd("mark_cadence", { direction_id: "dir-1" })),
+    ).rejects.toThrow(/mark_cadence rejected/);
+  });
 });
 
 describe("batch", () => {

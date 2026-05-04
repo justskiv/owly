@@ -6,11 +6,14 @@
 
 Спецификация — в `spec/tuzov-os/`. Дизайн-система — в `design/`.
 
-Фазы 1–6 (foundation → design bridge → weekly grid → DnD/pool →
-entities/templates → dashboards → AI integration) закрыты. Готовые
-спеки уехали в `spec/tuzov-os/done/`. Активные доработки поверх
-рабочей системы — `pool-progress-rework.md`, `loading-perception.md`,
-`post-review-backlog.md` рядом с номерными.
+v2 переархитектура завершена: фазы 1–9 в
+`spec/tuzov-os/v2/phases/`. Top nav из 6 экранов (Plan / Tasks /
+Projects / Context / Horizon / Review), Quick Add по `Cmd+N`,
+AI-агент через очередь команд (`docs/api/commands-api.md`). Спеки
+v1 — в `spec/tuzov-os/done/`. Cmd+Shift+E / Cmd+Shift+D — debug-
+входы к v1 EntitiesPage / DashboardsPage (per Phase 9 D1/D2).
+Активные доработки поверх v2 — `post-review-backlog.md` рядом с
+фазами.
 
 ## Workflow перед нетривиальной работой
 

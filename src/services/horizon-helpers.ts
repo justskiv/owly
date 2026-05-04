@@ -53,15 +53,15 @@ export function offsetToMonthLabel(baseMonth: string, offset: number): string {
 // previous Unicode code points (⏨ / □ / ○) rendered inconsistently on
 // systems whose default fonts lacked the glyphs (e.g. ⏨ fell back to
 // literal "10" in JetBrains Mono).
-export const SIZE_GROUPS: {
-  readonly id: HorizonProjectState["size"];
-  readonly label: string;
-  readonly Icon: LucideIcon;
-}[] = [
+export const SIZE_GROUPS = [
   { id: "big", label: "Тяжёлые проекты", Icon: Mountain },
   { id: "mid", label: "Средние проекты", Icon: Briefcase },
   { id: "small", label: "Мелкие проекты", Icon: Zap },
-];
+] as const satisfies readonly {
+  id: HorizonProjectState["size"];
+  label: string;
+  Icon: LucideIcon;
+}[];
 
 export const SECTION_META: Record<
   BacklogSectionKind,
