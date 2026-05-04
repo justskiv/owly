@@ -1,4 +1,10 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import type { BlockStatus } from "../../schemas";
 import { useScheduleStore } from "../../store/schedule";
 import { useUIStore } from "../../store/ui";
@@ -32,6 +38,26 @@ export function BlockPopupHost() {
   );
 }
 
+interface StatusOption {
+  value: BlockStatus;
+  label: string;
+}
+
+// Labels are length-tuned to fit four equal-width buttons in the
+// 260px popup. Icons are dropped — the toggle group's accent border
+// already signals which value is active, and the status row label
+// above tells the user what these are.
+const STATUS_OPTIONS: ReadonlyArray<StatusOption> = [
+  { value: "planned", label: "План" },
+  { value: "done", label: "Готово" },
+  { value: "skipped", label: "Пропуск" },
+  { value: "moved", label: "Перенос" },
+];
+
+// Auto-grow ceiling for the notes textarea. Anything taller turns
+// into an inner scrollbar — keeps the popup compact.
+const NOTES_MAX_PX = 160;
+
 function BlockPopupContent({
   blockId,
   onClose,
@@ -56,6 +82,7 @@ function BlockPopupContent({
   );
   const [category, setCategory] = useState(block?.category ?? "work");
   const [status, setStatus] = useState<BlockStatus>(block?.status ?? "planned");
+  const [notes, setNotes] = useState(block?.notes ?? "");
 
   // Reset drafts when popup is reused for a different block. Editing
   // the same block's drafts shouldn't clobber on every blocks-array
@@ -67,7 +94,84 @@ function BlockPopupContent({
     setDuration(String(block.duration));
     setCategory(block.category);
     setStatus(block.status);
+    setNotes(block.notes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blockId]);
+
+  // Auto-grow notes textarea: clear inline height (so scrollHeight
+  // reflects content, not the prior cap), then snap to clamped
+  // scrollHeight. Re-runs on every notes change AND on blockId
+  // change (the reset effect above swaps the value, height must
+  // follow). useLayoutEffect avoids a flicker between the old and
+  // new height before paint.
+  const notesElRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = notesElRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, NOTES_MAX_PX)}px`;
+  }, [notes, blockId]);
+
+  // Draft refs — fed into the unmount-cleanup flush so a textarea or
+  // input blur that never fires (because the popup unmounts on
+  // outside-click before React sees the synthetic blur) still
+  // persists its typed value. category/status persist on click and
+  // skip this path. All field validations mirror the per-blur
+  // persist* helpers above; on rejection we silently drop, since
+  // the popup is gone and there is no UI left to reset draft state.
+  const draftsRef = useRef({ title, start, duration, notes });
+  draftsRef.current = { title, start, duration, notes };
+  useEffect(() => {
+    return () => {
+      const drafts = draftsRef.current;
+      const fresh = useScheduleStore
+        .getState()
+        .blocks.find((b) => b.id === blockId);
+      if (!fresh) return;
+      const updates: Partial<{
+        title: string;
+        start: string;
+        duration: number;
+        notes: string;
+      }> = {};
+
+      const t = drafts.title.trim();
+      if (t && t !== fresh.title) updates.title = t;
+
+      const startMin = parseHHMMStrict(drafts.start);
+      if (startMin !== null) {
+        const snapped = Math.round(startMin / SNAP_MIN) * SNAP_MIN;
+        if (
+          snapped >= START_HOUR * 60 &&
+          snapped + fresh.duration <= END_HOUR * 60
+        ) {
+          const hh = String(Math.floor(snapped / 60)).padStart(2, "0");
+          const mm = String(snapped % 60).padStart(2, "0");
+          const next = `${hh}:${mm}`;
+          if (next !== fresh.start) updates.start = next;
+        }
+      }
+
+      const durRaw = parseInt(drafts.duration, 10);
+      if (Number.isFinite(durRaw)) {
+        let snapped = Math.round(durRaw / SNAP_MIN) * SNAP_MIN;
+        if (snapped < MIN_BLOCK_MIN) snapped = MIN_BLOCK_MIN;
+        const startMinFresh = timeToMinutes(fresh.start);
+        const max = END_HOUR * 60 - startMinFresh;
+        if (snapped > max) snapped = max;
+        if (snapped !== fresh.duration) updates.duration = snapped;
+      }
+
+      if (drafts.notes !== fresh.notes) updates.notes = drafts.notes;
+
+      if (Object.keys(updates).length === 0) return;
+      void useScheduleStore
+        .getState()
+        .updateBlock(blockId, updates)
+        .catch(() => {
+          // Popup is gone; saveStatus surfaces errors in StatusBar.
+        });
+    };
   }, [blockId]);
 
   if (!block) {
@@ -168,6 +272,14 @@ function BlockPopupContent({
     }
   };
 
+  const persistNotes = () => {
+    if (notes !== block.notes) {
+      void updateBlock(blockId, { notes }).catch((e) =>
+        handlePersistError(e, () => setNotes(block.notes)),
+      );
+    }
+  };
+
   const onEnter = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter") {
@@ -209,18 +321,30 @@ function BlockPopupContent({
       </div>
 
       <div className="bp-row">
-        <label htmlFor="bp-cat">Категория</label>
-        <select
-          id="bp-cat"
-          value={category}
-          onChange={(e) => persistCategory(e.target.value)}
+        <label id="bp-cat-label">Категория</label>
+        <div
+          className="f-cats"
+          role="radiogroup"
+          aria-labelledby="bp-cat-label"
         >
-          {areas.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.label}
-            </option>
-          ))}
-        </select>
+          {areas.map((a) => {
+            const active = category === a.id;
+            return (
+              <button
+                type="button"
+                key={a.id}
+                role="radio"
+                aria-checked={active}
+                className={`f-cat${active ? " active" : ""}`}
+                style={active ? { color: a.color } : undefined}
+                onClick={() => persistCategory(a.id)}
+              >
+                <span className="cd" style={{ background: a.color }} />
+                {a.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="bp-time-row">
@@ -252,17 +376,37 @@ function BlockPopupContent({
       </div>
 
       <div className="bp-row">
-        <label htmlFor="bp-status">Статус</label>
-        <select
-          id="bp-status"
-          value={status}
-          onChange={(e) => persistStatus(e.target.value as BlockStatus)}
+        <label id="bp-status-label">Статус</label>
+        <div
+          className="bp-status-toggle"
+          role="radiogroup"
+          aria-labelledby="bp-status-label"
         >
-          <option value="planned">Запланировано</option>
-          <option value="done">Готово</option>
-          <option value="skipped">Пропущено</option>
-          <option value="moved">Перенесено</option>
-        </select>
+          {STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={status === opt.value}
+              className={status === opt.value ? "active" : ""}
+              onClick={() => persistStatus(opt.value)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bp-row">
+        <label htmlFor="bp-notes">Заметки</label>
+        <textarea
+          ref={notesElRef}
+          id="bp-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          onBlur={persistNotes}
+          placeholder="..."
+        />
       </div>
 
       <div className="ep-actions">

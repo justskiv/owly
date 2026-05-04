@@ -36,8 +36,8 @@ export function TimeBlock({
   const cls =
     "block" +
     ` cat-${block.category}` +
+    ` status-${block.status}` +
     (selected ? " selected" : "") +
-    (block.status === "done" ? " done" : "") +
     (dragging ? " dragging-source" : "");
 
   return (

@@ -1024,6 +1024,16 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
   --life-bg:rgba(184,216,74,.082);--life-ghost:rgba(184,216,74,.145);
   --growth-bg:rgba(155,108,255,.082);--growth-ghost:rgba(155,108,255,.145);
   --health-bg:rgba(48,216,136,.082);--health-ghost:rgba(48,216,136,.145);
+  /* Vibrant block fill + inset edge ring. Per-category alpha is
+     calibrated for perceived weight — bright greens (life/health)
+     read 1.5x louder at the same alpha than warm hues, so they're
+     held lower (.18 vs .20-.22). Edge ring at .30-.34 gives the
+     block a defined container without a left stripe (§11). */
+  --work-fill:rgba(255,122,61,.20);   --work-edge:rgba(255,122,61,.30);
+  --people-fill:rgba(255,92,168,.20); --people-edge:rgba(255,92,168,.30);
+  --life-fill:rgba(184,216,74,.18);   --life-edge:rgba(184,216,74,.32);
+  --growth-fill:rgba(155,108,255,.22);--growth-edge:rgba(155,108,255,.34);
+  --health-fill:rgba(48,216,136,.18); --health-edge:rgba(48,216,136,.30);
 }
 
 /* Planner page wrapper */
@@ -1051,27 +1061,41 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
 .hour-line{position:absolute;left:0;right:0;border-top:1px solid var(--border);pointer-events:none}
 
 /* Block (v2 — replaces .tb) */
-.block{position:absolute;left:3px;right:3px;border-radius:var(--radius-sm);padding:3px 6px;font-size:var(--fs-2xs);cursor:grab;overflow:hidden;z-index:2;box-sizing:border-box;transition:opacity .12s}
+.block{position:absolute;left:3px;right:3px;border-radius:var(--radius-sm);padding:3px 6px;font-size:var(--fs-2xs);cursor:grab;overflow:hidden;z-index:2;box-sizing:border-box;transition:filter .12s,box-shadow .12s,background .12s,opacity .12s}
 .block .b-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-primary)}
-.block .b-time{font-size:9px;color:rgba(255,255,255,.5);margin-top:1px;font-family:var(--mono)}
-.block.done{opacity:.35}
-.block.done .b-title{text-decoration:line-through}
+.block .b-time{font-size:9px;color:rgba(255,255,255,.55);margin-top:1px;font-family:var(--mono)}
+.block:hover{filter:brightness(1.15)}
 .block.selected{outline:2px solid var(--accent);outline-offset:1px;z-index:3}
 .block.dragging-source{opacity:.3;pointer-events:none}
 .block .resize-handle{position:absolute;bottom:0;left:0;right:0;height:8px;cursor:ns-resize}
 .block .resize-handle::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:24px;height:2px;border-radius:1px;background:rgba(255,255,255,.15);transition:background .1s}
 .block:hover .resize-handle::after{background:rgba(255,255,255,.35)}
 
+/* Status modifiers — preserve category hue, differentiate via
+   filter / texture / edge. `done` desaturates without losing color
+   (opacity dim was hiding hue on dark). `skipped` adds a hatch
+   overlay. `moved` empties the fill and shows a hue ring + arrow. */
+.block.status-done{filter:saturate(.55) brightness(.85)}
+.block.status-done .b-title{color:var(--text-tertiary);text-decoration:line-through;text-decoration-color:var(--text-disabled)}
+.block.status-done .b-time{color:var(--text-disabled)}
+.block.status-skipped{background-image:repeating-linear-gradient(135deg,transparent 0 4px,rgba(255,255,255,.10) 4px 5px)}
+.block.status-skipped .b-title{text-decoration:line-through;text-decoration-color:rgba(255,255,255,.5)}
+.block.status-moved{background-color:transparent;background-image:none;border:1px solid var(--cat-color);padding:2px 5px;filter:saturate(.6)}
+.block.status-moved .b-title{color:var(--text-secondary);font-style:italic}
+.block.status-moved::after{content:'→';position:absolute;top:1px;right:5px;font:600 10px/1 var(--mono);color:var(--cat-color);opacity:.8;pointer-events:none}
+
 /* Drop indicator (v2 — replaces SnapPreview) */
 .drop-indicator{position:absolute;left:3px;right:3px;height:2px;background:var(--accent);border-radius:1px;z-index:5;pointer-events:none;box-shadow:0 0 6px rgba(224,184,96,.4)}
 
-/* Per-category background tints. Category is conveyed by the
-   tinted fill alone — no left-edge stripe (CODESTYLE §11).  */
-.block.cat-work{background:var(--work-bg)}
-.block.cat-people{background:var(--people-bg)}
-.block.cat-life{background:var(--life-bg)}
-.block.cat-growth{background:var(--growth-bg)}
-.block.cat-health{background:var(--health-bg)}
+/* Per-category fill + 1px inset hue edge. Category is conveyed by
+   the tinted fill plus the inset ring — never a left stripe (§11).
+   --cat-color is published for status modifiers (status-moved ring
+   and arrow glyph). */
+.block.cat-work   {background:var(--work-fill);   box-shadow:inset 0 0 0 1px var(--work-edge);   --cat-color:var(--work)}
+.block.cat-people {background:var(--people-fill); box-shadow:inset 0 0 0 1px var(--people-edge); --cat-color:var(--people)}
+.block.cat-life   {background:var(--life-fill);   box-shadow:inset 0 0 0 1px var(--life-edge);   --cat-color:var(--life)}
+.block.cat-growth {background:var(--growth-fill); box-shadow:inset 0 0 0 1px var(--growth-edge); --cat-color:var(--growth)}
+.block.cat-health {background:var(--health-fill); box-shadow:inset 0 0 0 1px var(--health-edge); --cat-color:var(--health)}
 
 /* Pool Sidebar */
 .pool-sidebar{width:280px;flex-shrink:0;background:var(--bg-surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
@@ -1155,21 +1179,35 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
 .modal .btn-cancel:hover{border-color:var(--border-hover);color:var(--text-primary)}
 
 /* Block context menu — v2 (3 items: done/duplicate/delete) */
-.block-ctx{position:fixed;z-index:200;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:var(--radius-md);padding:4px;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
-.block-ctx .ctx-item{display:block;width:100%;padding:5px 10px;border:none;background:none;color:var(--text-primary);font-size:var(--fs-xs);text-align:left;cursor:pointer;border-radius:var(--radius-sm);font-family:var(--font);transition:background .1s}
-.block-ctx .ctx-item:hover{background:var(--bg-tint-1)}
+.block-ctx{position:fixed;z-index:200;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:var(--radius-md);padding:4px;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.block-ctx .ctx-item{display:flex;align-items:center;gap:8px;width:100%;padding:5px 10px;border:none;background:none;color:var(--text-primary);font-size:var(--fs-xs);text-align:left;cursor:pointer;border-radius:var(--radius-sm);font-family:var(--font);transition:background .1s}
+.block-ctx .ctx-item:hover,.block-ctx .ctx-item.focused{background:var(--bg-tint-1)}
 .block-ctx .ctx-item.danger{color:var(--error)}
-.block-ctx .ctx-item.danger:hover{background:rgba(224,104,120,.12)}
+.block-ctx .ctx-item.danger:hover,.block-ctx .ctx-item.danger.focused{background:rgba(224,104,120,.12)}
+.block-ctx .ctx-icon{width:14px;flex-shrink:0;display:inline-flex;justify-content:center}
+.block-ctx .ctx-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.block-ctx .ctx-sc{font-family:var(--mono);font-size:var(--fs-2xs);color:var(--text-tertiary);padding-left:8px;flex-shrink:0}
 .block-ctx .ctx-sep{height:1px;background:var(--border);margin:3px 0}
+.block-ctx .ctx-cols{padding:6px 8px 4px;display:flex;gap:6px}
+.block-ctx .ctx-c{width:14px;height:14px;border-radius:50%;cursor:pointer;border:2px solid transparent;opacity:.7;transition:all var(--duration-instant);padding:0;background:transparent}
+.block-ctx .ctx-c:hover{opacity:1;transform:scale(1.15)}
+.block-ctx .ctx-c.active{border-color:var(--border-strong);opacity:1}
 
 /* Block popup (ad-hoc blocks) — reuses .entity-popup shell */
 .block-popup{padding:0}
 .block-popup .bp-row{margin-bottom:8px}
-.block-popup .bp-row label{display:block;font-size:var(--fs-2xs);color:var(--text-tertiary);margin-bottom:2px}
-.block-popup .bp-row input,.block-popup .bp-row select{width:100%;padding:4px 6px;background:var(--bg-tint-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:var(--fs-xs);outline:none;box-sizing:border-box;font-family:var(--font)}
-.block-popup .bp-row input:focus,.block-popup .bp-row select:focus{border-color:var(--border-hover)}
+.block-popup .bp-row label{display:block;font-size:var(--fs-2xs);color:var(--text-tertiary);margin-bottom:3px}
+.block-popup .bp-row input,.block-popup .bp-row select,.block-popup .bp-row textarea{width:100%;padding:4px 6px;background:var(--bg-tint-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:var(--fs-xs);outline:none;box-sizing:border-box;font-family:var(--font)}
+.block-popup .bp-row textarea{resize:none;min-height:36px;max-height:160px;line-height:1.4;overflow-y:auto;display:block}
+.block-popup .bp-row input:focus,.block-popup .bp-row select:focus,.block-popup .bp-row textarea:focus{border-color:var(--border-hover)}
 .block-popup .bp-time-row{display:flex;gap:6px}
 .block-popup .bp-time-row > div{flex:1}
+.block-popup .f-cats{gap:4px}
+.block-popup .f-cat{padding:3px 9px;font-size:var(--fs-2xs);line-height:14px}
+.block-popup .bp-status-toggle{display:flex;gap:4px}
+.block-popup .bp-status-toggle button{flex:1;min-width:0;padding:5px 4px;font-size:var(--fs-2xs);border:1px solid var(--border);background:transparent;color:var(--text-tertiary);border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font);transition:all .1s;display:block;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.block-popup .bp-status-toggle button:hover{border-color:var(--border-hover);color:var(--text-secondary)}
+.block-popup .bp-status-toggle button.active{border-color:var(--accent);color:var(--accent);background:rgba(224,184,96,.08)}
 
 /* Horizon page (Phase 7) ----------------------------------------- */
 .horizon-view{display:flex;flex:1;overflow:hidden;min-height:0}

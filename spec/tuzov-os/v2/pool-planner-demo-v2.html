@@ -46,10 +46,15 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg-base);colo
 .day-head{height:32px;display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);font-weight:600;color:var(--text-tertiary);background:var(--bg-surface);border-bottom:1px solid var(--border);border-left:1px solid var(--border);position:sticky;top:0;z-index:10}
 .day-body{position:relative;border-left:1px solid var(--border)}
 .hour-line{position:absolute;left:0;right:0;border-top:1px solid var(--border)}
-.block{position:absolute;left:3px;right:3px;border-radius:var(--radius-sm);padding:3px 6px;font-size:var(--fs-2xs);cursor:grab;overflow:hidden;z-index:2}
+.block{position:absolute;left:3px;right:3px;border-radius:var(--radius-sm);padding:3px 6px;font-size:var(--fs-2xs);cursor:grab;overflow:hidden;z-index:2;transition:filter .12s,box-shadow .12s,background .12s,opacity .12s}
 .block .b-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.block .b-time{font-size:9px;color:rgba(255,255,255,.5);margin-top:1px}
-.block.done{opacity:.35}.block.done .b-title{text-decoration:line-through}
+.block .b-time{font-size:9px;color:rgba(255,255,255,.55);margin-top:1px}
+.block:hover{filter:brightness(1.15)}
+.block.status-done{filter:saturate(.55) brightness(.85)}
+.block.status-done .b-title{color:var(--text-tertiary);text-decoration:line-through}
+.block.status-done .b-time{color:var(--text-disabled)}
+.block.status-skipped{background-image:repeating-linear-gradient(135deg,transparent 0 4px,rgba(255,255,255,.10) 4px 5px)}
+.block.status-skipped .b-title{text-decoration:line-through}
 .block.selected{outline:2px solid var(--accent);outline-offset:1px;z-index:3}
 .block .resize-handle{position:absolute;bottom:0;left:0;right:0;height:8px;cursor:ns-resize}
 .block .resize-handle::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:24px;height:2px;border-radius:1px;background:rgba(255,255,255,.15)}
@@ -640,9 +645,9 @@ function renderBlocks(){
   blocks.forEach(b=>{
     const db=dayBodyEls[b.day];if(!db)return;
     const el=document.createElement('div');
-    el.className='block'+(b.done?' done':'')+(selBlock===b.id?' selected':'');
+    el.className='block'+(b.done?' status-done':'')+(selBlock===b.id?' selected':'');
     const top=(b.start-H_START*60)/30*ROW_H,ht=b.dur/30*ROW_H;
-    el.style.cssText=`top:${top}px;height:${ht}px;background:${cc(b.cat)}15;border-color:${cc(b.cat)}`;
+    el.style.cssText=`top:${top}px;height:${ht}px;background:${cc(b.cat)}33;box-shadow:inset 0 0 0 1px ${cc(b.cat)}4d`;
     el.innerHTML=`<div class="b-title">${b.title}</div>${ht>28?`<div class="b-time">${fmt(b.start)}–${fmt(b.start+b.dur)}</div>`:''}<div class="resize-handle"></div>`;
     el.addEventListener('click',e=>{e.stopPropagation();selBlock=b.id;renderBlocks()});
     el.addEventListener('contextmenu',e=>{e.preventDefault();showBlockMenu(e,b)});
