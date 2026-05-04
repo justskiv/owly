@@ -4,7 +4,10 @@ import { DayOfWeekSchema, timeHHMM } from "./common";
 export const TemplateBlockSchema = z.object({
   day: DayOfWeekSchema,
   start: timeHHMM(),
-  duration: z.number().int().positive(),
+  // Aligned with BlockSchema.duration: the template materialises into
+  // weekly blocks via createWeekFromTemplate, so anything < 15 would
+  // be rejected at the WeekFileSchema validation step.
+  duration: z.number().int().min(15),
   title: z.string(),
   category: z.string(),
 });

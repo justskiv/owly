@@ -1,4 +1,11 @@
-import { ConfigFileSchema, EntitiesFileSchema } from "../schemas";
+import {
+  ConfigFileSchema,
+  EntitiesFileSchema,
+  HorizonFileSchema,
+  PoolFileSchema,
+  WeekFileSchema,
+} from "../schemas";
+import type { z } from "zod";
 import {
   ensureDir,
   fileExists,
@@ -10,6 +17,19 @@ import {
   JsonReadError,
 } from "./file-io";
 import { generateId } from "./time-utils";
+
+// Each seed file must validate against the corresponding schema after
+// `@key` substitution but BEFORE we touch disk. A schema drift between
+// the bundled seed and the current code (e.g., a new required field
+// added to ProjectFieldsSchema without bumping seed) would otherwise
+// write data the next loadConfig/loadEntities cannot parse, and the
+// migration marker would still be written — a one-shot bricking.
+const SEED_SCHEMAS: Record<string, z.ZodTypeAny> = {
+  "schedule/2026-w18.json": WeekFileSchema,
+  "pool/2026-w18.json": PoolFileSchema,
+  "horizon.json": HorizonFileSchema,
+  "entities.json": EntitiesFileSchema,
+};
 
 const REQUIRED_AREAS = ["work", "growth", "life", "people", "health"] as const;
 
@@ -148,6 +168,9 @@ async function copySeedToData(seedRoot: string): Promise<void> {
   // Step 2. Apply the map to every text and write into data/. Order
   // is defined by SEED_FILES — entities.json is last so that a partial
   // failure leaves it absent, allowing a retry on the next launch.
+  // Each replaced text is validated against its schema BEFORE write;
+  // any rejection aborts the whole migration before the marker is
+  // written, so the user can fix the seed bundle and retry.
   for (const f of SEED_FILES) {
     const text = rawTexts[f];
     if (text === undefined) continue;
@@ -155,6 +178,27 @@ async function copySeedToData(seedRoot: string): Promise<void> {
       const uuid = keyMap.get(key);
       return uuid ? `"${uuid}"` : `"@${key}"`;
     });
+    const schema = SEED_SCHEMAS[f];
+    if (schema) {
+      let parsedJson: unknown;
+      try {
+        parsedJson = JSON.parse(replaced);
+      } catch (e) {
+        throw new Error(
+          `Seed migration v2: ${f} is not valid JSON after key ` +
+            `substitution: ${(e as Error).message}`,
+        );
+      }
+      const result = schema.safeParse(parsedJson);
+      if (!result.success) {
+        const issues = result.error.issues
+          .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+          .join("; ");
+        throw new Error(
+          `Seed migration v2: ${f} rejected by schema: ${issues}`,
+        );
+      }
+    }
     const targetPath = `${dataRoot}/${f}`;
     const slashIdx = targetPath.lastIndexOf("/");
     if (slashIdx > 0) {

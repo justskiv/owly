@@ -1,5 +1,5 @@
 import type { DayOfWeek, Entity, TemplateFile, WeekFile } from "../schemas";
-import { TemplateFileSchema } from "../schemas";
+import { TemplateFileSchema, WeekFileSchema } from "../schemas";
 import {
   fileExists,
   getDataPath,
@@ -72,10 +72,23 @@ export async function createWeekFromTemplate(
     template_applied: template.name,
     blocks,
   };
+  // Validate the generated week BEFORE writing. A template with a
+  // duration < BlockSchema's min(15), an invalid time, or any other
+  // schema drift would otherwise produce a corrupt week file that
+  // would crash loadWeek the next time the user navigates to it.
+  const parsed = WeekFileSchema.safeParse(file);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+      .join("; ");
+    throw new Error(
+      `Generated week from template invalid for ${weekId}: ${issues}`,
+    );
+  }
   const path = await getDataPath("schedule", `${weekId}.json`);
-  await writeJsonFile(path, file);
-  setCachedWeek(weekId, file);
-  return file;
+  await writeJsonFile(path, parsed.data);
+  setCachedWeek(weekId, parsed.data);
+  return parsed.data;
 }
 
 // Returns entities that had a `planned` block in the previous week and

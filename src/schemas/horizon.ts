@@ -6,7 +6,16 @@ export type HorizonSize = z.infer<typeof HorizonSizeSchema>;
 
 export const HorizonProjectStateSchema = z.object({
   project_id: z.string(),
-  months: z.array(z.number().int().min(0).max(11)).default([]),
+  // Indices 0..11 (Jan..Dec). The visible board renders an 8-month
+  // window (base..base+7), but the index space is the full year.
+  // Unique refine: the renderer keys on month index, so a duplicate
+  // would either swallow the second hit or render the same chip twice.
+  months: z
+    .array(z.number().int().min(0).max(11))
+    .refine((arr) => new Set(arr).size === arr.length, {
+      message: "months must be unique",
+    })
+    .default([]),
   size: HorizonSizeSchema.default("mid"),
   hidden: z.boolean().default(false),
 });

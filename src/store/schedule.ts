@@ -149,13 +149,17 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         useUIStore.getState().setWeekPrompt(week);
         return;
       }
-      const data = exists
-        ? await readJsonFile(path, WeekFileSchema)
-        : await readJsonFileOrCreate(
-            path,
-            WeekFileSchema,
-            emptyWeekFile(week, startDate),
-          );
+      // Both branches go through readJsonFileOrCreate so a corrupt
+      // existing file falls into the recovery path — `.corrupted-*`
+      // backup + write defaults — rather than throwing and crashing
+      // boot. Pool/entities/horizon already do this; closing the gap
+      // here keeps a single corrupt schedule/<week>.json from
+      // bricking the whole app on cold start.
+      const data = await readJsonFileOrCreate(
+        path,
+        WeekFileSchema,
+        emptyWeekFile(week, startDate),
+      );
       if (myToken !== loadToken) return;
       // Cache the freshly-loaded week so the first routine click
       // doesn't re-read the same file off disk.

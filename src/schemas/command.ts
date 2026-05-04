@@ -1,15 +1,29 @@
 import { z } from "zod";
-import { isoDate, timeHHMM, weekId } from "./common";
+import { isoDate, isoDateTime, timeHHMM, weekId } from "./common";
 import { BlockStatusSchema, BlockSchema } from "./schedule";
 import { EntitySchema } from "./entity";
 import { HorizonSizeSchema } from "./horizon";
 
 const baseCommandShape = {
-  id: z.string(),
-  timestamp: z.string(),
+  // Empty id slips past discriminated-union validation but breaks
+  // markDone (which uses id for the done/<id>.json filename) — reject
+  // here so the schema layer surfaces it as "Schema rejected" instead
+  // of a confusing FS error mid-execute.
+  id: z.string().min(1),
+  // Strict format guards against ISO/TZ drift (toISOString() with `Z`
+  // suffix, or accidental millisecond-precision strings) — see
+  // common.ts for the canonical YYYY-MM-DDTHH:MM[:SS] shape.
+  timestamp: isoDateTime(),
 };
 
-const blockUpdatableFields = BlockSchema.omit({ id: true }).partial();
+// `date` is intentionally excluded: a cross-week move belongs to the
+// move_block command. update_block patches go to the source week
+// only; letting `date` slip through here would silently strand the
+// block in its original week file with a date pointing elsewhere.
+const blockUpdatableFields = BlockSchema.omit({
+  id: true,
+  date: true,
+}).partial();
 
 export const CreateBlockCommandSchema = z.object({
   ...baseCommandShape,
@@ -141,7 +155,14 @@ export const SetHorizonMonthsCommandSchema = z.object({
   action: z.literal("set_horizon_months"),
   data: z.object({
     project_id: z.string(),
-    months: z.array(z.number().int().min(0).max(11)),
+    // Mirrors HorizonProjectStateSchema.months: indices 0..11 (Jan..Dec),
+    // unique. Duplicates are rejected because a project can't be in the
+    // same month twice and the renderer keys on the index.
+    months: z
+      .array(z.number().int().min(0).max(11))
+      .refine((arr) => new Set(arr).size === arr.length, {
+        message: "months must be unique",
+      }),
   }),
 });
 

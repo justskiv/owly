@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DayOfWeekSchema, isoDate, monthDay, timeHHMM } from "./common";
+import { DayOfWeekSchema, isoDate, isoDateTime, monthDay, timeHHMM } from "./common";
 
 export const EntityTypeSchema = z.enum([
   "task",
@@ -160,8 +160,12 @@ const baseEntityShape = {
   deadline: isoDate().nullable(),
   estimated_minutes: z.number().int().positive().nullable(),
   description: z.string().default(""),
-  created_at: z.string(),
-  updated_at: z.string(),
+  // Strict YYYY-MM-DDTHH:MM[:SS] (no TZ suffix) — matches the format
+  // produced by nowISO(). A toISOString() result with `Z` suffix
+  // would silently round-trip through z.string() and break ordering /
+  // comparison code that expects the canonical shape.
+  created_at: isoDateTime(),
+  updated_at: isoDateTime(),
 };
 
 export const EntitySchema = z.discriminatedUnion("type", [

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { weekId } from "./common";
+import { isoDateTime, weekId } from "./common";
 
 export const PoolItemSourceKindSchema = z.enum([
   "task",
@@ -21,8 +21,10 @@ export const PoolItemSchema = z.object({
   // Splittable items don't — their scheduled hours are derived from
   // grid blocks via recalcPool (Phase 6).
   placed: z.boolean().default(false),
-  created_at: z.string(),
-  updated_at: z.string(),
+  // Strict YYYY-MM-DDTHH:MM[:SS] (no TZ suffix). See entity.ts for
+  // rationale.
+  created_at: isoDateTime(),
+  updated_at: isoDateTime(),
 });
 export type PoolItem = z.infer<typeof PoolItemSchema>;
 
