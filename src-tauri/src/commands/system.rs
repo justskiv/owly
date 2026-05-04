@@ -1,6 +1,7 @@
-use crate::commands::AppRoot;
+use crate::commands::DataRoot;
 
 #[tauri::command]
-pub fn get_data_dir(root: tauri::State<AppRoot>) -> Result<String, String> {
-    Ok(root.0.join("data").to_string_lossy().into_owned())
+pub fn get_data_dir(root: tauri::State<DataRoot>) -> Result<String, String> {
+    // DataRoot is already <app_root>/data — no further join.
+    Ok(root.0.to_string_lossy().into_owned())
 }

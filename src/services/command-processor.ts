@@ -98,6 +98,16 @@ function shouldSkip(name: string): boolean {
 }
 
 function enqueue(path: string): void {
+  // Defense-in-depth: even with capabilities tightened so the
+  // frontend can't emit('command-received'), a forged event from
+  // a future broadened permission would otherwise let any path
+  // be processed (read, parsed as command, executed, then deleted).
+  // Reject anything not inside data/commands/pending/ before we
+  // touch FS.
+  if (!path.includes("/data/commands/pending/")) {
+    console.warn("[commands] rejected path outside pending dir:", path);
+    return;
+  }
   if (inflight.has(path)) return;
   inflight.add(path);
   // Catch ANY uncaught throw from processOne so the chain never

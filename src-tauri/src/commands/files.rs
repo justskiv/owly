@@ -2,16 +2,19 @@ use std::fs;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
-use crate::commands::AppRoot;
+use crate::commands::DataRoot;
 
 fn map_err<E: std::fmt::Display>(e: E) -> String {
     e.to_string()
 }
 
 // Reject anything outside the data directory and any path containing a
-// `..` component. We don't canonicalize because target paths are often
-// missing on first write — symlink-escape is out of scope (single-user
-// local app, the user owns the data dir).
+// `..` component. The root passed in is `<app_root>/data` (DataRoot),
+// not the project root — in dev, this confines file ops to the
+// user-state tree rather than the whole source tree. We don't
+// canonicalize because target paths are often missing on first write
+// — symlink-escape is out of scope (single-user local app, the user
+// owns the data dir).
 fn validate(root: &Path, path: &str) -> Result<PathBuf, String> {
     let candidate = PathBuf::from(path);
     if !candidate.is_absolute() {
@@ -29,7 +32,7 @@ fn validate(root: &Path, path: &str) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-pub fn read_file(path: String, root: tauri::State<AppRoot>) -> Result<String, String> {
+pub fn read_file(path: String, root: tauri::State<DataRoot>) -> Result<String, String> {
     let p = validate(&root.0, &path)?;
     fs::read_to_string(&p).map_err(map_err)
 }
@@ -38,7 +41,7 @@ pub fn read_file(path: String, root: tauri::State<AppRoot>) -> Result<String, St
 pub fn write_file(
     path: String,
     content: String,
-    root: tauri::State<AppRoot>,
+    root: tauri::State<DataRoot>,
 ) -> Result<(), String> {
     let target = validate(&root.0, &path)?;
 
@@ -65,7 +68,7 @@ pub fn write_file(
 }
 
 #[tauri::command]
-pub fn list_files(dir: String, root: tauri::State<AppRoot>) -> Result<Vec<String>, String> {
+pub fn list_files(dir: String, root: tauri::State<DataRoot>) -> Result<Vec<String>, String> {
     let d = validate(&root.0, &dir)?;
     let entries = fs::read_dir(&d).map_err(map_err)?;
     let mut result = Vec::new();
@@ -80,7 +83,7 @@ pub fn list_files(dir: String, root: tauri::State<AppRoot>) -> Result<Vec<String
 }
 
 #[tauri::command]
-pub fn ensure_dir(path: String, root: tauri::State<AppRoot>) -> Result<(), String> {
+pub fn ensure_dir(path: String, root: tauri::State<DataRoot>) -> Result<(), String> {
     let p = validate(&root.0, &path)?;
     fs::create_dir_all(&p).map_err(map_err)
 }
@@ -89,7 +92,7 @@ pub fn ensure_dir(path: String, root: tauri::State<AppRoot>) -> Result<(), Strin
 pub fn move_file(
     from: String,
     to: String,
-    root: tauri::State<AppRoot>,
+    root: tauri::State<DataRoot>,
 ) -> Result<(), String> {
     let from_p = validate(&root.0, &from)?;
     let to_p = validate(&root.0, &to)?;
@@ -102,13 +105,13 @@ pub fn move_file(
 }
 
 #[tauri::command]
-pub fn delete_file(path: String, root: tauri::State<AppRoot>) -> Result<(), String> {
+pub fn delete_file(path: String, root: tauri::State<DataRoot>) -> Result<(), String> {
     let p = validate(&root.0, &path)?;
     fs::remove_file(&p).map_err(map_err)
 }
 
 #[tauri::command]
-pub fn file_exists(path: String, root: tauri::State<AppRoot>) -> Result<bool, String> {
+pub fn file_exists(path: String, root: tauri::State<DataRoot>) -> Result<bool, String> {
     let p = validate(&root.0, &path)?;
     Ok(p.exists())
 }

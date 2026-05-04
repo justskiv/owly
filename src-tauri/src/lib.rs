@@ -8,7 +8,7 @@ use commands::files::{
     delete_file, ensure_dir, file_exists, list_files, move_file, read_file, write_file,
 };
 use commands::system::get_data_dir;
-use commands::{AppRoot, WatcherState};
+use commands::{DataRoot, WatcherState};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::utils::config::Color;
 use tauri::{Emitter, Manager, WindowEvent};
@@ -62,7 +62,10 @@ pub fn run() {
                 &dashboards_dir,
             ])?;
 
-            app.manage(AppRoot(root));
+            // Manage the data root, not the app root: in dev this
+            // narrows file commands to <project>/data/ instead of
+            // <project>/, blocking accidental reads of source files.
+            app.manage(DataRoot(data_dir));
             app.manage(WatcherState(Mutex::new(None)));
 
             if let Err(e) = watcher::start_watchers(
