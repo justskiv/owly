@@ -1051,7 +1051,7 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
 .hour-line{position:absolute;left:0;right:0;border-top:1px solid var(--border);pointer-events:none}
 
 /* Block (v2 — replaces .tb) */
-.block{position:absolute;left:3px;right:3px;border-radius:var(--radius-sm);padding:3px 6px;font-size:var(--fs-2xs);cursor:grab;overflow:hidden;border-left:3px solid;z-index:2;box-sizing:border-box;transition:opacity .12s}
+.block{position:absolute;left:3px;right:3px;border-radius:var(--radius-sm);padding:3px 6px;font-size:var(--fs-2xs);cursor:grab;overflow:hidden;z-index:2;box-sizing:border-box;transition:opacity .12s}
 .block .b-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-primary)}
 .block .b-time{font-size:9px;color:rgba(255,255,255,.5);margin-top:1px;font-family:var(--mono)}
 .block.done{opacity:.35}
@@ -1065,12 +1065,13 @@ textarea.fi{height:56px;padding:8px;resize:vertical;font-family:var(--font)}
 /* Drop indicator (v2 — replaces SnapPreview) */
 .drop-indicator{position:absolute;left:3px;right:3px;height:2px;background:var(--accent);border-radius:1px;z-index:5;pointer-events:none;box-shadow:0 0 6px rgba(224,184,96,.4)}
 
-/* Per-category background + border colors */
-.block.cat-work{background:var(--work-bg);border-left-color:var(--work)}
-.block.cat-people{background:var(--people-bg);border-left-color:var(--people)}
-.block.cat-life{background:var(--life-bg);border-left-color:var(--life)}
-.block.cat-growth{background:var(--growth-bg);border-left-color:var(--growth)}
-.block.cat-health{background:var(--health-bg);border-left-color:var(--health)}
+/* Per-category background tints. Category is conveyed by the
+   tinted fill alone — no left-edge stripe (CODESTYLE §11).  */
+.block.cat-work{background:var(--work-bg)}
+.block.cat-people{background:var(--people-bg)}
+.block.cat-life{background:var(--life-bg)}
+.block.cat-growth{background:var(--growth-bg)}
+.block.cat-health{background:var(--health-bg)}
 
 /* Pool Sidebar */
 .pool-sidebar{width:280px;flex-shrink:0;background:var(--bg-surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}

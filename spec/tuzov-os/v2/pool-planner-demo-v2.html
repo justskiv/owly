@@ -46,7 +46,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg-base);colo
 .day-head{height:32px;display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);font-weight:600;color:var(--text-tertiary);background:var(--bg-surface);border-bottom:1px solid var(--border);border-left:1px solid var(--border);position:sticky;top:0;z-index:10}
 .day-body{position:relative;border-left:1px solid var(--border)}
 .hour-line{position:absolute;left:0;right:0;border-top:1px solid var(--border)}
-.block{position:absolute;left:3px;right:3px;border-radius:var(--radius-sm);padding:3px 6px;font-size:var(--fs-2xs);cursor:grab;overflow:hidden;z-index:2;border-left:3px solid}
+.block{position:absolute;left:3px;right:3px;border-radius:var(--radius-sm);padding:3px 6px;font-size:var(--fs-2xs);cursor:grab;overflow:hidden;z-index:2}
 .block .b-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .block .b-time{font-size:9px;color:rgba(255,255,255,.5);margin-top:1px}
 .block.done{opacity:.35}.block.done .b-title{text-decoration:line-through}
@@ -55,7 +55,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg-base);colo
 .block .resize-handle::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:24px;height:2px;border-radius:1px;background:rgba(255,255,255,.15)}
 .block:hover .resize-handle::after{background:rgba(255,255,255,.35)}
 .drop-indicator{position:absolute;left:3px;right:3px;height:2px;background:var(--accent);border-radius:1px;z-index:5;pointer-events:none;display:none}
-.ghost-block{position:fixed;pointer-events:none;z-index:100;border-radius:var(--radius-sm);padding:3px 6px;font-size:var(--fs-2xs);opacity:.75;border-left:3px solid}
+.ghost-block{position:fixed;pointer-events:none;z-index:100;border-radius:var(--radius-sm);padding:3px 6px;font-size:var(--fs-2xs);opacity:.75}
 
 /* Pool sidebar */
 .pool-sidebar{width:280px;flex-shrink:0;background:var(--bg-surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
