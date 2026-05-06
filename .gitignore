@@ -16,6 +16,9 @@ dist-ssr
 # User data + command queue (commands/ lives inside data/)
 data/
 
+# Scratch / research notes that don't belong in history
+tmp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
