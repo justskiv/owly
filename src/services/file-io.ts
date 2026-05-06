@@ -4,15 +4,18 @@ import { toast } from "../components/shared/Toast";
 import { errMsg } from "./format";
 
 // Sandbox guard: in test mode, refuse to invoke when mockIPC isn't
-// installed. mockIPC sets `window.__TAURI_INTERNALS__`; without it a
-// real `invoke` would either throw a confusing Tauri error or, if a
-// real Tauri runtime were present, write to the user's data/.
+// installed. Test setups set `globalThis.__APP_MODE__ = "test"`;
+// mockIPC sets `window.__TAURI_INTERNALS__`. Without the latter a real
+// `invoke` would either throw a confusing Tauri error or, if a real
+// Tauri runtime were present, write to the user's data/. We use a
+// global flag (not `process.env`) so the same guard works in browser
+// mode where `process` is not defined.
 async function invoke<T>(
   cmd: string,
   args?: Record<string, unknown>,
 ): Promise<T> {
   if (
-    process.env.APP_MODE === "test" &&
+    (globalThis as { __APP_MODE__?: string }).__APP_MODE__ === "test" &&
     typeof window !== "undefined" &&
     !(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
   ) {

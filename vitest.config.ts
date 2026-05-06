@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { playwright } from "@vitest/browser-playwright";
 
 export default defineConfig({
   test: {
@@ -16,6 +17,20 @@ export default defineConfig({
           include: ["src/**/*.smoke.test.tsx"],
           environment: "jsdom",
           setupFiles: ["src/test/setup.ts"],
+        },
+      },
+      {
+        test: {
+          name: "smoke-browser",
+          include: ["src/**/*.browser.test.tsx"],
+          setupFiles: ["src/test/setup-browser.ts"],
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            instances: [{ browser: "chromium" }],
+            headless: true,
+            screenshotFailures: false,
+          },
         },
       },
     ],

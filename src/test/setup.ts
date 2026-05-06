@@ -1,10 +1,13 @@
 // Set BEFORE any module imports — file-io's sandbox guard reads this
-// at call time but we'd rather not rely on subtle ordering.
-process.env.APP_MODE = "test";
+// at call time but we'd rather not rely on subtle ordering. Using
+// globalThis (not process.env) so the same flag works in browser mode
+// where process isn't defined.
+(globalThis as { __APP_MODE__?: string }).__APP_MODE__ = "test";
 
 import "@testing-library/jest-dom/vitest";
 import { afterAll, beforeEach } from "vitest";
-import { mockIPC, clearMocks } from "@tauri-apps/api/mocks";
+import { clearMocks } from "@tauri-apps/api/mocks";
+import { installDefaultMockIPC } from "./mock-ipc";
 import { resetAllStores } from "./stores";
 
 class MockResizeObserver {
@@ -43,17 +46,7 @@ if (!window.matchMedia) {
 
 beforeEach(() => {
   resetAllStores();
-  mockIPC(async (cmd) => {
-    if (cmd === "get_data_dir") return "/test-data";
-    if (cmd === "read_file") return "";
-    if (cmd === "write_file") return null;
-    if (cmd === "file_exists") return false;
-    if (cmd === "ensure_dir") return null;
-    if (cmd === "list_files") return [];
-    if (cmd === "move_file") return null;
-    if (cmd === "delete_file") return null;
-    return null;
-  });
+  installDefaultMockIPC();
 });
 
 afterAll(() => {

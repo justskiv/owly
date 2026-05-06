@@ -19,6 +19,9 @@ data/
 # Scratch / research notes that don't belong in history
 tmp/
 
+# Vitest browser-mode debug attachments (trace screenshots, etc.)
+.vitest-attachments/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

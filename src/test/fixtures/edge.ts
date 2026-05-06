@@ -1,6 +1,7 @@
 import { ConfigFileSchema } from "../../schemas/config";
 import { EntitySchema } from "../../schemas/entity";
 import { HorizonFileSchema } from "../../schemas/horizon";
+import { BlockSchema } from "../../schemas/schedule";
 
 export const edgeAreas = [
   { id: "life", label: "Жизнь", color: "#B8D84A", icon: "home" },
@@ -90,3 +91,75 @@ export const edgeHorizonFile = HorizonFileSchema.parse({
     },
   ],
 });
+
+// Monday of ISO week 2026-W19. Tuesday is 2026-05-05 — drop target
+// for the DnD smoke. Both dates are static so the test is reproducible
+// regardless of when it runs.
+export const edgeBlock = BlockSchema.parse({
+  id: "edge-block-1",
+  title: "Smoke block",
+  date: "2026-05-04",
+  start: "10:00",
+  duration: 60,
+  category: "life",
+  source_entity_id: null,
+  status: "planned",
+  notes: "",
+});
+
+export const edgeWeekState = {
+  currentWeek: "2026-w19",
+  startDate: "2026-05-04",
+  templateApplied: null,
+  blocks: [edgeBlock],
+  loading: false,
+  error: null,
+};
+
+// Screenshot baseline must not flip groups or "Xд" text day-to-day,
+// so all tasks have null deadlines — they land in the "someday"
+// group and render without an urgency chip.
+export const screenshotEntities = [
+  EntitySchema.parse({
+    id: "shot-task-1",
+    type: "task",
+    title: "Daily routine review",
+    tags: ["life"],
+    status: "active",
+    priority: "medium",
+    deadline: null,
+    estimated_minutes: null,
+    description: "",
+    created_at: NOW,
+    updated_at: NOW,
+    fields: { parent_project_id: null },
+  }),
+  EntitySchema.parse({
+    id: "shot-task-2",
+    type: "task",
+    title: "Read research paper",
+    tags: ["work"],
+    status: "active",
+    priority: "high",
+    deadline: null,
+    estimated_minutes: null,
+    description: "",
+    created_at: NOW,
+    updated_at: NOW,
+    fields: { parent_project_id: null },
+  }),
+  EntitySchema.parse({
+    id: "shot-task-3",
+    type: "task",
+    title: "Refactor planner gesture hook",
+    tags: ["work"],
+    status: "active",
+    priority: "low",
+    deadline: null,
+    estimated_minutes: null,
+    description: "",
+    created_at: NOW,
+    updated_at: NOW,
+    fields: { parent_project_id: null },
+  }),
+];
