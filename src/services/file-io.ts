@@ -1,7 +1,28 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { toast } from "../components/shared/Toast";
 import { errMsg } from "./format";
+
+// Sandbox guard: in test mode, refuse to invoke when mockIPC isn't
+// installed. mockIPC sets `window.__TAURI_INTERNALS__`; without it a
+// real `invoke` would either throw a confusing Tauri error or, if a
+// real Tauri runtime were present, write to the user's data/.
+async function invoke<T>(
+  cmd: string,
+  args?: Record<string, unknown>,
+): Promise<T> {
+  if (
+    process.env.APP_MODE === "test" &&
+    typeof window !== "undefined" &&
+    !(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+  ) {
+    throw new Error(
+      "file-io invoke called in test mode without active mockIPC " +
+        "— beforeEach in setup.ts must reinstall it.",
+    );
+  }
+  return await tauriInvoke<T>(cmd, args);
+}
 
 let cachedDataDir: string | null = null;
 

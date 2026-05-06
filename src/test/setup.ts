@@ -1,3 +1,7 @@
+// Set BEFORE any module imports — file-io's sandbox guard reads this
+// at call time but we'd rather not rely on subtle ordering.
+process.env.APP_MODE = "test";
+
 import "@testing-library/jest-dom/vitest";
 import { afterAll, beforeEach } from "vitest";
 import { mockIPC, clearMocks } from "@tauri-apps/api/mocks";
