@@ -74,15 +74,22 @@ tasks:
     cmds:
       - npm test
 
+  rust:test:
+    desc: Run Rust unit tests in src-tauri
+    dir: src-tauri
+    cmds:
+      - cargo test --lib --quiet
+
   lint:
     desc: ESLint with --max-warnings=0
     cmds:
       - npx eslint . --max-warnings=0
 
   check:
-    desc: Pre-commit sanity check (typecheck + lint + test + fe:build)
+    desc: Pre-commit sanity check (typecheck + lint + rust:test + test + fe:build)
     cmds:
       - task: typecheck
       - task: lint
+      - task: rust:test
       - task: test
       - task: fe:build

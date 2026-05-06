@@ -136,3 +136,142 @@ fn tmp_sibling(path: &Path) -> PathBuf {
     tmp.push(format!(".tmp.{pid}.{nanos}.{n}"));
     PathBuf::from(tmp)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tauri::test::{mock_builder, mock_context, noop_assets};
+    use tauri::Manager;
+    use tempfile::TempDir;
+
+    // Build a MockRuntime app rooted at `root_dir`. Every file command
+    // validates the incoming path against this DataRoot, so the tempdir
+    // we create here doubles as both the sandbox and the test fixture
+    // root.
+    fn app_with_root(root_dir: &Path) -> tauri::App<tauri::test::MockRuntime> {
+        mock_builder()
+            .manage(DataRoot(root_dir.to_path_buf()))
+            .build(mock_context(noop_assets()))
+            .expect("mock app builds")
+    }
+
+    fn p(path: &Path) -> String {
+        path.to_string_lossy().into_owned()
+    }
+
+    #[test]
+    fn read_file_returns_contents() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("hello.json");
+        fs::write(&path, r#"{"hello":"world"}"#).unwrap();
+
+        let app = app_with_root(dir.path());
+        let res = read_file(p(&path), app.state::<DataRoot>());
+
+        assert_eq!(res.unwrap(), r#"{"hello":"world"}"#);
+    }
+
+    #[test]
+    fn read_file_missing_returns_err() {
+        let dir = TempDir::new().unwrap();
+        let app = app_with_root(dir.path());
+
+        let res = read_file(p(&dir.path().join("nope.json")), app.state::<DataRoot>());
+
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn read_file_rejects_path_traversal() {
+        let dir = TempDir::new().unwrap();
+        let app = app_with_root(dir.path());
+
+        let escape = dir.path().join("..").join("escape.json");
+        let res = read_file(p(&escape), app.state::<DataRoot>());
+
+        assert!(res.is_err(), "validate must reject `..` components");
+    }
+
+    #[test]
+    fn write_file_persists_and_reads_back() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("nested").join("out.json");
+        let app = app_with_root(dir.path());
+
+        write_file(p(&path), "payload".into(), app.state::<DataRoot>()).unwrap();
+
+        assert!(path.exists(), "atomic rename must produce target");
+        assert_eq!(fs::read_to_string(&path).unwrap(), "payload");
+        // Round-trip via the API too — catches type drift on either side.
+        assert_eq!(
+            read_file(p(&path), app.state::<DataRoot>()).unwrap(),
+            "payload",
+        );
+    }
+
+    #[test]
+    fn list_files_returns_sorted_filenames() {
+        let dir = TempDir::new().unwrap();
+        fs::write(dir.path().join("b.json"), "").unwrap();
+        fs::write(dir.path().join("a.json"), "").unwrap();
+        fs::write(dir.path().join("c.json"), "").unwrap();
+
+        let app = app_with_root(dir.path());
+        let files = list_files(p(dir.path()), app.state::<DataRoot>()).unwrap();
+
+        assert_eq!(files, vec!["a.json", "b.json", "c.json"]);
+    }
+
+    #[test]
+    fn ensure_dir_creates_recursively() {
+        let dir = TempDir::new().unwrap();
+        let target = dir.path().join("a").join("b").join("c");
+        let app = app_with_root(dir.path());
+
+        ensure_dir(p(&target), app.state::<DataRoot>()).unwrap();
+
+        assert!(target.is_dir());
+    }
+
+    #[test]
+    fn file_exists_distinguishes_present_and_missing() {
+        let dir = TempDir::new().unwrap();
+        let present = dir.path().join("here.json");
+        fs::write(&present, "").unwrap();
+
+        let app = app_with_root(dir.path());
+
+        assert!(file_exists(p(&present), app.state::<DataRoot>()).unwrap());
+        assert!(!file_exists(
+            p(&dir.path().join("nope.json")),
+            app.state::<DataRoot>(),
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn move_file_renames_within_root() {
+        let dir = TempDir::new().unwrap();
+        let from = dir.path().join("a.json");
+        let to = dir.path().join("sub").join("b.json");
+        fs::write(&from, "x").unwrap();
+
+        let app = app_with_root(dir.path());
+        move_file(p(&from), p(&to), app.state::<DataRoot>()).unwrap();
+
+        assert!(!from.exists());
+        assert_eq!(fs::read_to_string(&to).unwrap(), "x");
+    }
+
+    #[test]
+    fn delete_file_removes_target() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("doomed.json");
+        fs::write(&path, "x").unwrap();
+
+        let app = app_with_root(dir.path());
+        delete_file(p(&path), app.state::<DataRoot>()).unwrap();
+
+        assert!(!path.exists());
+    }
+}
