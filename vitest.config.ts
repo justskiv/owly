@@ -27,7 +27,18 @@ export default defineConfig({
           browser: {
             enabled: true,
             provider: playwright(),
-            instances: [{ browser: "chromium" }],
+            // Desktop-class viewport: TuzovOS targets a desktop Tauri
+            // window, and the Horizon grid (200px name-col + 8 month
+            // cols) collapses below ~1000px wide. The Playwright
+            // default in vitest-browser is mobile-sized (414×896),
+            // which empties Horizon's TD widths and breaks DnD
+            // hit-testing via elementFromPoint.
+            instances: [
+              {
+                browser: "chromium",
+                viewport: { width: 1280, height: 720 },
+              },
+            ],
             headless: true,
             screenshotFailures: false,
           },
