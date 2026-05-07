@@ -78,6 +78,96 @@ Fix (читаемость, не безопасность): диспатчить 
 единственная правка, никаких других effects. Можно слить в
 коммите рядом с другими `drag.ts` cleanup'ами.
 
+## E4 — vitest viewport pinned to 1280×720
+
+**Статус:** applied (deviation from E4 plan).
+**Источник:** review коммита a9d70d0.
+
+`vitest.config.ts` теперь явно ставит `viewport: { width: 1280,
+height: 720 }` для browser-instances. План E4 говорил «не трогать».
+Дефолтный vitest-browser viewport — 414×896 (mobile), и Horizon-grid
+схлопывал month-cells до width=0 → `elementFromPoint` промахивался по
+drop-target. 1280×720 — минимальный desktop размер где table layout
+не ломается.
+
+**Не сделано (defer):**
+
+- Tauri default — 1440×900 (`src-tauri/tauri.conf.json`). Тестовый
+  viewport мог бы matchить, но 1280×720 уже стабилен; смена
+  invalidate'ит и TasksPage и Review baseline.
+- CI parity (`*-chromium-darwin.png`) — нет CI в репо, политика по
+  платформе не зафиксирована. Когда появится Linux-CI, нужно либо
+  pin macOS для screenshot-тестов, либо commit per-platform.
+
+## E4 — fonts not loaded in setup-browser
+
+**Статус:** known limitation (low priority).
+**Источник:** review коммита a9d70d0 (Codex Set 3).
+
+`src/test/setup-browser.ts:15` импортирует только `globals.css`, а
+`globals.css` references `Outfit Variable` / `JetBrains Mono Variable`
+families. `src/main.tsx:3-4` импортирует `@fontsource-variable/*`
+packages — в test setup их нет. Screenshot baselines рендерятся под
+OS fallback fonts, не под production-faces.
+
+Fix: добавить в `setup-browser.ts` перед `globals.css`:
+```ts
+import "@fontsource-variable/outfit";
+import "@fontsource-variable/jetbrains-mono";
+```
+плюс `await document.fonts.ready` перед screenshot assertions. Это
+сломает оба существующих baseline (TasksPage + ReviewPage); regen
+обязателен. Не делаем сейчас — стабильны как есть.
+
+## E4 — H-3 coverage gaps
+
+**Статус:** documented (low priority).
+**Источник:** review коммита a9d70d0.
+
+`src/pages/HorizonPage.e2e.test.tsx:H-3` проверяет
+`months.length === 1` после drop, но не закрывает:
+
+- **Точное window-index value.** Conversion `data-month=N` →
+  `state.months[]` в `useHorizonDrag.ts` хранит raw window-index.
+  Покрыто unit-тестами `horizon-helpers.test.ts`.
+- **Hidden→active flip.** `useHorizonDrag.ts:136-138` сбрасывает
+  `hidden=false` если drop'нули скрытый проект. H-3 seed использует
+  `hidden:false`, ветка не покрыта. Можно расширить тест или добавить
+  отдельный H-3b сценарий «drag hidden project».
+- **Empty-grid drop.** Тест seed'ит anchor-проект на доске, чтобы
+  `<tbody>` не схлопывался — иначе `<tfoot>` HorizonDropRow'а имеет
+  width=0 cells и `elementFromPoint` промахивается. Это тестовый
+  workaround, но также реальная UX-проблема: при пустой доске
+  единственный drop-target неудобен. Исправить — добавить
+  `min-height` на `.hz-drop-row .month-cell` в `globals.css`.
+
+## E4 — H-5 anchor seed limitation
+
+**Статус:** documented (low priority).
+**Источник:** review коммита a9d70d0.
+
+`H-5` seed'ит ОДИН проект (size=mid) и проверяет переход в small.
+После size-change «Средние» group остаётся пустой → её header
+исчезает (HorizonBoard short-circuit на `items.length === 0`).
+Это упрощает assertion (`midGroupGone: true`), но не покрывает
+реальный сценарий «несколько проектов в группе, один уезжает в
+другую» — там нужна проверка что только тот row перешёл.
+
+Fix: расширить seed двумя проектами в mid-группе, проверить что
+только Site refactor перешёл в small, второй остался в mid (header
+mid не исчезает).
+
+## E4 — TasksPage T-7 default comparator threshold
+
+**Статус:** cleanup (low priority).
+**Источник:** review коммита a9d70d0 (Set 3 Gemini).
+
+`src/pages/TasksPage.e2e.test.tsx:T-7` использует default vitest
+threshold для `toMatchScreenshot("tasks-list")`, в то время как
+`R-3` пинит `0.005`. Font-rendering jitter может flake'нуть T-7.
+Привести к одному порогу — добавить
+`{ comparatorOptions: { allowedMismatchedPixelRatio: 0.005 } }` к T-7.
+
 ## Floating-promise teardown в useBlockGesture / useKanbanGesture
 
 **Статус:** partially mitigated (тест-side, не fixed).

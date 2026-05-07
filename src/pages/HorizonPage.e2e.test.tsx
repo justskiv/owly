@@ -25,27 +25,6 @@ type SeedFn = (
 // typicalWeek's builders, so the seed callback resolves them by
 // title — keeps the test text-stable instead of pinning generated
 // "project-N" strings that would drift if builder order shifted.
-async function setupHorizon(seed: SeedFn): Promise<RenderResult> {
-  const fs = typicalWeek();
-  installFS(fs);
-  useConfigStore.setState({ config: DEFAULT_CONFIG });
-  await useEntityStore.getState().loadEntities(DEFAULT_CONFIG.areas);
-  const byTitle = (t: string): string => {
-    const e = useEntityStore
-      .getState()
-      .entities.find((x) => x.title === t && x.type === "project");
-    if (!e) throw new Error(`project "${t}" not in store`);
-    return e.id;
-  };
-  const horizon = JSON.parse(fs.read(HORIZON_PATH));
-  horizon.projects = seed(byTitle);
-  fs.write(HORIZON_PATH, JSON.stringify(horizon));
-  await useHorizonStore.getState().load();
-  await usePoolStore.getState().loadWeek(WEEK);
-  useUIStore.setState({ bootReady: true, currentPage: "horizon" });
-  return render(<Shell />);
-}
-
 function projectIdByTitle(title: string): string {
   const e = useEntityStore
     .getState()
@@ -54,21 +33,52 @@ function projectIdByTitle(title: string): string {
   return e.id;
 }
 
+async function setupHorizon(seed: SeedFn): Promise<RenderResult> {
+  const fs = typicalWeek();
+  installFS(fs);
+  useConfigStore.setState({ config: DEFAULT_CONFIG });
+  await useEntityStore.getState().loadEntities(DEFAULT_CONFIG.areas);
+  const horizon = JSON.parse(fs.read(HORIZON_PATH));
+  horizon.projects = seed(projectIdByTitle);
+  fs.write(HORIZON_PATH, JSON.stringify(horizon));
+  await useHorizonStore.getState().load();
+  await usePoolStore.getState().loadWeek(WEEK);
+  useUIStore.setState({ bootReady: true, currentPage: "horizon" });
+  return render(<Shell />);
+}
+
 // Locates an element inside the grid table by name. The same project
 // title can appear in both the table and the backlog (e.g. an
 // "Активное" project shows on both surfaces); querying via .hz-name
-// — which only renders in HorizonRow — keeps the locator unambiguous
-// without resorting to text search across the whole DOM.
+// — which only renders in HorizonRow — keeps the locator unambiguous.
+// The `:not(.hz-dot)` exclusion makes the selector intent explicit:
+// .hz-name has two spans (color dot + title), and we want the title.
 function gridNameSpan(
   screen: RenderResult,
   title: string,
 ): HTMLElement {
   const spans = Array.from(
-    screen.container.querySelectorAll<HTMLElement>(".hz-name span"),
+    screen.container.querySelectorAll<HTMLElement>(
+      ".hz-name span:not(.hz-dot)",
+    ),
   );
   const found = spans.find((el) => el.textContent === title);
   if (!found) throw new Error(`grid row for "${title}" not in DOM`);
   return found;
+}
+
+// True if a grid row with this name still renders in the board.
+// Used to verify that hide/size mutations actually affect rendering,
+// not just the store.
+function gridHasProject(
+  screen: RenderResult,
+  title: string,
+): boolean {
+  return Array.from(
+    screen.container.querySelectorAll<HTMLElement>(
+      ".hz-name span:not(.hz-dot)",
+    ),
+  ).some((el) => el.textContent === title);
 }
 
 // H-3: drag a backlog item onto a month cell. useHorizonDrag picks
@@ -128,6 +138,13 @@ test("H-3: drag project from backlog adds to grid", async () => {
     )
     .toBe(1);
 
+  // Ghost element teardown is async (void IIFE in useHorizonDrag's
+  // teardown). Wait for it so any follow-up DOM check or subsequent
+  // test doesn't see a stale ghost — same guard Pr-4 uses.
+  await expect
+    .poll(() => document.querySelectorAll(".drag-ghost").length)
+    .toBe(0);
+
   await flushAllWrites();
   const fs = getCurrentFS();
   const file = JSON.parse(fs.read(HORIZON_PATH));
@@ -168,6 +185,13 @@ test("H-4: hide project moves to deferred section", async () => {
           .projects.find((p) => p.project_id === projectId)?.hidden,
     )
     .toBe(true);
+
+  // The hidden filter in HorizonBoard removes the row. A regression
+  // that flipped the store but kept the row rendered would still
+  // satisfy the deferred-section assertion below — guard it here.
+  await expect
+    .poll(() => gridHasProject(screen, "Tuzov OS v2"))
+    .toBe(false);
 
   // Deferred section is collapsed by default — expand to verify the
   // hidden project actually rendered there, not just flipped in store.
@@ -249,6 +273,42 @@ test("H-5: size change reorders rows", async () => {
           .projects.find((p) => p.project_id === projectId)?.size,
     )
     .toBe("small");
+
+  // Spec §H-5 says rows reorder, not just that the store changes.
+  // HorizonBoard renders one .hz-group-row per non-empty size group;
+  // the seed had a single mid project, so after the move the "Средние"
+  // group becomes empty (its header disappears via the empty-group
+  // short-circuit) and a "Мелкие" header appears. Walking siblings
+  // from the small header proves the project also re-mounted under it.
+  await expect
+    .poll(() => {
+      const tbodyRows = Array.from(
+        screen.container.querySelectorAll<HTMLTableRowElement>(
+          ".hz-grid tbody tr",
+        ),
+      );
+      const smallHeaderIdx = tbodyRows.findIndex(
+        (tr) =>
+          tr.classList.contains("hz-group-row") &&
+          tr.textContent?.includes("Мелкие"),
+      );
+      const refactorIdx = tbodyRows.findIndex(
+        (tr) =>
+          !tr.classList.contains("hz-group-row") &&
+          tr.querySelector(".hz-name span:not(.hz-dot)")?.textContent ===
+            "Site refactor",
+      );
+      const midHeaderIdx = tbodyRows.findIndex(
+        (tr) =>
+          tr.classList.contains("hz-group-row") &&
+          tr.textContent?.includes("Средние"),
+      );
+      return {
+        movedToSmall: smallHeaderIdx >= 0 && refactorIdx > smallHeaderIdx,
+        midGroupGone: midHeaderIdx === -1,
+      };
+    })
+    .toEqual({ movedToSmall: true, midGroupGone: true });
 
   await flushAllWrites();
   const fs = getCurrentFS();
