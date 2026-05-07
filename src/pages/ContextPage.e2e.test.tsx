@@ -7,12 +7,13 @@ import { useEntityStore } from "../store/entities";
 import { usePoolStore } from "../store/pool";
 import { useUIStore } from "../store/ui";
 import { DEFAULT_CONFIG } from "../services/defaults";
+import { FALLBACK_BOARD_ID } from "../services/boards";
 import { typicalWeek } from "../test/scenarios/typical-week";
-import { installFS, getCurrentFS } from "../test/virtual-fs";
+import { installFS, getCurrentFS, ROOT } from "../test/virtual-fs";
 import { flushAllWrites } from "../test/e2e/automation";
 
 const WEEK = "2025-w24";
-const ENTITIES_PATH = "/tuzov-test/data/entities.json";
+const ENTITIES_PATH = `${ROOT}/entities.json`;
 
 // Boots Context via typicalWeek. typicalWeek seeds one direction
 // ("YouTube") with tags=["work"] — only the work CategorySection is
@@ -42,6 +43,11 @@ test("C-1: renders direction grid grouped by area", async () => {
   const cards = sections[0].querySelectorAll(".dir-card");
   expect(cards.length).toBe(1);
   expect(cards[0].querySelector(".dc-title")?.textContent).toBe("YouTube");
+
+  // Section header count badge mirrors directions.length — guards
+  // against a render that lists cards without updating the count.
+  const count = sections[0].querySelector(".cs-count");
+  expect(count?.textContent).toBe("1");
 });
 
 // C-3: open InlineCreateDirection inside the work section, type a
@@ -66,6 +72,17 @@ test("C-3: inline create new direction in section", async () => {
         .entities.some(
           (e) => e.type === "direction" && e.title === "New direction",
         ),
+    )
+    .toBe(true);
+
+  // Visible in DirectionGrid — store update alone doesn't prove the
+  // re-render landed in DOM (CategorySection memo regression would be
+  // invisible to a store-only assertion).
+  await expect
+    .poll(() =>
+      Array.from(
+        screen.container.querySelectorAll<HTMLElement>(".dir-card .dc-title"),
+      ).some((el) => el.textContent === "New direction"),
     )
     .toBe(true);
 
@@ -128,9 +145,16 @@ test("C-4: inline create project inside direction card", async () => {
     throw new Error("created project not found in store");
   }
   expect(created.fields.direction_id).toBe(dirEntity.id);
-  expect(created.fields.board_id).toBe("brd3");
+  expect(created.fields.board_id).toBe(FALLBACK_BOARD_ID);
   expect(created.fields.column_index).toBe(0);
   expect(created.tags).toContain("work");
+
+  // Inline editor closes after Enter (InlineCreateProject calls
+  // onClose() in finally{}); guards regression where the input
+  // sticks and a follow-up Enter creates a duplicate.
+  await expect
+    .poll(() => screen.container.querySelector('input[placeholder^="Проект для"]'))
+    .toBeNull();
 
   await flushAllWrites();
   const fs = getCurrentFS();
