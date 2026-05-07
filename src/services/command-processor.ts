@@ -48,12 +48,45 @@ let unlisten: UnlistenFn | null = null;
 // only for src/test/** — do not call from prod
 export function __resetCommandProcessorForTests(): void {
   if (unlisten) {
-    unlisten();
+    // mockIPC's shouldMockEvents stub doesn't fully implement the
+    // unregisterListener bridge — `unlisten()` returns a promise that
+    // rejects in test mode. Swallow both sync throws and the async
+    // rejection so a single E2E test booting via <App /> doesn't poison
+    // the next one with an unhandled rejection.
+    const u = unlisten;
     unlisten = null;
+    try {
+      void Promise.resolve(u()).catch(() => undefined);
+    } catch {
+      /* ignore */
+    }
   }
   started = false;
   inflight.clear();
   chain = Promise.resolve();
+}
+
+// only for src/test/** — do not call from prod
+//
+// Bypasses the watcher and the chain/inflight dedup. Reads the file at
+// `path`, parses it, executes the command, and moves the file to done/.
+// Mirrors the happy path of processOne() without the retry loop or the
+// fail() fallback — tests use this to drive a single deterministic step
+// instead of racing the watcher.
+export async function __processOnePendingForTests(
+  path: string,
+): Promise<void> {
+  const text = await invoke<string>("read_file", { path });
+  const raw = JSON.parse(text);
+  const parsed = CommandSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error(`schema rejected: ${parsed.error.message}`);
+  }
+  await executeCommand(parsed.data);
+  const name = path.split("/").pop();
+  if (!name) throw new Error(`invalid path: ${path}`);
+  const dest = await getCommandsPath("done", name);
+  await invoke("move_file", { from: path, to: dest });
 }
 
 // Boot wires up the watcher listener and drains anything sitting in

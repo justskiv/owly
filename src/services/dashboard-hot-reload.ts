@@ -13,8 +13,16 @@ let unlisten: UnlistenFn | null = null;
 // only for src/test/** — do not call from prod
 export function __resetDashboardHotReloadForTests(): void {
   if (unlisten) {
-    unlisten();
+    // See command-processor.ts: mockIPC events stub lacks
+    // unregisterListener; swallow both sync throws and the async
+    // rejection so the test runner doesn't trip on it.
+    const u = unlisten;
     unlisten = null;
+    try {
+      void Promise.resolve(u()).catch(() => undefined);
+    } catch {
+      /* ignore */
+    }
   }
   installed = false;
   if (debounce !== null) {
