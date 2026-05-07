@@ -68,11 +68,14 @@ export async function loadAll(
     useHorizonStore.getState().projects,
   );
   for (const id of diff.toAdd) {
+    if (opts?.signal?.aborted) return;
     await useHorizonStore.getState().addProject(id);
   }
   for (const id of diff.toRemove) {
+    if (opts?.signal?.aborted) return;
     await useHorizonStore.getState().removeProject(id);
   }
+  if (opts?.signal?.aborted) return;
   await startCommandProcessor();
   await installDashboardHotReload();
 }

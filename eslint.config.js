@@ -19,7 +19,7 @@ export default [
   },
   {
     files: ["src/**/*.{ts,tsx}"],
-    ignores: ["src/services/clock.ts"],
+    ignores: ["src/services/clock.ts", "scripts/**"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

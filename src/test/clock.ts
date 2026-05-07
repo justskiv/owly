@@ -1,8 +1,9 @@
 import { vi } from "vitest";
 
-// Wednesday, ISO 2025-w24, no DST in MSK/US, mid-month. 10:00 falls
-// inside ConfigFileSchema's deep-work slot 08:00-13:00.
-export const FROZEN_NOW = new Date("2025-06-11T10:00:00");
+// Wednesday, ISO 2025-w24, no DST in MSK/US, mid-month. The `Z`
+// suffix pins the instant in UTC so a CI runner in UTC and a
+// developer in Europe/Moscow freeze to the same moment.
+export const FROZEN_NOW = new Date("2025-06-11T10:00:00Z");
 
 // Only `Date` is faked — leaving setTimeout/setInterval real keeps
 // findBy* retries, userEvent debouncing, and React act() schedulers

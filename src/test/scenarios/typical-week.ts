@@ -1,5 +1,11 @@
 import { ROOT, VirtualFS } from "../virtual-fs";
+import { FROZEN_NOW } from "../clock";
 import { DEFAULT_CONFIG } from "../../services/defaults";
+import {
+  dateToWeekId,
+  formatDate,
+  getWeekStartDate,
+} from "../../services/time-utils";
 import { buildBlock } from "../builders/block";
 import {
   buildDirection,
@@ -15,9 +21,11 @@ import {
   withDeadlineIn,
 } from "../builders/traits";
 
-// FROZEN_NOW (2025-06-11 Wed) → ISO week 2025-w24, Mon 2025-06-09.
-const WEEK = "2025-w24";
-const WEEK_START = "2025-06-09";
+// Derived from FROZEN_NOW so the scenario stays consistent if the
+// frozen instant ever moves. FROZEN_NOW (Wed 2025-06-11 UTC) →
+// ISO week 2025-w24, Mon 2025-06-09.
+const WEEK = dateToWeekId(formatDate(FROZEN_NOW));
+const WEEK_START = getWeekStartDate(WEEK);
 
 // Default fixture: typical mid-week state with 6 entities and 3
 // blocks (today/tomorrow/yesterday-done). Empty pool/horizon — most

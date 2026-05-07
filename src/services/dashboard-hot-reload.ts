@@ -1,4 +1,4 @@
-import { listen } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { useDashboardStore } from "../store/dashboards";
 
 interface DashboardChange {
@@ -8,9 +8,14 @@ interface DashboardChange {
 
 let installed = false;
 let debounce: number | null = null;
+let unlisten: UnlistenFn | null = null;
 
 // only for src/test/** — do not call from prod
 export function __resetDashboardHotReloadForTests(): void {
+  if (unlisten) {
+    unlisten();
+    unlisten = null;
+  }
   installed = false;
   if (debounce !== null) {
     window.clearTimeout(debounce);
@@ -33,18 +38,21 @@ export async function installDashboardHotReload(): Promise<void> {
   if (installed) return;
   installed = true;
 
-  await listen<DashboardChange>("dashboard-files-changed", (e) => {
-    const name = e.payload.path.split("/").pop() ?? "";
-    if (name.startsWith(".tmp.")) return;
-    if (name.startsWith(".")) return;
-    const isJsx = name.endsWith(".jsx");
-    const isRegistry = name === "_registry.json";
-    if (!isJsx && !isRegistry) return;
+  unlisten = await listen<DashboardChange>(
+    "dashboard-files-changed",
+    (e) => {
+      const name = e.payload.path.split("/").pop() ?? "";
+      if (name.startsWith(".tmp.")) return;
+      if (name.startsWith(".")) return;
+      const isJsx = name.endsWith(".jsx");
+      const isRegistry = name === "_registry.json";
+      if (!isJsx && !isRegistry) return;
 
-    if (debounce !== null) window.clearTimeout(debounce);
-    debounce = window.setTimeout(() => {
-      void useDashboardStore.getState().loadRegistry();
-      useDashboardStore.getState().bumpReload();
-    }, DEBOUNCE_MS);
-  });
+      if (debounce !== null) window.clearTimeout(debounce);
+      debounce = window.setTimeout(() => {
+        void useDashboardStore.getState().loadRegistry();
+        useDashboardStore.getState().bumpReload();
+      }, DEBOUNCE_MS);
+    },
+  );
 }

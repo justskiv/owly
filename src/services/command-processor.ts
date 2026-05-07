@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { CommandSchema } from "../schemas";
 import { toast } from "../components/shared/Toast";
 import { useCommandStore } from "../store/commands";
@@ -43,9 +43,14 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 let started = false;
 const inflight = new Set<string>();
 let chain: Promise<unknown> = Promise.resolve();
+let unlisten: UnlistenFn | null = null;
 
 // only for src/test/** — do not call from prod
 export function __resetCommandProcessorForTests(): void {
+  if (unlisten) {
+    unlisten();
+    unlisten = null;
+  }
   started = false;
   inflight.clear();
   chain = Promise.resolve();
@@ -60,7 +65,7 @@ export async function startCommandProcessor(): Promise<void> {
   // Install the listener BEFORE drain. Anything that arrives between
   // the listener install and the drain finishing is captured by both;
   // the inflight Set dedupes so it runs exactly once.
-  await listen<string>("command-received", (e) => {
+  unlisten = await listen<string>("command-received", (e) => {
     // shouldSkip mirrors drainPending — without it, atomic-write
     // .tmp.<pid>.* siblings would land in inflight and fail to parse.
     const base = e.payload.split("/").pop() ?? "";
