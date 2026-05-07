@@ -9,7 +9,7 @@ import { useEntityStore } from "../store/entities";
 import { usePoolStore } from "../store/pool";
 import { useUIStore } from "../store/ui";
 import { DEFAULT_CONFIG } from "../services/defaults";
-import { getWeekStartDate } from "../services/time-utils";
+import { ROW_H } from "../services/time-utils";
 import {
   edgeBlock,
   edgeConfig,
@@ -19,11 +19,12 @@ import { typicalWeek } from "../test/scenarios/typical-week";
 import { installFS, getCurrentFS } from "../test/virtual-fs";
 import { buildPoolItem } from "../test/builders/pool";
 import { dragWithPointer } from "../test/e2e/drag";
-import { flushAllWrites } from "../test/e2e/automation";
+import { flushAllWrites, seedEmptyWeeks } from "../test/e2e/automation";
 
 const WEEK = "2025-w24";
 const TODAY = "2025-06-11";
 const TOMORROW = "2025-06-12";
+const SCHEDULE_PATH = `/tuzov-test/data/schedule/${WEEK}.json`;
 
 // Boots from typicalWeek scenario via VirtualFS so each test goes
 // through the real loadWeek/loadEntities path. Returns the rendered
@@ -56,6 +57,7 @@ test("P-1: today is highlighted", async () => {
 
 // P-3: legacy E1 migration — uses edge fixtures, kept as-is.
 test("P-3: drag existing block to a different day", async () => {
+  installFS(typicalWeek());
   useConfigStore.setState({ config: edgeConfig });
   useScheduleStore.setState(edgeWeekState);
   useUIStore.setState({ bootReady: true, currentPage: "plan" });
@@ -82,18 +84,30 @@ test("P-3: drag existing block to a different day", async () => {
     .poll(() => useScheduleStore.getState().blocks[0].date)
     .toBe("2026-05-05");
   expect(useScheduleStore.getState().blocks[0].id).toBe(edgeBlock.id);
+
+  // Disk parity — moveBlock writes through enqueueWeekWrite; without
+  // flush an asymptotically-failing queue would silently leave the
+  // store ahead of disk.
+  await flushAllWrites();
+  const fs = getCurrentFS();
+  const week = JSON.parse(
+    fs.read(`/tuzov-test/data/schedule/${edgeWeekState.currentWeek}.json`),
+  );
+  expect(
+    week.blocks.find((b: { id: string }) => b.id === edgeBlock.id).date,
+  ).toBe("2026-05-05");
 });
 
-// P-4: drag block down +80px → start "09:00" → "10:00" (40px = 30 min).
+// P-4: drag block down 2 rows (= +1 hour) — start "09:00" → "10:00".
 test("P-4: drag block to a later time updates start", async () => {
   const screen = await setupPlanner();
   const block = screen.getByLabelText(/^Сегодня deep work, /i);
   const src = (block.element() as HTMLElement).getBoundingClientRect();
-  // dragWithPointer starts from source center; target.y = center + 80
-  // shifts the block down by 80px (= +1 hour at ROW_H 40 / 30 min).
+  // dragWithPointer starts from source center; +2*ROW_H Y delta moves
+  // the block down by 1 hour (each row = 30 min in time-utils).
   await dragWithPointer(block, {
     x: src.left + src.width / 2,
-    y: src.top + src.height / 2 + 80,
+    y: src.top + src.height / 2 + 2 * ROW_H,
   });
 
   await expect
@@ -103,9 +117,18 @@ test("P-4: drag block to a later time updates start", async () => {
         .blocks.find((b) => b.title === "Сегодня deep work")?.start,
     )
     .toBe("10:00");
+
+  await flushAllWrites();
+  const fs = getCurrentFS();
+  const week = JSON.parse(fs.read(SCHEDULE_PATH));
+  expect(
+    week.blocks.find(
+      (b: { title: string }) => b.title === "Сегодня deep work",
+    ).start,
+  ).toBe("10:00");
 });
 
-// P-5: resize from bottom — duration 120 → 150 (dy=+40px = +30 min).
+// P-5: resize from bottom — duration 120 → 150 (dy=+ROW_H = +30 min).
 test("P-5: resize block from bottom edge updates duration", async () => {
   const screen = await setupPlanner();
   const block = screen.container.querySelector<HTMLElement>(
@@ -128,13 +151,14 @@ test("P-5: resize block from bottom edge updates duration", async () => {
       isPrimary: true,
     }),
   );
-  // Two intermediate moves to clear DRAG_THRESHOLD_PX = 5 cleanly.
+  // 3 intermediate moves clear DRAG_THRESHOLD_PX (5) on first step
+  // (ROW_H/3 ≈ 13.3px) and ramp into the final +ROW_H delta.
   for (let i = 1; i <= 3; i++) {
     document.dispatchEvent(
       new PointerEvent("pointermove", {
         bubbles: true,
         clientX: x,
-        clientY: y0 + (40 * i) / 3,
+        clientY: y0 + (ROW_H * i) / 3,
         pointerId: 1,
       }),
     );
@@ -143,7 +167,7 @@ test("P-5: resize block from bottom edge updates duration", async () => {
     new PointerEvent("pointerup", {
       bubbles: true,
       clientX: x,
-      clientY: y0 + 40,
+      clientY: y0 + ROW_H,
       pointerId: 1,
     }),
   );
@@ -155,6 +179,15 @@ test("P-5: resize block from bottom edge updates duration", async () => {
         .blocks.find((b) => b.title === "Сегодня deep work")?.duration,
     )
     .toBe(150);
+
+  await flushAllWrites();
+  const fs = getCurrentFS();
+  const week = JSON.parse(fs.read(SCHEDULE_PATH));
+  expect(
+    week.blocks.find(
+      (b: { title: string }) => b.title === "Сегодня deep work",
+    ).duration,
+  ).toBe(150);
 });
 
 // P-7: Delete key on a selected block removes it.
@@ -171,10 +204,10 @@ test("P-7: Delete key removes selected block", async () => {
 
   // Select via store, not via click — Plan's Delete handler fires
   // off `selectedBlockId`, not focus, so this is the contract path.
+  // (Click on a block enters useBlockGesture which only selects on
+  // small-movement releases; that wiring deserves its own test.)
   useUIStore.getState().setSelectedBlock(target.id);
 
-  // PlannerPage's keydown handler reads `currentPage === "plan"`
-  // and `selectedId !== null` and triggers deleteBlock.
   await userEvent.keyboard("{Delete}");
 
   await expect
@@ -188,35 +221,13 @@ test("P-7: Delete key removes selected block", async () => {
 
   await flushAllWrites();
   const fs = getCurrentFS();
-  const week = JSON.parse(fs.read(`/tuzov-test/data/schedule/${WEEK}.json`));
+  const week = JSON.parse(fs.read(SCHEDULE_PATH));
   expect(
     week.blocks.some(
       (b: { id: string }) => b.id === target.id,
     ),
   ).toBe(false);
 });
-
-// Pre-seed empty week files for prev/next so navigation doesn't
-// trigger WeekNotFoundDialog (whose modal-bg would intercept clicks).
-function seedEmptyWeeks(weeks: string[]): void {
-  const fs = getCurrentFS();
-  for (const w of weeks) {
-    fs.write(
-      `/tuzov-test/data/schedule/${w}.json`,
-      JSON.stringify(
-        {
-          version: 1,
-          week: w,
-          start_date: getWeekStartDate(w),
-          template_applied: null,
-          blocks: [],
-        },
-        null,
-        2,
-      ),
-    );
-  }
-}
 
 // P-8: prev-week arrow navigates back one week.
 test("P-8: prev arrow loads previous week", async () => {
@@ -274,16 +285,15 @@ test("P-10: drag pool item creates a linked block", async () => {
     ".s-item.draggable",
   );
   if (!poolEl) throw new Error("pool .s-item.draggable not in DOM");
-  const poolLoc = { element: () => poolEl };
 
   const target = screen.container.querySelector<HTMLElement>(
     `.day-body[data-date="${TOMORROW}"]`,
   );
   if (!target) throw new Error("target day-body not in DOM");
   const r = target.getBoundingClientRect();
-  await dragWithPointer(poolLoc as unknown as Parameters<
-    typeof dragWithPointer
-  >[0], {
+  // dragWithPointer accepts anything with `.element()`; the inline
+  // wrapper is enough since we already resolved the DOM node above.
+  await dragWithPointer({ element: () => poolEl }, {
     x: r.left + r.width / 2,
     y: r.top + r.height / 2,
   });

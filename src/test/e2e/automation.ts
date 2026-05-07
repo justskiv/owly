@@ -13,6 +13,8 @@ import { flushHorizonQueue } from "../../services/horizon-write-queue";
 import { flushConfigQueue } from "../../services/config-write-queue";
 import { flushWeekQueue } from "../../services/week-write-queue";
 import { flushPoolQueue } from "../../services/pool-write-queue";
+import { getWeekStartDate } from "../../services/time-utils";
+import { getCurrentFS, ROOT } from "../virtual-fs";
 
 export type ScreenName =
   | "plan"
@@ -102,4 +104,28 @@ export async function flushAllWrites(): Promise<void> {
     flushWeekQueue(),
     flushConfigQueue(),
   ]);
+}
+
+// Pre-create empty week files so prev/next-week navigation does
+// not trigger WeekNotFoundDialog (whose modal-bg would intercept
+// further clicks during the test). Used by Plan tests that walk
+// past the FROZEN_NOW week.
+export function seedEmptyWeeks(weeks: string[]): void {
+  const fs = getCurrentFS();
+  for (const w of weeks) {
+    fs.write(
+      `${ROOT}/schedule/${w}.json`,
+      JSON.stringify(
+        {
+          version: 1,
+          week: w,
+          start_date: getWeekStartDate(w),
+          template_applied: null,
+          blocks: [],
+        },
+        null,
+        2,
+      ),
+    );
+  }
 }

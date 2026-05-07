@@ -67,9 +67,16 @@ test("T-3: search filters by title", async () => {
   await userEvent.type(search, "report");
 
   await expect.element(screen.getByText("Test report")).toBeVisible();
+  // queryByText returns null when no element matches; safer than
+  // textContent.includes which would still hit display:none nodes.
   await expect
-    .poll(() => screen.container.textContent?.includes("Daily review"))
-    .toBe(false);
+    .poll(() => screen.container.querySelector(".tr-title")?.textContent)
+    .not.toContain("Daily review");
+  expect(
+    Array.from(
+      screen.container.querySelectorAll<HTMLElement>(".tr-title"),
+    ).map((el) => el.textContent),
+  ).not.toContain("Daily review");
 });
 
 // T-4: legacy E1 migration — Cmd+N opens Quick Add.
@@ -98,10 +105,10 @@ test("T-6: complete checkbox toggles status to done", async () => {
   const button = screen.getByRole("button", {
     name: /Отметить выполненной: Test report/i,
   });
-  // The tasks list is scrollable and Playwright's auto-scroll
-  // hits the iframe boundary — userEvent.click reports "outside
-  // viewport" and times out. Direct DOM .click() fires the React
-  // onClick handler without going through Playwright's hit-test.
+  // Playwright's hit-test fails through the Vitest iframe boundary
+  // ("outside viewport") even with `force: true`. React onClick is
+  // wired to a plain HTMLButtonElement, so dispatching a native
+  // click directly still triggers the same handler chain.
   const buttonEl = button.element() as HTMLElement;
   buttonEl.scrollIntoView({ block: "center" });
   buttonEl.click();

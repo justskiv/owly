@@ -1,11 +1,18 @@
 import { userEvent } from "vitest/browser";
 import type { Locator } from "@vitest/browser/context";
 
+// Anything with `.element()` works as a drag source. Locator from
+// @vitest/browser fits, plus a hand-built `{ element: () => poolEl }`
+// when the test queried the DOM directly (see PlannerPage P-10).
+export interface DragSource {
+  element(): HTMLElement | Element;
+}
+
 // For elements driven by useBlockGesture / useBacklogGesture etc.
 // Sends raw pointer events with intermediate moves to clear the
 // drag-threshold (DRAG_THRESHOLD_PX = 5 in useBlockGesture.ts).
 export async function dragWithPointer(
-  source: Locator,
+  source: Locator | DragSource,
   target: { x: number; y: number },
   opts: { steps?: number } = {},
 ): Promise<void> {
