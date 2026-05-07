@@ -44,6 +44,13 @@ let started = false;
 const inflight = new Set<string>();
 let chain: Promise<unknown> = Promise.resolve();
 
+// only for src/test/** — do not call from prod
+export function __resetCommandProcessorForTests(): void {
+  started = false;
+  inflight.clear();
+  chain = Promise.resolve();
+}
+
 // Boot wires up the watcher listener and drains anything sitting in
 // commands/pending/ from the last session. Idempotent — guarded by
 // `started` so React StrictMode's double-mount can't install twice.

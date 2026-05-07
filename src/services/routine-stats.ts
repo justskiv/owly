@@ -1,4 +1,5 @@
 import type { Block } from "../schemas";
+import { now } from "./clock";
 import {
   addWeeks,
   formatDate,
@@ -123,7 +124,7 @@ export async function computeRoutineStats(
   // done block. Capped to the heatmap window (26 weeks ≈ 182 days)
   // since byDate only contains blocks from that range — looping
   // further just returns zeros and the streak would spuriously break.
-  const today = new Date();
+  const today = now();
   today.setHours(0, 0, 0, 0);
   const STREAK_CAP_DAYS = HEATMAP_WEEKS * 7;
   let streak = 0;

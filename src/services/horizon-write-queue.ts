@@ -14,3 +14,8 @@ export function enqueueHorizonWrite<T>(fn: () => Promise<T>): Promise<T> {
   inflight = next.catch(() => undefined);
   return next;
 }
+
+// Test-only: awaits any pending write-chain. Do not call from prod.
+export async function flushHorizonQueue(): Promise<void> {
+  await inflight;
+}

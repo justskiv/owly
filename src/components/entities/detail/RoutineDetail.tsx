@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { RoutineEntity } from "../../../schemas";
 import { useScheduleStore } from "../../../store/schedule";
+import { now } from "../../../services/clock";
 import {
   computeRoutineStats,
   type RoutineStats,
@@ -16,7 +17,7 @@ function freqText(entity: RoutineEntity): string {
 }
 
 function todayIndex(): number {
-  const day = new Date().getDay(); // 0=Sun..6=Sat
+  const day = now().getDay(); // 0=Sun..6=Sat
   // Mon..Sun → 0..6
   return day === 0 ? 6 : day - 1;
 }

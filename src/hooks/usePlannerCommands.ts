@@ -4,6 +4,7 @@ import type { EditorPrefill } from "../components/planner/BlockEditor";
 import { toast } from "../components/shared/Toast";
 import { useScheduleStore } from "../store/schedule";
 import { useUIStore } from "../store/ui";
+import { now } from "../services/clock";
 import {
   DEFAULT_BLOCK_CATEGORY,
   DEFAULT_BLOCK_DURATION_MIN,
@@ -31,9 +32,9 @@ export function usePlannerCommands({
 
   const buildNewDefaults = useCallback((): EditorPrefill => {
     const date = todayIdx >= 0 ? weekDates[todayIdx] : weekStart;
-    const now = new Date();
+    const wall = now();
     const snapped =
-      Math.round((now.getHours() * 60 + now.getMinutes()) / SNAP_MIN) *
+      Math.round((wall.getHours() * 60 + wall.getMinutes()) / SNAP_MIN) *
       SNAP_MIN;
     const clamped = Math.max(
       START_HOUR * 60,

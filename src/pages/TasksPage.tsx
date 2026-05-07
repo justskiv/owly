@@ -101,7 +101,7 @@ export function TasksPage() {
     taskSearch || taskFilter ? "Нет задач по этому фильтру" : null;
 
   return (
-    <div className="tasks-page">
+    <div className="tasks-page" data-screen="tasks">
       <div className="tasks-inner">
         <TasksHeader />
         <TaskBar />

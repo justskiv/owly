@@ -4,6 +4,7 @@ import { useConfigStore } from "../../../store/config";
 import { useEntityStore } from "../../../store/entities";
 import { useUIStore } from "../../../store/ui";
 import { getAreaColor } from "../../../services/categories";
+import { now } from "../../../services/clock";
 import { fmtShortDate } from "../../../services/format";
 import { ENTITY_ICONS } from "../../../services/entity-icons";
 import { computeMetricStats } from "../../../services/metric-stats";
@@ -55,9 +56,9 @@ function fmtRemain(current: string, target: string): string | null {
 }
 
 function monthsUntil(targetDate: string): number | null {
-  const now = new Date();
+  const wall = now();
   const target = new Date(`${targetDate}T00:00:00`);
-  const diffMs = target.getTime() - now.getTime();
+  const diffMs = target.getTime() - wall.getTime();
   if (!Number.isFinite(diffMs) || diffMs <= 0) return null;
   return diffMs / (1000 * 60 * 60 * 24 * 30);
 }

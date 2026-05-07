@@ -55,7 +55,7 @@ export function ProjectsPage() {
     areas.find((a) => a.id === "work")?.id ?? areas[0].id;
 
   return (
-    <div className="projects-page">
+    <div className="projects-page" data-screen="projects">
       <BoardBar areas={areas} />
       <SummaryBar total={visibleByCat.length} stale={staleCount} />
       <Kanban

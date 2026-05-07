@@ -21,8 +21,8 @@ export default defineConfig({
       },
       {
         test: {
-          name: "smoke-browser",
-          include: ["src/**/*.browser.test.tsx"],
+          name: "e2e-browser",
+          include: ["src/**/*.e2e.test.tsx"],
           setupFiles: ["src/test/setup-browser.ts"],
           browser: {
             enabled: true,

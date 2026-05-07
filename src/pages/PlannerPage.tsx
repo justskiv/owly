@@ -5,6 +5,7 @@ import { DurationTip } from "../components/planner/DurationTip";
 import { PoolSidebar } from "../components/planner/PoolSidebar";
 import { WeekGrid } from "../components/planner/WeekGrid";
 import { WeekNotFoundDialog } from "../components/planner/WeekNotFoundDialog";
+import { now, nowMs } from "../services/clock";
 import {
   END_HOUR,
   START_HOUR,
@@ -37,11 +38,11 @@ function useNowInWeek(weekDates: string[], tick: number) {
   // recomputes the wall-clock minute that the now-line follows.
   void tick;
   return useMemo(() => {
-    const now = new Date();
-    const iso = formatDate(now);
+    const wall = now();
+    const iso = formatDate(wall);
     const idx = weekDates.indexOf(iso);
     if (idx < 0) return { todayIdx: -1, nowMinutes: null as number | null };
-    const minutes = now.getHours() * 60 + now.getMinutes();
+    const minutes = wall.getHours() * 60 + wall.getMinutes();
     const visible = minutes >= START_HOUR * 60 && minutes < END_HOUR * 60;
     return { todayIdx: idx, nowMinutes: visible ? minutes : null };
     // tick isn't textually used in the body but is the trigger that
@@ -70,7 +71,7 @@ export function PlannerPage() {
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
     let interval: number | null = null;
-    const msToNextMinute = NOW_TICK_MS - (Date.now() % NOW_TICK_MS);
+    const msToNextMinute = NOW_TICK_MS - (nowMs() % NOW_TICK_MS);
     const start = window.setTimeout(() => {
       setNowTick((t) => t + 1);
       interval = window.setInterval(
@@ -212,7 +213,10 @@ export function PlannerPage() {
   );
 
   return (
-    <div className={`plan-view${active ? " active" : ""}`}>
+    <div
+      className={`plan-view${active ? " active" : ""}`}
+      data-screen="plan"
+    >
       <WeekGrid
         weekKey={week}
         weekDates={weekDates}

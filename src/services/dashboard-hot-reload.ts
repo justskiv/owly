@@ -9,6 +9,15 @@ interface DashboardChange {
 let installed = false;
 let debounce: number | null = null;
 
+// only for src/test/** — do not call from prod
+export function __resetDashboardHotReloadForTests(): void {
+  installed = false;
+  if (debounce !== null) {
+    window.clearTimeout(debounce);
+    debounce = null;
+  }
+}
+
 // Coalesce bursts. VS Code "save" can fire several events within
 // a few ms (atomic write + index refresh); we collapse them into
 // one reload at the end of a quiescent window. Cheap to be wrong

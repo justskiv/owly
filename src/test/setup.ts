@@ -5,10 +5,13 @@
 (globalThis as { __APP_MODE__?: string }).__APP_MODE__ = "test";
 
 import "@testing-library/jest-dom/vitest";
-import { afterAll, beforeEach } from "vitest";
+import { afterEach, beforeEach } from "vitest";
 import { clearMocks } from "@tauri-apps/api/mocks";
-import { installDefaultMockIPC } from "./mock-ipc";
 import { resetAllStores } from "./stores";
+import { resetServiceSingletons } from "./reset-singletons";
+import { freezeClock, thawClock } from "./clock";
+import { resetBuilderCounters } from "./builders";
+import { installFS, VirtualFS } from "./virtual-fs";
 
 class MockResizeObserver {
   observe() {}
@@ -46,9 +49,13 @@ if (!window.matchMedia) {
 
 beforeEach(() => {
   resetAllStores();
-  installDefaultMockIPC();
+  resetServiceSingletons();
+  resetBuilderCounters();
+  freezeClock();
+  installFS(new VirtualFS());
 });
 
-afterAll(() => {
+afterEach(() => {
+  thawClock();
   clearMocks();
 });

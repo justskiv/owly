@@ -1,4 +1,5 @@
 import type { Area, Entity, DirectionEntity, ProjectEntity } from "../schemas";
+import { now } from "./clock";
 import {
   cadUrgClass,
   daysSince,
@@ -90,7 +91,7 @@ export interface DirectionSignal {
 export function getPrimarySignal(
   direction: DirectionEntity,
   linked: readonly ProjectEntity[],
-  today: Date = new Date(),
+  today: Date = now(),
 ): DirectionSignal {
   const f = direction.fields;
   const cadLabel = f.cadence_label ?? (f.cadence ? `1×/${f.cadence}д` : null);

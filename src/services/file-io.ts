@@ -1,6 +1,7 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { toast } from "../components/shared/Toast";
+import { now } from "./clock";
 import { errMsg } from "./format";
 
 // Sandbox guard: in test mode, refuse to invoke when mockIPC isn't
@@ -33,6 +34,11 @@ export async function getDataDir(): Promise<string> {
   if (cachedDataDir !== null) return cachedDataDir;
   cachedDataDir = await invoke<string>("get_data_dir");
   return cachedDataDir;
+}
+
+// only for src/test/** — do not call from prod
+export function __resetDataDirCacheForTests(): void {
+  cachedDataDir = null;
 }
 
 function normalizeJoin(parts: string[]): string {
@@ -162,7 +168,7 @@ export async function readJsonFileOrCreate<T>(
       rawBytes = null;
     }
 
-    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    const ts = now().toISOString().replace(/[:.]/g, "-");
     const corrupted = `${path}.corrupted-${ts}.json`;
 
     let backupOk = false;

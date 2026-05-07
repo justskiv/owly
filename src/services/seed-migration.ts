@@ -16,6 +16,7 @@ import {
   writeTextFile,
   JsonReadError,
 } from "./file-io";
+import { now } from "./clock";
 import { generateId } from "./time-utils";
 import { errMsg } from "./format";
 
@@ -61,6 +62,11 @@ let inflight: Promise<void> | null = null;
 export function maybeMigrateToV2(): Promise<void> {
   if (!inflight) inflight = runMigration();
   return inflight;
+}
+
+// only for src/test/** — do not call from prod
+export function __resetSeedMigrationForTests(): void {
+  inflight = null;
 }
 
 type EntitiesState = "missing" | "empty" | "populated" | "invalid";
@@ -118,7 +124,7 @@ async function runMigration(): Promise<void> {
     // silently skip the copy. Marker is still written below.
   }
 
-  await writeJsonFile(markerPath, { at: new Date().toISOString() });
+  await writeJsonFile(markerPath, { at: now().toISOString() });
 }
 
 async function probeEntities(path: string): Promise<EntitiesState> {

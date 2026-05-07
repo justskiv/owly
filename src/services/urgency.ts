@@ -1,10 +1,11 @@
+import { now } from "./clock";
 import { getStartOfDay } from "./time-utils";
 
 const MS_PER_DAY = 86_400_000;
 
 export function daysUntil(
   iso: string | null,
-  today: Date = new Date(),
+  today: Date = now(),
 ): number | null {
   if (!iso) return null;
   const [y, m, d] = iso.split("-").map((p) => parseInt(p, 10));
@@ -31,7 +32,7 @@ export function formatDeadline(d: number): string {
 
 export function daysSince(
   iso: string | null,
-  today: Date = new Date(),
+  today: Date = now(),
 ): number | null {
   if (!iso) return null;
   const [y, m, d] = iso.split("-").map((p) => parseInt(p, 10));

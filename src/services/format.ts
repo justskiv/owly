@@ -1,3 +1,5 @@
+import { now } from "./clock";
+
 export function pluralRu(
   n: number,
   one: string,
@@ -42,7 +44,7 @@ export function fmtISODateTime(iso: string): string {
 }
 
 export function isOverdue(isoDate: string): boolean {
-  const today = new Date();
+  const today = now();
   today.setHours(0, 0, 0, 0);
   const d = new Date(`${isoDate}T00:00:00`);
   return d.getTime() < today.getTime();

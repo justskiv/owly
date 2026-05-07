@@ -22,3 +22,9 @@ export function enqueuePoolWrite<T>(
   });
   return next;
 }
+
+// Test-only: awaits any pending writes for every week. Do not call
+// from prod.
+export async function flushPoolQueue(): Promise<void> {
+  await Promise.all(Array.from(inflight.values()));
+}

@@ -59,7 +59,7 @@ export function WeekGrid({
   }, [weekKey]);
 
   return (
-    <div className="grid-wrap">
+    <div className="grid-wrap" data-testid="planner-grid">
       <div className="grid-scroll" ref={scrollRef}>
         <TimeGutter />
         <div className="day-cols">

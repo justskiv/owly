@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { MetricHistoryItem } from "../../../schemas";
+import { now } from "../../../services/clock";
 
 interface Props {
   history: MetricHistoryItem[];
@@ -7,7 +8,7 @@ interface Props {
 }
 
 function todayISO(): string {
-  const d = new Date();
+  const d = now();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");

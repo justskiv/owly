@@ -1,5 +1,4 @@
 import { test, expect } from "vitest";
-import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { PlannerPage } from "./PlannerPage";
 import { useScheduleStore } from "../store/schedule";
@@ -10,6 +9,7 @@ import {
   edgeConfig,
   edgeWeekState,
 } from "../test/fixtures/edge";
+import { dragWithPointer } from "../test/e2e/drag";
 
 test("drag existing block to a different day", async () => {
   useConfigStore.setState({ config: edgeConfig });
@@ -28,7 +28,15 @@ test("drag existing block to a different day", async () => {
   );
   if (!targetDay) throw new Error("target day-body not in DOM");
 
-  await userEvent.dragAndDrop(block, targetDay);
+  // useBlockGesture is a pointer-capture handler — userEvent.dragAndDrop
+  // happens to work via chromium polyfills but bypasses the threshold
+  // logic; raw PointerEvent dispatch via dragWithPointer is the
+  // canonical path.
+  const r = targetDay.getBoundingClientRect();
+  await dragWithPointer(block, {
+    x: r.left + r.width / 2,
+    y: r.top + r.height / 2,
+  });
 
   // Verify via store rather than DOM — the moveBlock chain finishes
   // asynchronously after the drop and the in-memory blocks array is

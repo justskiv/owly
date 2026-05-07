@@ -20,7 +20,7 @@ export function ContextPage() {
   }
 
   return (
-    <div className="context-page">
+    <div className="context-page" data-screen="context">
       {ordered.map((a) => (
         <CategorySection
           key={a.id}

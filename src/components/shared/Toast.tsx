@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { CSSProperties, AnimationEvent } from "react";
+import { nowMs } from "../../services/clock";
 import { useConfigStore } from "../../store/config";
 
 type ToastKind = "success" | "error";
@@ -37,7 +38,7 @@ const STACK_SCALE_STEP = 0.03;
 const STACK_OPACITY = [1, 0.66, 0.36, 0.14] as const;
 
 function genId(): string {
-  return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  return `t-${nowMs().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
 // Module-level timer map — Zustand stores serialise-clean state, so

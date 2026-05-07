@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { EntityType, Status } from "../schemas";
 import { useConfigStore } from "./config";
+import { now } from "../services/clock";
 import { tokenize, type Token } from "../services/quick-add-tokenizer";
 import { buildPopoverItems } from "../services/quick-add-popover-items";
 import { formatDate, getStartOfDay } from "../services/time-utils";
@@ -428,7 +429,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
     set((prev) => ({
       saveStatus,
       saveError,
-      savedAt: saveStatus === "saved" ? new Date() : prev.savedAt,
+      savedAt: saveStatus === "saved" ? now() : prev.savedAt,
     })),
   setBootReady: (bootReady) => set({ bootReady }),
   requestNewBlock: () =>

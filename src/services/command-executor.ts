@@ -17,6 +17,7 @@ import {
   createWeekFromTemplate,
   weekFileExists,
 } from "./week-manager";
+import { now } from "./clock";
 import { dateToWeekId, formatDate, generateId, nowISO } from "./time-utils";
 import { errMsg } from "./format";
 
@@ -365,7 +366,7 @@ export async function executeCommand(cmd: Command): Promise<void> {
       // with type-drifted fields can't quietly persist.
       const merged = {
         ...cur,
-        fields: { ...cur.fields, last_act: formatDate(new Date()) },
+        fields: { ...cur.fields, last_act: formatDate(now()) },
       };
       const parsed = EntitySchema.safeParse(merged);
       if (!parsed.success) {

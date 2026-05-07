@@ -49,7 +49,11 @@ export function HorizonPage() {
   };
 
   return (
-    <div className="horizon-view" onClick={onPageClick}>
+    <div
+      className="horizon-view"
+      data-screen="horizon"
+      onClick={onPageClick}
+    >
       <HorizonBoard
         states={states}
         projectsById={projectsById}

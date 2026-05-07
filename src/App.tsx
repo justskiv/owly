@@ -19,9 +19,68 @@ import { maybeMigrateToV2 } from "./services/seed-migration";
 import { reconcile as reconcileHorizon } from "./services/horizon-reconcile";
 import { errMsg } from "./services/format";
 
+// Initial data loading. Exported so e2e tests can drive a real boot
+// (Level 2: installFS + <App /> + advanceTimersByTimeAsync) without
+// reaching into the App component's effect.
+//
+// - Seed migration runs BEFORE loadConfig — it reads config.json
+//   directly via readJsonFile to validate seed areas, and may copy
+//   seed-v2/* into data/ if entities.json is empty. The marker
+//   .v2-migrated guarantees this runs exactly once.
+// - Config must load first so entities can warn on unknown tags —
+//   areas are passed in explicitly to keep the entity store free of
+//   cross-store imports.
+// - Watcher-driven processors only after stores are ready — a command
+//   landing during boot would otherwise see empty snapshots.
+export async function loadAll(
+  opts?: { signal?: AbortSignal },
+): Promise<void> {
+  await ensureDataDir();
+  await maybeMigrateToV2();
+  if (opts?.signal?.aborted) return;
+  await useConfigStore.getState().loadConfig();
+  const areas = useConfigStore.getState().config?.areas;
+  const currentWeek = getCurrentWeekId();
+  await Promise.all([
+    useEntityStore.getState().loadEntities(areas),
+    // First boot: create empty week file silently if none exists,
+    // otherwise a dialog would pop before the UI even paints.
+    useScheduleStore
+      .getState()
+      .loadWeek(currentWeek, { silentCreate: true }),
+    useDashboardStore.getState().loadRegistry(),
+    usePoolStore.getState().loadWeek(currentWeek),
+    useHorizonStore.getState().load(),
+  ]);
+  if (opts?.signal?.aborted) return;
+  // Reconcile horizon ↔ entities once both stores are hydrated.
+  // Catches up users whose data/horizon.json predates the
+  // seed-v2/horizon.json bundle, and prunes orphaned horizon entries
+  // pointing at deleted projects.
+  const projectIds = new Set(
+    useEntityStore
+      .getState()
+      .entities.filter((e) => e.type === "project")
+      .map((e) => e.id),
+  );
+  const diff = reconcileHorizon(
+    projectIds,
+    useHorizonStore.getState().projects,
+  );
+  for (const id of diff.toAdd) {
+    await useHorizonStore.getState().addProject(id);
+  }
+  for (const id of diff.toRemove) {
+    await useHorizonStore.getState().removeProject(id);
+  }
+  await startCommandProcessor();
+  await installDashboardHotReload();
+}
+
 function App() {
   useEffect(() => {
     let cancelled = false;
+    const ctrl = new AbortController();
     // Safety: show window no matter what within 5s, so a hung boot
     // never leaves the user staring at a dock icon forever.
     const safety = window.setTimeout(() => {
@@ -46,55 +105,8 @@ function App() {
     // 2. Data loading
     void (async () => {
       try {
-        await ensureDataDir();
-        // Seed migration runs BEFORE loadConfig — it reads config.json
-        // directly via readJsonFile to validate seed areas, and may
-        // copy seed-v2/* into data/ if entities.json is empty. The
-        // marker .v2-migrated guarantees this runs exactly once.
-        await maybeMigrateToV2();
-        // Config must load first so entities can warn on unknown tags
-        // — areas are passed in explicitly to keep the entity store
-        // free of cross-store imports.
-        await useConfigStore.getState().loadConfig();
-        const areas = useConfigStore.getState().config?.areas;
-        const currentWeek = getCurrentWeekId();
-        await Promise.all([
-          useEntityStore.getState().loadEntities(areas),
-          // First boot: create empty week file silently if none exists,
-          // otherwise a dialog would pop before the UI even paints.
-          useScheduleStore
-            .getState()
-            .loadWeek(currentWeek, { silentCreate: true }),
-          useDashboardStore.getState().loadRegistry(),
-          usePoolStore.getState().loadWeek(currentWeek),
-          useHorizonStore.getState().load(),
-        ]);
-        // Reconcile horizon ↔ entities once both stores are hydrated.
-        // Catches up users whose data/horizon.json predates the
-        // seed-v2/horizon.json bundle (their migration ran when only
-        // entities/schedule/pool were copied), and prunes orphaned
-        // horizon entries pointing at deleted projects.
-        const projectIds = new Set(
-          useEntityStore
-            .getState()
-            .entities.filter((e) => e.type === "project")
-            .map((e) => e.id),
-        );
-        const diff = reconcileHorizon(
-          projectIds,
-          useHorizonStore.getState().projects,
-        );
-        for (const id of diff.toAdd) {
-          await useHorizonStore.getState().addProject(id);
-        }
-        for (const id of diff.toRemove) {
-          await useHorizonStore.getState().removeProject(id);
-        }
-        // Watcher-driven processors only after stores are ready —
-        // a command landing during boot would otherwise see empty
-        // schedule/entities snapshots and fail with confusing errors.
-        await startCommandProcessor();
-        await installDashboardHotReload();
+        await loadAll({ signal: ctrl.signal });
+        if (cancelled) return;
         // Open the gate for cross-store subscriptions (entity →
         // horizon, schedule → pool). Until this flag flips, those
         // callbacks no-op so a partially-hydrated store can't be
@@ -117,6 +129,7 @@ function App() {
 
     return () => {
       cancelled = true;
+      ctrl.abort();
       window.clearTimeout(safety);
     };
   }, []);

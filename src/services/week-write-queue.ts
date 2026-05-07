@@ -26,3 +26,9 @@ export function enqueueWeekWrite<T>(
   });
   return next;
 }
+
+// Test-only: awaits any pending writes for every week. Do not call
+// from prod.
+export async function flushWeekQueue(): Promise<void> {
+  await Promise.all(Array.from(inflight.values()));
+}

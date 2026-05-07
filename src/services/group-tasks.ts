@@ -1,4 +1,5 @@
 import type { TaskEntity } from "../schemas";
+import { now } from "./clock";
 import { daysUntil } from "./urgency";
 
 export interface TaskGroups {
@@ -28,7 +29,7 @@ export function byPriorityThenDeadline(a: TaskEntity, b: TaskEntity): number {
 export function groupTasks(
   active: TaskEntity[],
   done: TaskEntity[],
-  today: Date = new Date(),
+  today: Date = now(),
 ): TaskGroups {
   const groups: TaskGroups = {
     burning: [],

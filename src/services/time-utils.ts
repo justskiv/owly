@@ -5,6 +5,7 @@ import {
   getISOWeekYear,
   startOfISOWeek,
 } from "date-fns";
+import { now } from "./clock";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MONTHS_RU = [
@@ -56,7 +57,7 @@ export function formatDate(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-export function getStartOfDay(d: Date = new Date()): Date {
+export function getStartOfDay(d: Date = now()): Date {
   const r = new Date(d);
   r.setHours(0, 0, 0, 0);
   return r;
@@ -74,7 +75,7 @@ export function parseDate(s: string): Date {
 
 // Inclusive range check. Both bounds are LOCAL: `fromIso` is parsed via
 // parseDate (local midnight); `today` is whatever the caller passed
-// (typically `new Date()` at render time). Used to bucket entity
+// (typically `now()` at render time). Used to bucket entity
 // timestamps (created_at / updated_at — also local) into a period.
 export function isWithin(
   timestamp: string,
@@ -97,7 +98,7 @@ function parseWeekId(weekId: string): { year: number; week: number } {
 }
 
 export function getCurrentWeekId(): string {
-  const { year, week } = isoWeekParts(new Date());
+  const { year, week } = isoWeekParts(now());
   return formatWeekId(year, week);
 }
 
@@ -144,7 +145,7 @@ export function formatWeekRange(weekId: string): string {
 }
 
 export function nowISO(): string {
-  const d = new Date();
+  const d = now();
   return (
     `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
     `T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`

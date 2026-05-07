@@ -17,6 +17,7 @@ import {
   ENTITY_LABELS_ACC,
   ENTITY_LABELS_RU,
 } from "../../services/entity-icons";
+import { now } from "../../services/clock";
 import { formatDate } from "../../services/time-utils";
 import { TagsField } from "./editor/TagsField";
 import { TypeSpecificFields } from "./editor/TypeSpecificFields";
@@ -49,7 +50,7 @@ function defaultFieldsFor(type: EntityType): Entity["fields"] {
       // Local date, not UTC — toISOString() shifts by timezone and
       // around midnight would land on yesterday/tomorrow.
       return {
-        date: formatDate(new Date()),
+        date: formatDate(now()),
         time: "12:00",
         duration: 60,
         location: "",

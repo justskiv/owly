@@ -19,7 +19,7 @@ export function ReviewPage() {
   const data = useReviewData(rvPeriod, currentWeek);
 
   return (
-    <div className="review-view">
+    <div className="review-view" data-screen="review">
       <div className="review-inner">
         <h1>Ревью</h1>
         <div className="rv-week-label">

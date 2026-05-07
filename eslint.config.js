@@ -19,6 +19,7 @@ export default [
   },
   {
     files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/services/clock.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -34,6 +35,23 @@ export default [
     rules: {
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "error",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "NewExpression[callee.name='Date'][arguments.length=0]",
+          message:
+            "Use clock.now() / clock.today() — raw `new Date()` " +
+            "breaks frozen-clock tests.",
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+          message:
+            "Use clock.nowMs() — raw `Date.now()` breaks " +
+            "frozen-clock tests.",
+        },
+      ],
     },
   },
 ];
