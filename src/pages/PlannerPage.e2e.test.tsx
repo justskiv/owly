@@ -265,6 +265,149 @@ test("P-9: today button returns to current week", async () => {
     .toBe(WEEK);
 });
 
+// Boots the planner with the Tasks side-tab active from the first
+// paint. setupPlanner() defaults to sideTab="pool"; switching after
+// render races the React commit and PoolTabTasks may not be in the
+// DOM by the time the test queries `.s-item.draggable`.
+async function setupPlannerOnTasksTab(): Promise<RenderResult> {
+  installFS(typicalWeek());
+  useConfigStore.setState({ config: DEFAULT_CONFIG });
+  await useScheduleStore.getState().loadWeek(WEEK);
+  await usePoolStore.getState().loadWeek(WEEK);
+  await useEntityStore.getState().loadEntities(DEFAULT_CONFIG.areas);
+  useUIStore.setState({
+    bootReady: true,
+    currentPage: "plan",
+    sideTab: "tasks",
+  });
+  return render(<PlannerPage />);
+}
+
+// E-8: drag an entity from the Tasks side-tab onto the grid creates a
+// block linked to that entity (source_entity_id set, pool_item_id
+// null). useBlockGesture has two pool-drag entry points — pool-item
+// and entity — and they branch to different addBlock payloads
+// (lines 314-355). P-10 covers the pool-item branch; without this
+// test the entity branch is dead-coverage.
+test("E-8: drag entity from Tasks tab creates entity-linked block", async () => {
+  const screen = await setupPlannerOnTasksTab();
+
+  const taskItems = Array.from(
+    screen.container.querySelectorAll<HTMLElement>(".s-item.draggable"),
+  );
+  const sourceEl = taskItems.find((el) =>
+    el.textContent?.includes("Read paper"),
+  );
+  if (!sourceEl) throw new Error("'Read paper' task chip not in DOM");
+
+  const task = useEntityStore
+    .getState()
+    .entities.find((e) => e.title === "Read paper");
+  if (!task) throw new Error("'Read paper' task not in entity store");
+
+  const target = screen.container.querySelector<HTMLElement>(
+    `.day-body[data-date="${TOMORROW}"]`,
+  );
+  if (!target) throw new Error("tomorrow day-body not in DOM");
+  const r = target.getBoundingClientRect();
+  await dragWithPointer(
+    { element: () => sourceEl },
+    { x: r.left + r.width / 2, y: r.top + 60 },
+  );
+  await flushAllWrites();
+
+  // The new block must reference the entity, not a pool item — that's
+  // the branch we're guarding.
+  await expect
+    .poll(() =>
+      useScheduleStore
+        .getState()
+        .blocks.find((b) => b.source_entity_id === task.id),
+    )
+    .toMatchObject({
+      title: "Read paper",
+      date: TOMORROW,
+      source_entity_id: task.id,
+      pool_item_id: null,
+    });
+
+  const fs = getCurrentFS();
+  const week = JSON.parse(fs.read(SCHEDULE_PATH));
+  expect(
+    week.blocks.find(
+      (b: { source_entity_id: string | null }) =>
+        b.source_entity_id === task.id,
+    ).pool_item_id,
+  ).toBeNull();
+});
+
+// E-9: drop where the would-be block's top + duration exceeds
+// END_HOUR*60 must be rejected. useBlockGesture.ts:115 returns null
+// from findDropTarget; teardown("pool-drop") sees pendingDrop = null
+// and never calls addBlock. Without this guard the block would wrap
+// past midnight and break the day-grid invariant the spec relies on.
+test("E-9: drop past end-of-day boundary is rejected", async () => {
+  const screen = await setupPlannerOnTasksTab();
+
+  const taskItems = Array.from(
+    screen.container.querySelectorAll<HTMLElement>(".s-item.draggable"),
+  );
+  const sourceEl = taskItems.find((el) =>
+    el.textContent?.includes("Read paper"),
+  );
+  if (!sourceEl) throw new Error("'Read paper' task chip not in DOM");
+
+  const target = screen.container.querySelector<HTMLElement>(
+    `.day-body[data-date="${TOMORROW}"]`,
+  );
+  if (!target) throw new Error("tomorrow day-body not in DOM");
+  const r = target.getBoundingClientRect();
+  const blocksBefore = useScheduleStore.getState().blocks.length;
+
+  // Drop near the bottom of the day-body. With default 60-min
+  // duration and grabOffY ~20px, the would-be block top lands at
+  // relY ≈ r.height - 25 ≈ 1255 → min = 22:30, ending 23:30 > 23:00.
+  // The exact value of grabOffY doesn't change the verdict — anything
+  // past relY=1220 (the snap-rounded boundary for 60-min blocks)
+  // returns null.
+  await dragWithPointer(
+    { element: () => sourceEl },
+    { x: r.left + r.width / 2, y: r.top + r.height - 5 },
+  );
+  await flushAllWrites();
+
+  // Block count is unchanged — the drop was a no-op.
+  expect(useScheduleStore.getState().blocks.length).toBe(blocksBefore);
+  const fs = getCurrentFS();
+  const week = JSON.parse(fs.read(SCHEDULE_PATH));
+  expect(week.blocks.length).toBe(blocksBefore);
+});
+
+// E-10: cursor outside any .day-body column → findDropTarget returns
+// null on the first iteration of the cols loop and pool-drop teardown
+// commits nothing. The pool sidebar's x-range is well to the left of
+// every day-body, so dropping there exercises that path without
+// depending on viewport width math.
+test("E-10: drop outside any day-body column is a no-op", async () => {
+  const screen = await setupPlannerOnTasksTab();
+
+  const taskItems = Array.from(
+    screen.container.querySelectorAll<HTMLElement>(".s-item.draggable"),
+  );
+  const sourceEl = taskItems.find((el) =>
+    el.textContent?.includes("Read paper"),
+  );
+  if (!sourceEl) throw new Error("'Read paper' task chip not in DOM");
+
+  const blocksBefore = useScheduleStore.getState().blocks.length;
+  // (5, 5) lands in the top-left of the viewport — far from any
+  // day-body column. findDropTarget exits with pendingDrop=null.
+  await dragWithPointer({ element: () => sourceEl }, { x: 5, y: 5 });
+  await flushAllWrites();
+
+  expect(useScheduleStore.getState().blocks.length).toBe(blocksBefore);
+});
+
 // P-10: drag a pool item onto the grid creates a linked block.
 test("P-10: drag pool item creates a linked block", async () => {
   installFS(typicalWeek());

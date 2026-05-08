@@ -4,11 +4,14 @@ import { render } from "vitest-browser-react";
 import { Shell } from "../../components/layout/Shell";
 import { useConfigStore } from "../../store/config";
 import { useEntityStore } from "../../store/entities";
+import { useScheduleStore } from "../../store/schedule";
 import { useUIStore } from "../../store/ui";
 import { DEFAULT_CONFIG } from "../../services/defaults";
 import { typicalWeek } from "../scenarios/typical-week";
-import { installFS } from "../virtual-fs";
+import { getCurrentFS, installFS, ROOT } from "../virtual-fs";
 import { flushAllWrites } from "./automation";
+
+const WEEK = "2025-w24";
 
 // F-8: editing a task title through EntityPopup persists to the store
 // AND the new title shows up on a different screen — Plan's pool side
@@ -62,4 +65,60 @@ test("F-8: entity popup edit propagates across screens", async () => {
   await expect
     .element(screen.getByText("Test report (edited)"))
     .toBeVisible();
+});
+
+// E-17: a BlockPopup edit that never blurs (outside-click closes the
+// popup before React fires onBlur) must still reach disk via the
+// unmount-cleanup flush in BlockPopup.tsx:122-175. Regression here
+// is silent data loss — the user typed a note, clicked away, and
+// the next reload shows the old value.
+test("E-17: BlockPopup unmount-flush persists unblurred drafts", async () => {
+  installFS(typicalWeek());
+  useConfigStore.setState({ config: DEFAULT_CONFIG });
+  await useEntityStore.getState().loadEntities(DEFAULT_CONFIG.areas);
+  await useScheduleStore.getState().loadWeek(WEEK);
+  useUIStore.setState({ bootReady: true, currentPage: "plan" });
+  const screen = render(<Shell />);
+
+  const block = useScheduleStore
+    .getState()
+    .blocks.find((b) => b.title === "Сегодня deep work");
+  if (!block) throw new Error("today block missing in fixture");
+
+  // Open BlockPopup directly through the store. Clicking the block
+  // would route through useBlockGesture's select-on-pointerup path
+  // (no popup), and double-click is what ships in PlannerPage —
+  // either is more brittle than just driving the modal we want to
+  // exercise. The store API mirrors what double-click ends up doing.
+  useUIStore.getState().openBlockPopup(
+    block.id,
+    { type: "point", x: 100, y: 100 },
+    "right",
+  );
+
+  // BlockPopup labels its title input "Название" — TaskPopup uses
+  // "Название задачи", so /^название$/i disambiguates if both ever
+  // mount in parallel.
+  const input = screen.getByLabelText(/^название$/i);
+  await userEvent.clear(input);
+  await userEvent.type(input, "Edited via popup");
+
+  // Close the popup WITHOUT blurring the input — the cleanup effect
+  // is the only path that should persist this edit.
+  useUIStore.getState().closeBlockPopup();
+  await flushAllWrites();
+
+  await expect
+    .poll(() =>
+      useScheduleStore
+        .getState()
+        .blocks.find((b) => b.id === block.id)?.title,
+    )
+    .toBe("Edited via popup");
+
+  const fs = getCurrentFS();
+  const week = JSON.parse(fs.read(`${ROOT}/schedule/${WEEK}.json`));
+  expect(
+    week.blocks.find((b: { id: string }) => b.id === block.id).title,
+  ).toBe("Edited via popup");
 });
