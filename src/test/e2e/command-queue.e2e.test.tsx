@@ -27,7 +27,7 @@ test("F-9: pending command processed and moved to done", async () => {
   // Belt-and-suspenders: beforeEach already resets the processor, but
   // unlisten() runs through Tauri's mocked event bridge, so reasserting
   // a clean state here keeps the test robust to ordering changes.
-  __resetCommandProcessorForTests();
+  await __resetCommandProcessorForTests();
 
   useConfigStore.setState({ config: DEFAULT_CONFIG });
   await useEntityStore.getState().loadEntities(DEFAULT_CONFIG.areas);

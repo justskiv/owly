@@ -47,9 +47,9 @@ if (!window.matchMedia) {
     }) as MediaQueryList;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   resetAllStores();
-  resetServiceSingletons();
+  await resetServiceSingletons();
   resetBuilderCounters();
   freezeClock();
   installFS(new VirtualFS());

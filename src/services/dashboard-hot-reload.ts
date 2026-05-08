@@ -11,17 +11,23 @@ let debounce: number | null = null;
 let unlisten: UnlistenFn | null = null;
 
 // only for src/test/** — do not call from prod
-export function __resetDashboardHotReloadForTests(): void {
+export async function __resetDashboardHotReloadForTests(): Promise<void> {
+  if (
+    (globalThis as { __APP_MODE__?: string }).__APP_MODE__ !== "test"
+  ) {
+    throw new Error("__resetDashboardHotReloadForTests is test-only");
+  }
   if (unlisten) {
     // See command-processor.ts: mockIPC events stub lacks
-    // unregisterListener; swallow both sync throws and the async
-    // rejection so the test runner doesn't trip on it.
+    // unregisterListener; await so the next test's `listen()` is
+    // sequenced after teardown, swallow the rejection to keep the
+    // test runner clean.
     const u = unlisten;
     unlisten = null;
     try {
-      void Promise.resolve(u()).catch(() => undefined);
+      await u();
     } catch {
-      /* ignore */
+      /* ignore — mockIPC unregisterListener stub */
     }
   }
   installed = false;

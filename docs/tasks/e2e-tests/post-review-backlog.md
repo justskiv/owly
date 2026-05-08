@@ -199,3 +199,73 @@ mockIPC; если IPC станет асинхронным или add'ятся н
 ДО reset и убирает leak между тестами. Не закрывает
 component-side issue — если promise висит ВНЕ write-queue
 (например, side effect через subscribe), всё ещё может leak'нуть.
+
+## E5 — automation.ts ScreenName ↔ data-tab drift
+
+**Статус:** documented (deferred).
+**Источник:** review коммита d6650bc (Set 1/2 — F-8 deviation).
+
+`src/test/e2e/automation.ts:19-25` объявляет `ScreenName = "plan" |
+"tasks" | "projects" | "context" | "horizon" | "review"`, но
+`TopNav.tsx:16-23` рендерит `data-tab="proj"` для `projects` и
+`data-tab="ctx"` для `context`. `gotoScreen(screen, "projects")`
+ищет `[data-tab="projects"]` → throws «tab not in DOM».
+
+E5 обошёл это: F-8 переключает экраны через
+`useUIStore.setState({ currentPage: "..." })` напрямую вместо
+`gotoScreen` хелпера. Журналы (J-2, J-3) используют только
+безопасные значения (`tasks`, `review`, `plan`).
+
+Fix: либо привести type к real data-tab values (`"proj"`/`"ctx"`),
+либо обогатить `gotoScreen` mapping `ScreenName → data-tab`. Не
+делаем сейчас — затронет внешние тесты, отдельный коммит.
+
+## E5 — F-3 trailing-space popover hack
+
+**Статус:** documented (low priority).
+**Источник:** review коммита d6650bc.
+
+`src/test/e2e/quick-add.e2e.test.tsx:F-3` инлайнит open-Cmd+N +
+type + Enter вместо `quickAdd(screen, text)` хелпера. Причина:
+`!завтра` в конце ввода открывает date-picker popover, и Enter в
+открытом popover'е применяет picker item, а не submit'ит форму.
+Trailing space (`"... !завтра "`) закрывает popover, тогда Enter
+работает как submit.
+
+Fix: либо расширить `quickAdd(screen, text, { commit: "submit-after-
+space" })`, либо UX-доработка чтобы Enter с активным валидным
+date-modifier токеном submit'ил даже при открытом popover'е (Things 3
+поведение). Не делаем — единственный кейс, изолирован.
+
+## E5 — F-9 helper покрывает только happy path
+
+**Статус:** documented (deferred).
+**Источник:** review коммита d6650bc + post-d6650bc fix (delegating
+to processOne).
+
+`src/services/command-processor.ts:__processOnePendingForTests`
+теперь делегирует к internal `processOne` (после ревью), значит
+retry-loop, fail()-ветка и markDone fallback покрыты. НО F-9 тест
+seed'ит только валидную команду — error path (corrupt JSON,
+schema-rejection, executeCommand throw → файл в `failed/`) не
+проверяется e2e. Полное покрытие — в unit-тестах
+`command-executor.test.ts`.
+
+Fix: добавить F-9b (corrupt JSON) + F-9c (schema-violation) если
+понадобится регрессионная защита e2e уровня. Не делаем — unit
+покрывает.
+
+## E5 — F-1 не покрывает все 6 экранов
+
+**Статус:** documented (low priority).
+**Источник:** review коммита d6650bc.
+
+`src/test/e2e/quick-add.e2e.test.tsx:F-1` тестирует Cmd+N только из
+`horizon` и `review`. Spec §4.3 говорит «from any screen». Listener
+живёт в `Shell.tsx` (global, page-agnostic), поэтому 2 экрана
+ловят регрессию unbinding'а. Page-specific focus traps или input
+handlers могут перехватывать Cmd+N — они не покрыты.
+
+Fix: расширить F-1 параметризацией по 6 страницам через `test.each`,
+устанавливать `currentPage` через `useUIStore.setState`. Не делаем —
+F-1 уже ловит главный класс регрессии.

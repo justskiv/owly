@@ -1147,7 +1147,7 @@ yield 16ms, safety 5s) сработали — см. §5.3.
 | F-3 | Quick Add modifier `!завтра` sets correct deadline (existing migration) | empty | wiring smoke; tokenizer fully covered by `quick-add-tokenizer.test.ts` |
 | F-8 | Entity popup edit propagates across screens | typical-week | |
 | F-9 | Pending command file → executor → entity created | with-pending-commands | uses `__processOnePendingForTests()` |
-| **J-1** | **Morning ritual:** today's blocks present, drag tomorrow's pool item to today | typical-week | full Level 2 boot |
+| **J-1** | **Morning ritual:** today's blocks present, drag tomorrow's pool item to today | typical-week | Level 1 boot (manual store loads via `<Shell />`); Level 2 reserved for J-3 |
 | **J-2** | **Nightly review:** mark blocks done, mark cadence, Review gauges update | typical-week | |
 | **J-3** | **Persistence round-trip:** create entity → flush writes → reset stores → reload from FS → entity still present | empty | full Level 2 boot |
 | **J-4** | **Week navigation boundary:** prev → next → today preserves data | typical-week | |

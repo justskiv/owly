@@ -10,18 +10,17 @@ import { typicalWeek } from "../scenarios/typical-week";
 import { installFS } from "../virtual-fs";
 import { flushAllWrites } from "./automation";
 
-// F-8: editing a task title through EntityPopup persists to the store,
-// the same row reflects the new title, and a screen switch + return
-// still shows the edited title — proving the subscription is wired,
-// not just the popup-local draft. The title <input> is a controlled
-// `<input class="ep-title" aria-label="Название задачи">` in TaskPopup
-// (entities/popup/TaskPopup.tsx); onBlur calls updateEntity(...). Tab
-// blurs the input which triggers the persist.
+// F-8: editing a task title through EntityPopup persists to the store
+// AND the new title shows up on a different screen — Plan's pool side
+// panel with sideTab="tasks" renders the entity list, so we land
+// there after the edit and assert the new title is visible. That
+// proves cross-screen subscription, not just popup-local draft + same-
+// screen remount.
 //
-// Cross-screen via direct setPage (gotoScreen unsafe for the
-// "context"/"projects" mismatch — see automation.ts data-tab vs
-// ScreenName drift). Switching to "plan" then back to "tasks" forces
-// TasksPage to re-mount and re-subscribe.
+// gotoScreen is bypassed via direct setPage because of the data-tab
+// vs ScreenName drift (see post-review-backlog) — a navigation click
+// would fall back to "proj"/"ctx" mismatches when other tests reuse
+// the helper for non-Plan/Tasks screens.
 test("F-8: entity popup edit propagates across screens", async () => {
   installFS(typicalWeek());
   useConfigStore.setState({ config: DEFAULT_CONFIG });
@@ -33,11 +32,10 @@ test("F-8: entity popup edit propagates across screens", async () => {
   // .task-row whose onClick triggers openEntityPopup.
   await userEvent.click(screen.getByText("Test report"));
 
-  const titleInput = screen.container.querySelector<HTMLInputElement>(
-    ".entity-popup input.ep-title",
-  );
-  if (!titleInput) throw new Error("ep-title input not in DOM");
-
+  // Behavioural locator — TaskPopup labels the title input with
+  // aria-label="Название задачи" (TaskPopup.tsx). A class rename or
+  // wrapper refactor won't break this assertion.
+  const titleInput = screen.getByLabelText(/название задачи/i);
   await userEvent.clear(titleInput);
   await userEvent.type(titleInput, "Test report (edited)");
   // Blur via Tab — TaskPopup persists in onBlur.
@@ -55,9 +53,11 @@ test("F-8: entity popup edit propagates across screens", async () => {
     )
     .toBe(true);
 
-  // Force TasksPage re-mount via screen switch.
-  useUIStore.setState({ currentPage: "plan" });
-  useUIStore.setState({ currentPage: "tasks" });
+  // Cross-screen: jump to Plan and surface the entity list via the
+  // tasks side-tab. PoolTabTasks renders unscheduled tasks from the
+  // entity store, so the renamed task must appear there if the
+  // subscription is wired correctly.
+  useUIStore.setState({ currentPage: "plan", sideTab: "tasks" });
 
   await expect
     .element(screen.getByText("Test report (edited)"))

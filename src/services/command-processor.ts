@@ -45,20 +45,31 @@ const inflight = new Set<string>();
 let chain: Promise<unknown> = Promise.resolve();
 let unlisten: UnlistenFn | null = null;
 
+function isPendingCommandPath(path: string): boolean {
+  return path.includes("/data/commands/pending/");
+}
+
+function assertTestOnly(name: string): void {
+  if ((globalThis as { __APP_MODE__?: string }).__APP_MODE__ !== "test") {
+    throw new Error(`${name} is test-only`);
+  }
+}
+
 // only for src/test/** — do not call from prod
-export function __resetCommandProcessorForTests(): void {
+export async function __resetCommandProcessorForTests(): Promise<void> {
+  assertTestOnly("__resetCommandProcessorForTests");
   if (unlisten) {
     // mockIPC's shouldMockEvents stub doesn't fully implement the
     // unregisterListener bridge — `unlisten()` returns a promise that
-    // rejects in test mode. Swallow both sync throws and the async
-    // rejection so a single E2E test booting via <App /> doesn't poison
-    // the next one with an unhandled rejection.
+    // rejects in test mode. Await it so the next test's `listen()` is
+    // sequenced after this teardown; swallow the rejection so a test
+    // that booted via <App /> doesn't surface an unhandled rejection.
     const u = unlisten;
     unlisten = null;
     try {
-      void Promise.resolve(u()).catch(() => undefined);
+      await u();
     } catch {
-      /* ignore */
+      /* ignore — mockIPC unregisterListener stub */
     }
   }
   started = false;
@@ -68,25 +79,20 @@ export function __resetCommandProcessorForTests(): void {
 
 // only for src/test/** — do not call from prod
 //
-// Bypasses the watcher and the chain/inflight dedup. Reads the file at
-// `path`, parses it, executes the command, and moves the file to done/.
-// Mirrors the happy path of processOne() without the retry loop or the
-// fail() fallback — tests use this to drive a single deterministic step
-// instead of racing the watcher.
+// Drives a single command file through the production processOne path,
+// bypassing only the watcher (so tests don't race a real notify-crate
+// dispatch). Delegating instead of duplicating means a regression in
+// processOne — broken retry, missing fail() routing, dropped markDone
+// fallback — surfaces in F-9 instead of staying hidden behind a
+// happy-path copy.
 export async function __processOnePendingForTests(
   path: string,
 ): Promise<void> {
-  const text = await invoke<string>("read_file", { path });
-  const raw = JSON.parse(text);
-  const parsed = CommandSchema.safeParse(raw);
-  if (!parsed.success) {
-    throw new Error(`schema rejected: ${parsed.error.message}`);
+  assertTestOnly("__processOnePendingForTests");
+  if (!isPendingCommandPath(path)) {
+    throw new Error(`test command path outside pending dir: ${path}`);
   }
-  await executeCommand(parsed.data);
-  const name = path.split("/").pop();
-  if (!name) throw new Error(`invalid path: ${path}`);
-  const dest = await getCommandsPath("done", name);
-  await invoke("move_file", { from: path, to: dest });
+  await processOne(path);
 }
 
 // Boot wires up the watcher listener and drains anything sitting in
@@ -150,7 +156,7 @@ function enqueue(path: string): void {
   // be processed (read, parsed as command, executed, then deleted).
   // Reject anything not inside data/commands/pending/ before we
   // touch FS.
-  if (!path.includes("/data/commands/pending/")) {
+  if (!isPendingCommandPath(path)) {
     console.warn("[commands] rejected path outside pending dir:", path);
     return;
   }

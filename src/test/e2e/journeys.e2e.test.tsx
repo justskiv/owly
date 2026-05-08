@@ -76,17 +76,27 @@ test("J-1: today block visible, drag pool item to today", async () => {
   if (!todayCell) throw new Error("today day-body not in DOM");
   const r = todayCell.getBoundingClientRect();
 
-  const initialBlocks = useScheduleStore.getState().blocks.length;
-
   await dragWithPointer(
     { element: () => sourceEl },
     { x: r.left + r.width / 2, y: r.top + 60 },
   );
   await flushAllWrites();
 
+  // Verify the dropped block landed on today (2025-06-11), kept the
+  // pool item's title, and links back to it via pool_item_id —
+  // catches a regression where the drop creates a block on the wrong
+  // day or loses the pool linkage. See useBlockGesture.ts:323-333.
   await expect
-    .poll(() => useScheduleStore.getState().blocks.length)
-    .toBe(initialBlocks + 1);
+    .poll(() =>
+      useScheduleStore
+        .getState()
+        .blocks.find((b) => b.pool_item_id === "pool-j1"),
+    )
+    .toMatchObject({
+      title: "Pool task for J-1",
+      date: "2025-06-11",
+      pool_item_id: "pool-j1",
+    });
 });
 
 // J-2: marking a block done updates the schedule store, and switching
@@ -117,11 +127,15 @@ test("J-2: done block updates Review", async () => {
 
   await gotoScreen(screen, "review");
 
-  // typicalWeek has 3 blocks, "Вчерашняя задача" already done, plus
-  // we just marked "Сегодня deep work" done → 2/3.
-  await expect
-    .element(screen.getByText(/2\/3 блоков/))
-    .toBeVisible();
+  // Compute the expected gauge subtitle from the post-mutation store
+  // instead of pinning "2/3" — typicalWeek's seed can grow without
+  // breaking this oracle. The "Выполнение блоков" gauge in WeekCards
+  // renders subtitle as "<done>/<total> блоков · ...".
+  const blocks = useScheduleStore.getState().blocks;
+  const total = blocks.length;
+  const done = blocks.filter((b) => b.status === "done").length;
+  const re = new RegExp(`${done}/${total}\\s+блоков`);
+  await expect.element(screen.getByText(re)).toBeVisible();
 });
 
 // J-3: full persistence round-trip. Quick Add a task, flush queues,
@@ -151,7 +165,7 @@ test("J-3: persistence round-trip via reload", async () => {
 
   cleanup();
   resetAllStores();
-  resetServiceSingletons();
+  await resetServiceSingletons();
 
   screen = render(<App />);
   await expect
@@ -164,6 +178,8 @@ test("J-3: persistence round-trip via reload", async () => {
 
 // J-4: prev/next/today navigation preserves data. seedEmptyWeeks
 // pre-creates 2025-w23 so goToPrev doesn't trip WeekNotFoundDialog.
+// Snapshot titles before nav and re-check after — `length === 3` would
+// pass even if blocks were dropped and recreated empty.
 test("J-4: prev → next → today preserves data", async () => {
   installFS(typicalWeek());
   seedEmptyWeeks(["2025-w23"]);
@@ -174,7 +190,15 @@ test("J-4: prev → next → today preserves data", async () => {
   const screen = render(<Shell />);
 
   expect(useScheduleStore.getState().currentWeek).toBe("2025-w24");
-  expect(useScheduleStore.getState().blocks.length).toBe(3);
+  const initialTitles = useScheduleStore
+    .getState()
+    .blocks.map((b) => b.title)
+    .sort();
+  expect(initialTitles).toEqual([
+    "Вчерашняя задача",
+    "Завтрашний созвон",
+    "Сегодня deep work",
+  ]);
 
   await userEvent.click(
     screen.getByRole("button", { name: /предыдущая неделя/i }),
@@ -192,21 +216,42 @@ test("J-4: prev → next → today preserves data", async () => {
     .poll(() => useScheduleStore.getState().currentWeek)
     .toBe("2025-w24");
 
-  expect(useScheduleStore.getState().blocks.length).toBe(3);
+  // Walk away again so the "Сегодня" click actually exercises the
+  // goToCurrentWeek handler instead of being a no-op against the
+  // already-current week.
+  await userEvent.click(
+    screen.getByRole("button", { name: /предыдущая неделя/i }),
+  );
+  await flushAllWrites();
+  await expect
+    .poll(() => useScheduleStore.getState().currentWeek)
+    .toBe("2025-w23");
 
-  // The .wk-today button has both a `title` attribute (accessible name
-  // becomes "Вернуться к текущей неделе") and visible text "Сегодня",
-  // and the planner also renders a TimeBlock whose name starts with
-  // "Сегодня deep work" — getByText("Сегодня") and
-  // getByRole("button", { name: "Сегодня" }) both fail to disambiguate.
-  // Reach for the unique class instead.
+  // The .wk-today button has both a `title` attribute (accessible
+  // name becomes "Вернуться к текущей неделе") and visible text
+  // "Сегодня"; the planner also renders a TimeBlock whose accessible
+  // name starts with "Сегодня deep work". Both getByText and
+  // getByRole would fail to disambiguate. userEvent.click on a raw
+  // HTMLElement times out in this vitest-browser; the native .click()
+  // path triggers React's onClick correctly.
   const todayBtn = screen.container.querySelector<HTMLElement>(
     ".wk-today",
   );
   if (!todayBtn) throw new Error(".wk-today button not in DOM");
-  // Native click — userEvent.click via raw HTMLElement times out in
-  // this vitest-browser version (locator-only happy path), and the
-  // button has no unique aria/text in this DOM.
   todayBtn.click();
+  await flushAllWrites();
+  // loadWeek sets currentWeek before awaiting the file read, so
+  // polling currentWeek alone races the blocks update. Wait for the
+  // titles snapshot to match — it implies both currentWeek === w24
+  // AND blocks were re-hydrated from disk/cache.
+  await expect
+    .poll(() =>
+      useScheduleStore
+        .getState()
+        .blocks.map((b) => b.title)
+        .sort(),
+    )
+    .toEqual(initialTitles);
+
   expect(useScheduleStore.getState().currentWeek).toBe("2025-w24");
 });

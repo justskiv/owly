@@ -5,8 +5,8 @@
 > propagates), F-9 (pending command flow), J-1..J-4 (daily-use
 > journeys включая persistence round-trip с реальным `<App />`).
 >
-> **Результат после фазы:** `task check` гоняет 37 тестов
-> (28 от E4 + 9 новых). Persistence round-trip (J-3) — самый
+> **Результат после фазы:** `task check` гоняет 34 теста
+> (25 от E4 + 9 новых). Persistence round-trip (J-3) — самый
 > ценный тест для file-based product'а — зелёный с реальным
 > boot, write, reset, reboot, read. F-9 ловит регрессии command-
 > queue (parse + execute + move).
@@ -46,7 +46,7 @@ round-trip) ловит регрессии read/write пайплайна цели
 E1 — нужен только для F-9. Файл: `src/test/scenarios/with-pending-
 commands.ts`. Внутри = `typicalWeek()` + 1 файл
 `/tuzov-test/data/commands/pending/cmd-1.json` с валидной
-`Command` (`action: "create_block"`, `payload: {...}`).
+`Command` (`action: "create_block"`, `data: {...}`).
 
 **`__processOnePendingForTests` экспорт в `command-processor.ts`.**
 Делает:
@@ -98,7 +98,7 @@ export function withPendingCommands(): VirtualFS {
   const cmd = buildCommand({
     id: "cmd-1",
     action: "create_block",
-    payload: {
+    data: {
       title: "Created by command",
       date: "2025-06-11",
       start: "14:00",
@@ -443,7 +443,7 @@ DOM mounted, новый `render(<App />)` создаст рядом второй
 ## Верификация
 
 1. `task check` зелёный.
-2. `npm run test -- --project e2e-browser` показывает 37 тестов
+2. `task test` показывает 34 теста в `e2e-browser`
    зелёных.
 3. F-9: запустить 3 раза подряд — стабильно. Если в `command-
    processor.ts` поломать parse-error path (выкинуть `try/catch`)

@@ -18,9 +18,9 @@ import "../styles/globals.css";
 // builder counters race under concurrent execution. The default
 // sequential runner is the contract.
 
-beforeEach(() => {
+beforeEach(async () => {
   resetAllStores();
-  resetServiceSingletons();
+  await resetServiceSingletons();
   resetBuilderCounters();
   freezeClock();
   // Default to an empty VirtualFS so any boot-path invoke() call
