@@ -80,6 +80,9 @@ pub fn run() {
                 let _ = window
                     .set_background_color(Some(Color(0x1a, 0x1a, 0x1a, 0xff)));
                 let _ = window.set_theme(Some(tauri::Theme::Dark));
+                // Drive the window title from productName so
+                // tauri.conf.json is the only place that names the app.
+                let _ = window.set_title(&app.package_info().name);
 
                 #[cfg(target_os = "macos")]
                 hide_inspector_in_release(&window);
@@ -165,7 +168,10 @@ fn hide_inspector_in_release(window: &tauri::WebviewWindow) {
 fn build_menu(
     app: &tauri::AppHandle,
 ) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
-    let app_sub = SubmenuBuilder::new(app, "TuzovOS")
+    // Pull the app name from package_info so productName in
+    // tauri.conf.json is the single source of truth — renaming the
+    // app does not require touching code.
+    let app_sub = SubmenuBuilder::new(app, &app.package_info().name)
         .services()
         .separator()
         .hide()

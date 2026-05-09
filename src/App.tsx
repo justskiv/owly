@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { getName } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message } from "@tauri-apps/plugin-dialog";
@@ -122,8 +123,12 @@ function App() {
           e instanceof JsonReadError
             ? `Файл ${e.path}\n\n${e.message}`
             : errMsg(e);
-        await message(`Не удалось запустить TuzovOS:\n\n${msg}`, {
-          title: "TuzovOS",
+        // Fall back to a literal so the dialog still surfaces if
+        // the name lookup itself fails — IPC may be the very thing
+        // that broke boot.
+        const appName = await getName().catch(() => "TuzovOS");
+        await message(`Не удалось запустить ${appName}:\n\n${msg}`, {
+          title: appName,
           kind: "error",
         });
         await exit(1);

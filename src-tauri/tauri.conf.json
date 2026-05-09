@@ -12,7 +12,6 @@
   "app": {
     "windows": [
       {
-        "title": "TuzovOS",
         "width": 1440,
         "height": 900,
         "minWidth": 1200,

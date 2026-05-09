@@ -97,6 +97,12 @@ export function installFS(fs: VirtualFS): void {
     async (cmd, args: unknown) => {
       const a = (args ?? {}) as Record<string, string>;
       switch (cmd) {
+        case "plugin:app|name":
+          // App.tsx's error-dialog path resolves productName via
+          // getName(); without this case mockIPC returns null and
+          // any test that hits the catch branch shows "null" as
+          // the app name.
+          return "TuzovOS";
         case "get_data_dir":
           return ROOT;
         case "read_file":
