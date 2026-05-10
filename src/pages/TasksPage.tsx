@@ -52,39 +52,33 @@ export function TasksPage() {
     if (areas.length === 0) return EMPTY_GROUPS;
     const allActive = tasks.filter((t) => t.status !== "done");
     const allDone = tasks.filter((t) => t.status === "done");
+    const { status, cat, prio } = taskFilter;
 
-    if (taskFilter?.type === "done") {
-      return groupTasks([], allDone);
-    }
+    // status=done switches the whole view to the done set; cat/prio
+    // narrow within it. status=overdue/week narrow the active set.
+    let pool = status === "done" ? allDone : allActive;
 
-    let active = allActive;
     if (taskSearch) {
       const q = taskSearch.toLowerCase();
-      active = active.filter((t) => t.title.toLowerCase().includes(q));
+      pool = pool.filter((t) => t.title.toLowerCase().includes(q));
     }
-    if (taskFilter) {
-      switch (taskFilter.type) {
-        case "cat":
-          active = active.filter((t) => t.tags.includes(taskFilter.val));
-          break;
-        case "prio":
-          active = active.filter((t) => t.priority === taskFilter.val);
-          break;
-        case "overdue":
-          active = active.filter((t) => {
-            const d = daysUntil(t.deadline);
-            return d !== null && d < 0;
-          });
-          break;
-        case "week":
-          active = active.filter((t) => {
-            const d = daysUntil(t.deadline);
-            return d !== null && d >= 0 && d <= 7;
-          });
-          break;
-      }
+    if (status === "overdue") {
+      pool = pool.filter((t) => {
+        const d = daysUntil(t.deadline);
+        return d !== null && d < 0;
+      });
+    } else if (status === "week") {
+      pool = pool.filter((t) => {
+        const d = daysUntil(t.deadline);
+        return d !== null && d >= 0 && d <= 7;
+      });
     }
-    return groupTasks(active, allDone);
+    if (cat) pool = pool.filter((t) => t.tags.includes(cat));
+    if (prio) pool = pool.filter((t) => t.priority === prio);
+
+    return status === "done"
+      ? groupTasks([], pool)
+      : groupTasks(pool, allDone);
   }, [tasks, taskSearch, taskFilter, areas.length]);
 
   if (areas.length === 0) {
@@ -97,8 +91,11 @@ export function TasksPage() {
     );
   }
 
-  const empty =
-    taskSearch || taskFilter ? "Нет задач по этому фильтру" : null;
+  const hasFilter =
+    taskFilter.status !== null ||
+    taskFilter.cat !== null ||
+    taskFilter.prio !== null;
+  const empty = taskSearch || hasFilter ? "Нет задач по этому фильтру" : null;
 
   return (
     <div className="tasks-page" data-screen="tasks">

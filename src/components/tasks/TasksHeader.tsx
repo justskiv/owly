@@ -11,7 +11,7 @@ const PRIO_LABEL: Record<"high" | "medium" | "low", string> = {
   low: "Низкий",
 };
 
-const FILTER_LABEL: Record<"overdue" | "week" | "done", string> = {
+const STATUS_LABEL: Record<"overdue" | "week" | "done", string> = {
   overdue: "Просрочено",
   week: "На неделе",
   done: "Выполнено",
@@ -22,7 +22,9 @@ const EMPTY_AREAS: never[] = [];
 export function TasksHeader() {
   const entities = useEntityStore((s) => s.entities);
   const filter = useUIStore((s) => s.taskFilter);
-  const setFilter = useUIStore((s) => s.setTaskFilter);
+  const setStatus = useUIStore((s) => s.setTaskFilterStatus);
+  const setCat = useUIStore((s) => s.setTaskFilterCat);
+  const setPrio = useUIStore((s) => s.setTaskFilterPrio);
   const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
 
   const activeCount = useMemo(
@@ -33,26 +35,39 @@ export function TasksHeader() {
     [entities],
   );
 
-  let chipLabel: string | null = null;
-  if (filter) {
-    if (filter.type === "cat") chipLabel = getAreaLabel(filter.val, areas);
-    else if (filter.type === "prio") chipLabel = PRIO_LABEL[filter.val];
-    else chipLabel = FILTER_LABEL[filter.type];
-  }
-
   return (
     <div className="tasks-header">
       <h1 className="tasks-title">Задачи</h1>
       <span className="tasks-count">{activeCount} активных</span>
-      {chipLabel && (
-        <button
-          type="button"
-          className="filter-chip"
-          onClick={() => setFilter(null)}
-        >
-          ✕ {chipLabel}
-        </button>
-      )}
+      <div className="tasks-chips">
+        {filter.status && (
+          <button
+            type="button"
+            className="filter-chip"
+            onClick={() => setStatus(null)}
+          >
+            ✕ {STATUS_LABEL[filter.status]}
+          </button>
+        )}
+        {filter.cat && (
+          <button
+            type="button"
+            className="filter-chip"
+            onClick={() => setCat(null)}
+          >
+            ✕ {getAreaLabel(filter.cat, areas)}
+          </button>
+        )}
+        {filter.prio && (
+          <button
+            type="button"
+            className="filter-chip"
+            onClick={() => setPrio(null)}
+          >
+            ✕ {PRIO_LABEL[filter.prio]}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

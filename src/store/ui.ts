@@ -94,12 +94,16 @@ export type HorizonHighlight = { projectId: string; fixed: boolean } | null;
 // back lands on the same tab.
 export type ReviewPeriod = "week" | "month" | "year";
 
-export type TaskFilter =
-  | { type: "cat"; val: string }
-  | { type: "prio"; val: "high" | "medium" | "low" }
-  | { type: "overdue" }
-  | { type: "week" }
-  | { type: "done" };
+export type TaskStatusFilter = "overdue" | "week" | "done";
+export type TaskPrioFilter = "high" | "medium" | "low";
+
+// Three independent filter slots. AND across slots; each slot toggles
+// on/off as a single value (clicking the same row again clears it).
+export interface TaskFilters {
+  status: TaskStatusFilter | null;
+  cat: string | null;
+  prio: TaskPrioFilter | null;
+}
 
 const TYPE_BY_PAGE: Record<Page, QAType> = {
   plan: "task",
@@ -186,7 +190,12 @@ interface UIStore {
   // store-construction time the config store is still loading.
   taskAddCat: string | null;
   taskSearch: string;
-  taskFilter: TaskFilter | null;
+  taskFilter: TaskFilters;
+
+  // Most recently created task. Highlighted in TasksPage so a fresh
+  // task is easy to spot in a long list. Cleared on hover, on page
+  // change, or when a newer task is created.
+  lastCreatedTaskId: string | null;
 
   // Projects page state (Phase 4). All ephemeral — no persist.
   activeBoard: BoardId;
@@ -285,7 +294,11 @@ interface UIStore {
 
   setTaskAddCat: (cat: string | null) => void;
   setTaskSearch: (q: string) => void;
-  setTaskFilter: (f: TaskFilter | null) => void;
+  setTaskFilterStatus: (s: TaskStatusFilter | null) => void;
+  setTaskFilterCat: (c: string | null) => void;
+  setTaskFilterPrio: (p: TaskPrioFilter | null) => void;
+  clearTaskFilters: () => void;
+  setLastCreatedTask: (id: string | null) => void;
 
   setActiveBoard: (id: BoardId) => void;
   setCatFilter: (val: string | null) => void;
@@ -393,7 +406,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   taskAddCat: null,
   taskSearch: "",
-  taskFilter: null,
+  taskFilter: { status: null, cat: null, prio: null },
+  lastCreatedTaskId: null,
 
   activeBoard: "brd1",
   catFilter: null,
@@ -420,6 +434,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
       currentPage,
       horizonHighlight:
         currentPage === "horizon" ? prev.horizonHighlight : null,
+      lastCreatedTaskId: null,
     })),
   setHorizonHighlight: (horizonHighlight) => set({ horizonHighlight }),
   setRvPeriod: (rvPeriod) => set({ rvPeriod }),
@@ -647,7 +662,15 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   setTaskAddCat: (taskAddCat) => set({ taskAddCat }),
   setTaskSearch: (taskSearch) => set({ taskSearch }),
-  setTaskFilter: (taskFilter) => set({ taskFilter }),
+  setTaskFilterStatus: (status) =>
+    set((s) => ({ taskFilter: { ...s.taskFilter, status } })),
+  setTaskFilterCat: (cat) =>
+    set((s) => ({ taskFilter: { ...s.taskFilter, cat } })),
+  setTaskFilterPrio: (prio) =>
+    set((s) => ({ taskFilter: { ...s.taskFilter, prio } })),
+  clearTaskFilters: () =>
+    set({ taskFilter: { status: null, cat: null, prio: null } }),
+  setLastCreatedTask: (lastCreatedTaskId) => set({ lastCreatedTaskId }),
 
   // Switching board or category resets staleFilter; toggling stale
   // resets catFilter. The mock (renderProjects in pool-planner-demo-v2)

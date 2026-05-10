@@ -57,6 +57,7 @@ export function TaskBar() {
         type: "task",
         category: taskAddCat,
       });
+      useUIStore.getState().setLastCreatedTask(entity.id);
       toast.success(`✓ ${entity.title}`, { category: taskAddCat });
       setAddText("");
       addInputRef.current?.focus();

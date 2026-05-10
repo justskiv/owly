@@ -28,6 +28,11 @@ const EMPTY_AREAS: never[] = [];
 export function TaskRow({ task }: { task: TaskEntity }) {
   const updateEntity = useEntityStore((s) => s.updateEntity);
   const openPopup = useUIStore((s) => s.openEntityPopup);
+  const closePopup = useUIStore((s) => s.closeEntityPopup);
+  const justCreated = useUIStore(
+    (s) => s.lastCreatedTaskId === task.id,
+  );
+  const clearJustCreated = useUIStore((s) => s.setLastCreatedTask);
   const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +53,11 @@ export function TaskRow({ task }: { task: TaskEntity }) {
 
   const onRowClick = () => {
     if (!rowRef.current) return;
+    const popup = useUIStore.getState().entityPopup;
+    if (popup.open && popup.entityId === task.id) {
+      closePopup();
+      return;
+    }
     openPopup(
       task.id,
       { type: "rect", rect: rowRef.current.getBoundingClientRect() },
@@ -67,8 +77,12 @@ export function TaskRow({ task }: { task: TaskEntity }) {
   return (
     <div
       ref={rowRef}
-      className={`task-row${done ? " done" : ""}`}
+      className={`task-row${done ? " done" : ""}${
+        justCreated ? " just-created" : ""
+      }`}
+      data-entity-id={task.id}
       onClick={onRowClick}
+      onMouseEnter={justCreated ? () => clearJustCreated(null) : undefined}
     >
       <button
         type="button"

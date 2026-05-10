@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { TaskEntity } from "../../schemas";
 import { useEntityStore } from "../../store/entities";
 import { useConfigStore } from "../../store/config";
-import { useUIStore, type TaskFilter } from "../../store/ui";
+import { useUIStore } from "../../store/ui";
 import { daysUntil } from "../../services/urgency";
 
 const PRIO_ROWS: Array<{
@@ -15,21 +15,16 @@ const PRIO_ROWS: Array<{
   { key: "low", icon: "○", label: "Низкий" },
 ];
 
-function eq(a: TaskFilter | null, b: TaskFilter): boolean {
-  if (!a) return false;
-  if (a.type !== b.type) return false;
-  if (a.type === "cat" && b.type === "cat") return a.val === b.val;
-  if (a.type === "prio" && b.type === "prio") return a.val === b.val;
-  return true;
-}
-
 const EMPTY_AREAS: never[] = [];
 
 export function TasksSidebar() {
   const entities = useEntityStore((s) => s.entities);
   const areas = useConfigStore((s) => s.config?.areas ?? EMPTY_AREAS);
   const filter = useUIStore((s) => s.taskFilter);
-  const setFilter = useUIStore((s) => s.setTaskFilter);
+  const setStatus = useUIStore((s) => s.setTaskFilterStatus);
+  const setCat = useUIStore((s) => s.setTaskFilterCat);
+  const setPrio = useUIStore((s) => s.setTaskFilterPrio);
+  const clearAll = useUIStore((s) => s.clearTaskFilters);
 
   const counts = useMemo(() => {
     const allTasks = entities.filter(
@@ -73,28 +68,27 @@ export function TasksSidebar() {
     };
   }, [entities, areas]);
 
-  const toggle = (f: TaskFilter) => {
-    setFilter(eq(filter, f) ? null : f);
-  };
-
-  const isAll = filter === null;
+  const isAll =
+    filter.status === null && filter.cat === null && filter.prio === null;
 
   return (
     <aside className="tasks-side">
       <div className="ts-card">
-        <h4>Обзор</h4>
+        <h4>Статус</h4>
         <button
           type="button"
           className={`ts-row${isAll ? " active" : ""}`}
-          onClick={() => setFilter(null)}
+          onClick={clearAll}
         >
           <span>Все</span>
           <span className="ts-row-count">{counts.active}</span>
         </button>
         <button
           type="button"
-          className={`ts-row${eq(filter, { type: "done" }) ? " active" : ""}`}
-          onClick={() => toggle({ type: "done" })}
+          className={`ts-row${filter.status === "done" ? " active" : ""}`}
+          onClick={() =>
+            setStatus(filter.status === "done" ? null : "done")
+          }
         >
           <span>Выполнено</span>
           <span className="ts-row-count urgency-ok">{counts.done}</span>
@@ -102,8 +96,10 @@ export function TasksSidebar() {
         {counts.overdue > 0 && (
           <button
             type="button"
-            className={`ts-row${eq(filter, { type: "overdue" }) ? " active" : ""}`}
-            onClick={() => toggle({ type: "overdue" })}
+            className={`ts-row${filter.status === "overdue" ? " active" : ""}`}
+            onClick={() =>
+              setStatus(filter.status === "overdue" ? null : "overdue")
+            }
           >
             <span>Просрочено</span>
             <span className="ts-row-count urgency-bad">{counts.overdue}</span>
@@ -112,8 +108,10 @@ export function TasksSidebar() {
         {counts.week > 0 && (
           <button
             type="button"
-            className={`ts-row${eq(filter, { type: "week" }) ? " active" : ""}`}
-            onClick={() => toggle({ type: "week" })}
+            className={`ts-row${filter.status === "week" ? " active" : ""}`}
+            onClick={() =>
+              setStatus(filter.status === "week" ? null : "week")
+            }
           >
             <span>На неделе</span>
             <span className="ts-row-count urgency-warn">{counts.week}</span>
@@ -122,13 +120,13 @@ export function TasksSidebar() {
       </div>
 
       <div className="ts-card">
-        <h4>По категориям</h4>
+        <h4>Категория</h4>
         {areas.map((a) => (
           <button
             key={a.id}
             type="button"
-            className={`ts-row${eq(filter, { type: "cat", val: a.id }) ? " active" : ""}`}
-            onClick={() => toggle({ type: "cat", val: a.id })}
+            className={`ts-row${filter.cat === a.id ? " active" : ""}`}
+            onClick={() => setCat(filter.cat === a.id ? null : a.id)}
           >
             <span
               className="ts-row-dot"
@@ -144,13 +142,13 @@ export function TasksSidebar() {
       </div>
 
       <div className="ts-card">
-        <h4>По приоритету</h4>
+        <h4>Приоритет</h4>
         {PRIO_ROWS.map((p) => (
           <button
             key={p.key}
             type="button"
-            className={`ts-row${eq(filter, { type: "prio", val: p.key }) ? " active" : ""}`}
-            onClick={() => toggle({ type: "prio", val: p.key })}
+            className={`ts-row${filter.prio === p.key ? " active" : ""}`}
+            onClick={() => setPrio(filter.prio === p.key ? null : p.key)}
           >
             <span aria-hidden>{p.icon}</span>
             <span>{p.label}</span>

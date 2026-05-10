@@ -90,6 +90,9 @@ export function QuickAdd() {
         type: state.type,
         category,
       });
+      if (entity.type === "task") {
+        useUIStore.getState().setLastCreatedTask(entity.id);
+      }
       toast.success(`✓ ${entity.title}`, { category });
     } catch (e) {
       toast.error(errMsg(e));

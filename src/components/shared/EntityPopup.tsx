@@ -89,6 +89,11 @@ export function EntityPopup({
   // via `.ep-subpopover`; the cat picker uses `.cat-popup`. Both must
   // be treated as "inside" so picking a value doesn't dismiss the
   // parent popup.
+  //
+  // A click on an anchor element marked `data-entity-id` matching the
+  // currently-open popup's entity is also skipped: the anchor's own
+  // onClick handles toggle (close), and without this skip the mousedown
+  // would close first and the click would re-open immediately.
   useEffect(() => {
     let detach: (() => void) | undefined;
     const id = window.setTimeout(() => {
@@ -97,6 +102,13 @@ export function EntityPopup({
         if (!target) return;
         if (ref.current?.contains(target as Node)) return;
         if (target.closest?.(".ep-subpopover, .cat-popup")) return;
+        const popup = useUIStore.getState().entityPopup;
+        if (popup.open) {
+          const anchor = target.closest?.("[data-entity-id]");
+          if (anchor?.getAttribute("data-entity-id") === popup.entityId) {
+            return;
+          }
+        }
         onClose();
       };
       document.addEventListener("mousedown", handler);

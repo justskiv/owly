@@ -50,8 +50,9 @@ test("T-2: category filter narrows the list", async () => {
   await userEvent.click(workBtn);
 
   expect(useUIStore.getState().taskFilter).toEqual({
-    type: "cat",
-    val: "work",
+    status: null,
+    cat: "work",
+    prio: null,
   });
   await expect.element(screen.getByText("Work task")).toBeVisible();
   expect(
