@@ -62,7 +62,7 @@ export function BlockContextMenu({ x, y, block, onClose }: Props) {
       icon: <span style={{ color: "var(--text-tertiary)" }}>✗</span>,
       shortcut: "S",
     },
-    { kind: "edit", label: "Редактировать", shortcut: "Enter" },
+    { kind: "edit", label: "Редактировать", shortcut: "E" },
     { kind: "dup", label: "Дублировать" },
     { kind: "del", label: "Удалить", shortcut: "⌫", danger: true },
   ];
@@ -203,7 +203,9 @@ export function BlockContextMenu({ x, y, block, onClose }: Props) {
         k === "d" ||
         k === "D" ||
         k === "s" ||
-        k === "S";
+        k === "S" ||
+        k === "e" ||
+        k === "E";
       if (!isShortcut) return;
       // Stop propagation so the planner-level Delete handler doesn't
       // also fire while the context menu is open.
@@ -225,6 +227,8 @@ export function BlockContextMenu({ x, y, block, onClose }: Props) {
         void actRef.current("toggle-done");
       } else if (k === "s" || k === "S") {
         void actRef.current("toggle-skipped");
+      } else if (k === "e" || k === "E") {
+        void actRef.current("edit");
       }
     };
     window.addEventListener("keydown", onKey, true);

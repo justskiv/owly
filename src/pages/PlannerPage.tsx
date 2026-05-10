@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Block, Entity } from "../schemas";
+import type { Block, BlockStatus, Entity } from "../schemas";
 import { BlockContextMenu } from "../components/planner/BlockContextMenu";
 import { DurationTip } from "../components/planner/DurationTip";
 import { PoolSidebar } from "../components/planner/PoolSidebar";
@@ -153,13 +153,18 @@ export function PlannerPage() {
         if (selectedId !== null) setSelected(null);
         return;
       }
-      if (poolModalOpen || blockPopupOpen || gesture.gesturing) return;
+      // Context menu hosts its own keydown listener (capture phase) and
+      // pre-empts these shortcuts while it's open.
+      if (poolModalOpen || blockPopupOpen || gesture.gesturing || ctxMenu) {
+        return;
+      }
       if (selectedId === null) return;
       const noMod = !e.metaKey && !e.ctrlKey && !e.altKey;
-      if (noMod && (e.key === "Delete" || e.key === "Backspace")) {
+      if (!noMod) return;
+      const sb = blocks.find((b) => b.id === selectedId);
+      if (!sb) return;
+      if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
-        const sb = blocks.find((b) => b.id === selectedId);
-        if (!sb) return;
         const t2 = sb.title;
         void useScheduleStore
           .getState()
@@ -169,6 +174,35 @@ export function PlannerPage() {
             toast.success(`Удалён: ${t2}`);
           })
           .catch((err) => toast.error(errMsg(err)));
+      } else if (e.code === "KeyD") {
+        e.preventDefault();
+        const isDone = sb.status === "done";
+        const next: BlockStatus = isDone ? "planned" : "done";
+        void useScheduleStore
+          .getState()
+          .setBlockStatus(selectedId, next)
+          .then(() => toast.success(isDone ? "Не готово" : "Готово ✓"))
+          .catch((err) => toast.error(errMsg(err)));
+      } else if (e.code === "KeyS") {
+        e.preventDefault();
+        const isSkipped = sb.status === "skipped";
+        const next: BlockStatus = isSkipped ? "planned" : "skipped";
+        void useScheduleStore
+          .getState()
+          .setBlockStatus(selectedId, next)
+          .then(() =>
+            toast.success(isSkipped ? "Не пропущено" : "Пропущено ✗"),
+          )
+          .catch((err) => toast.error(errMsg(err)));
+      } else if (e.code === "KeyE" || e.key === "Enter") {
+        e.preventDefault();
+        const el = document.querySelector<HTMLElement>(
+          `[data-block-id="${selectedId}"]`,
+        );
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          openBlockPopup(selectedId, { type: "rect", rect }, "right");
+        }
       }
     };
     window.addEventListener("keydown", handler);
@@ -182,6 +216,7 @@ export function PlannerPage() {
     poolModalOpen,
     blockPopupOpen,
     blocks,
+    openBlockPopup,
   ]);
 
   // Outside-click drops selection. Doesn't close popups (they manage
