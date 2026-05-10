@@ -49,7 +49,7 @@ export function typicalWeek(): VirtualFS {
           buildTask({ title: "Daily review", ...withDeadlineIn(0) }),
           buildTask({ title: "Read paper" }),
           buildProject({ title: "Site refactor" }),
-          buildProject({ title: "Tuzov OS v2" }),
+          buildProject({ title: "Owly v2" }),
           buildDirection({ title: "YouTube" }),
         ],
       },

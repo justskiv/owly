@@ -1,6 +1,6 @@
 version: "3"
 
-# Taskfile for TuzovOS.
+# Taskfile for Owly.
 # Run: `task <name>` or `task` (prints the list).
 # Install go-task: `brew install go-task/tap/go-task`.
 

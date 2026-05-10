@@ -124,7 +124,7 @@ test("T-6: complete checkbox toggles status to done", async () => {
 
   await flushAllWrites();
   const fs = getCurrentFS();
-  const file = JSON.parse(fs.read("/tuzov-test/data/entities.json"));
+  const file = JSON.parse(fs.read("/owly-test/data/entities.json"));
   const onDisk = file.entities.find(
     (e: { id: string }) => e.id === target.id,
   );

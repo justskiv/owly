@@ -61,7 +61,7 @@ export function compileDashboard(
   // because the imports transform inserts an `Object.defineProperty`
   // prelude, but the file pointer is way more useful than the
   // single-line offset we had before.
-  const wrapped = `${jsCode}\n//# sourceURL=tuzov-dashboard:///${filename}`;
+  const wrapped = `${jsCode}\n//# sourceURL=owly-dashboard:///${filename}`;
 
   let factory: Function;
   try {

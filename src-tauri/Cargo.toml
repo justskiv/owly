@@ -1,13 +1,21 @@
 [package]
-name = "tuzov-os"
+name = "owly"
 version = "0.1.0"
-description = "TuzovOS — personal control center"
-authors = ["TuzovOS"]
+description = "Owly — personal control center"
+authors = ["Nikolay Tuzov <just.skiv@gmail.com>"]
 edition = "2021"
 
 [lib]
-name = "tuzov_os_lib"
+name = "owly_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+# Override the binary name so the Dock tooltip in `tauri dev` shows
+# "Owly" instead of the lowercase Cargo package name. In a release
+# bundle, productName from tauri.conf.json takes over anyway; this
+# only matters for dev runs that launch target/debug/<exe> directly.
+[[bin]]
+name = "Owly"
+path = "src/main.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

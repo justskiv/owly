@@ -100,7 +100,7 @@ test("H-3: drag project from backlog adds to grid", async () => {
       hidden: false,
     },
     {
-      project_id: byTitle("Tuzov OS v2"),
+      project_id: byTitle("Owly v2"),
       months: [5],
       size: "big",
       hidden: false,
@@ -160,23 +160,23 @@ test("H-3: drag project from backlog adds to grid", async () => {
 test("H-4: hide project moves to deferred section", async () => {
   const screen = await setupHorizon((byTitle) => [
     {
-      project_id: byTitle("Tuzov OS v2"),
+      project_id: byTitle("Owly v2"),
       months: [5],
       size: "mid",
       hidden: false,
     },
   ]);
 
-  const nameSpan = gridNameSpan(screen, "Tuzov OS v2");
+  const nameSpan = gridNameSpan(screen, "Owly v2");
   const row = nameSpan.closest("tr");
-  if (!row) throw new Error("Tuzov OS v2 row not in DOM");
+  if (!row) throw new Error("Owly v2 row not in DOM");
   const hideBtn = row.querySelector<HTMLButtonElement>(
     'button[aria-label="Скрыть"]',
   );
   if (!hideBtn) throw new Error("Скрыть button not on row");
   hideBtn.click();
 
-  const projectId = projectIdByTitle("Tuzov OS v2");
+  const projectId = projectIdByTitle("Owly v2");
   await expect
     .poll(
       () =>
@@ -190,7 +190,7 @@ test("H-4: hide project moves to deferred section", async () => {
   // that flipped the store but kept the row rendered would still
   // satisfy the deferred-section assertion below — guard it here.
   await expect
-    .poll(() => gridHasProject(screen, "Tuzov OS v2"))
+    .poll(() => gridHasProject(screen, "Owly v2"))
     .toBe(false);
 
   // Deferred section is collapsed by default — expand to verify the
@@ -218,7 +218,7 @@ test("H-4: hide project moves to deferred section", async () => {
       const titles = Array.from(
         deferred.querySelectorAll<HTMLElement>(".hz-bl-item .bl-title"),
       ).map((el) => el.textContent);
-      return titles.includes("Tuzov OS v2");
+      return titles.includes("Owly v2");
     })
     .toBe(true);
 

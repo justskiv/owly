@@ -10,7 +10,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async (cmd: string) => {
     switch (cmd) {
       case "get_data_dir":
-        return "/tmp/tuzov-test";
+        return "/tmp/owly-test";
       case "file_exists":
         return false;
       case "list_files":

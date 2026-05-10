@@ -89,7 +89,7 @@ export function getCurrentFS(): VirtualFS {
   return currentFS;
 }
 
-export const ROOT = "/tuzov-test/data";
+export const ROOT = "/owly-test/data";
 
 export function installFS(fs: VirtualFS): void {
   currentFS = fs;
@@ -102,7 +102,7 @@ export function installFS(fs: VirtualFS): void {
           // getName(); without this case mockIPC returns null and
           // any test that hits the catch branch shows "null" as
           // the app name.
-          return "TuzovOS";
+          return "Owly";
         case "get_data_dir":
           return ROOT;
         case "read_file":

@@ -23,7 +23,7 @@ const ACTIVE_BOARD = FALLBACK_BOARD_ID;
 // Boots Projects via typicalWeek — entities loaded through real
 // loadEntities path. ACTIVE_BOARD is set explicitly because the UI
 // store's default is "brd1", but typicalWeek's projects (Site refactor,
-// Tuzov OS v2) sit on board "brd3" — without the override the kanban
+// Owly v2) sit on board "brd3" — without the override the kanban
 // renders an empty Видео board.
 async function setupProjects(): Promise<RenderResult> {
   installFS(typicalWeek());
@@ -51,7 +51,7 @@ test("Pr-1: renders kanban for active board", async () => {
   expect(columns.length).toBe(5);
 
   await expect.element(screen.getByText("Site refactor")).toBeVisible();
-  await expect.element(screen.getByText("Tuzov OS v2")).toBeVisible();
+  await expect.element(screen.getByText("Owly v2")).toBeVisible();
 
   // All 5 column headings, in order — guards both board mis-routing
   // (brd1/brd2 would label them "Идея/Сценарий/…") and column reorder.

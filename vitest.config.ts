@@ -27,7 +27,7 @@ export default defineConfig({
           browser: {
             enabled: true,
             provider: playwright(),
-            // Desktop-class viewport: TuzovOS targets a desktop Tauri
+            // Desktop-class viewport: Owly targets a desktop Tauri
             // window, and the Horizon grid (200px name-col + 8 month
             // cols) collapses below ~1000px wide. The Playwright
             // default in vitest-browser is mobile-sized (414×896),

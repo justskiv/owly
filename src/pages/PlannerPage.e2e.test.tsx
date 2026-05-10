@@ -24,7 +24,7 @@ import { flushAllWrites, seedEmptyWeeks } from "../test/e2e/automation";
 const WEEK = "2025-w24";
 const TODAY = "2025-06-11";
 const TOMORROW = "2025-06-12";
-const SCHEDULE_PATH = `/tuzov-test/data/schedule/${WEEK}.json`;
+const SCHEDULE_PATH = `/owly-test/data/schedule/${WEEK}.json`;
 
 // Boots from typicalWeek scenario via VirtualFS so each test goes
 // through the real loadWeek/loadEntities path. Returns the rendered
@@ -91,7 +91,7 @@ test("P-3: drag existing block to a different day", async () => {
   await flushAllWrites();
   const fs = getCurrentFS();
   const week = JSON.parse(
-    fs.read(`/tuzov-test/data/schedule/${edgeWeekState.currentWeek}.json`),
+    fs.read(`/owly-test/data/schedule/${edgeWeekState.currentWeek}.json`),
   );
   expect(
     week.blocks.find((b: { id: string }) => b.id === edgeBlock.id).date,
