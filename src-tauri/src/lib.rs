@@ -27,6 +27,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            // Self-update via tauri-plugin-updater — desktop only.
+            // Pulled in once here so the frontend can call check() →
+            // downloadAndInstall() against the GitHub Releases endpoint
+            // configured in tauri.conf.json.
+            #[cfg(desktop)]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+
             // Resolve the app root once at startup so file commands can
             // validate every path against it. Dev keeps data in the
             // project tree (CARGO_MANIFEST_DIR resolves at compile time

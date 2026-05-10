@@ -93,3 +93,18 @@ tasks:
       - task: rust:test
       - task: test
       - task: fe:build
+
+  release:
+    desc: Bump version, tag, push — triggers GH Actions release build
+    summary: |
+      Usage: task release -- 0.2.0
+      Bumps package.json + Cargo.toml + Cargo.lock, commits, tags, and
+      pushes. The release workflow on the remote builds and signs the
+      .app, uploads it to a draft GitHub Release with latest.json.
+    cmds:
+      - node scripts/bump.mjs {{.CLI_ARGS}}
+      - git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+      - 'git commit -m "release: v{{.CLI_ARGS}}"'
+      - git tag v{{.CLI_ARGS}}
+      - git push origin main
+      - git push origin v{{.CLI_ARGS}}

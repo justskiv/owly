@@ -10,6 +10,7 @@
     "core:window:allow-show",
     "core:window:allow-start-dragging",
     "dialog:allow-message",
-    "process:allow-exit"
+    "process:allow-exit",
+    "updater:default"
   ]
 }

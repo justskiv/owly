@@ -1,0 +1,41 @@
+name: release
+
+# Triggers on tag push (v0.2.0 etc.). The companion `task release X.Y.Z`
+# bumps version files, commits, tags, and pushes — this workflow takes
+# over from the tag landing on the remote.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: v__VERSION__
+          releaseName: 'Owly v__VERSION__'
+          # Draft so a bad build can be deleted before users check
+          # latest.json. Promote to published once the artifact is
+          # smoke-tested.
+          releaseDraft: true
+          args: --target aarch64-apple-darwin

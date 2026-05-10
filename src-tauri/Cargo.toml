@@ -33,6 +33,12 @@ notify = "8"
 objc2 = "0.6"
 objc2-web-kit = "0.3"
 
+# tauri-plugin-updater is desktop-only — no iOS/Android distribution
+# planned, and the plugin's bundle-extraction path doesn't compile on
+# mobile targets.
+[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies]
+tauri-plugin-updater = "2"
+
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
 tempfile = "3"
