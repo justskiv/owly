@@ -2,11 +2,15 @@ import { useMemo } from "react";
 import type { TaskEntity } from "../../schemas";
 import { useEntityStore } from "../../store/entities";
 import { useConfigStore } from "../../store/config";
-import { useUIStore } from "../../store/ui";
+import {
+  useUIStore,
+  type TaskPrioFilter,
+  type TaskStatusFilter,
+} from "../../store/ui";
 import { daysUntil } from "../../services/urgency";
 
 const PRIO_ROWS: Array<{
-  key: "high" | "medium" | "low";
+  key: TaskPrioFilter;
   icon: string;
   label: string;
 }> = [
@@ -24,52 +28,52 @@ export function TasksSidebar() {
   const setStatus = useUIStore((s) => s.setTaskFilterStatus);
   const setCat = useUIStore((s) => s.setTaskFilterCat);
   const setPrio = useUIStore((s) => s.setTaskFilterPrio);
-  const clearAll = useUIStore((s) => s.clearTaskFilters);
 
-  const counts = useMemo(() => {
+  // Faceted counts: each row shows "what the visible count would be
+  // if I picked this row's value for its slot, keeping the other two
+  // slots at their current values". Mirrors the AND filter pipeline
+  // in TasksPage so the displayed numbers always sum to what the
+  // list will actually render.
+  const { countWith, totalOverdue, totalWeek } = useMemo(() => {
     const allTasks = entities.filter(
       (e): e is TaskEntity => e.type === "task",
     );
-    const active = allTasks.filter((t) => t.status !== "done");
-    const done = allTasks.filter((t) => t.status === "done");
+    const allActive = allTasks.filter((t) => t.status !== "done");
+    const allDone = allTasks.filter((t) => t.status === "done");
+
+    const apply = (
+      statusF: TaskStatusFilter | null,
+      catF: string | null,
+      prioF: TaskPrioFilter | null,
+    ): number => {
+      let pool = statusF === "done" ? allDone : allActive;
+      if (statusF === "overdue") {
+        pool = pool.filter((t) => {
+          const d = daysUntil(t.deadline);
+          return d !== null && d < 0;
+        });
+      } else if (statusF === "week") {
+        pool = pool.filter((t) => {
+          const d = daysUntil(t.deadline);
+          return d !== null && d >= 0 && d <= 7;
+        });
+      }
+      if (catF) pool = pool.filter((t) => t.tags.includes(catF));
+      if (prioF) pool = pool.filter((t) => t.priority === prioF);
+      return pool.length;
+    };
+
     let overdue = 0;
     let week = 0;
-    for (const t of active) {
+    for (const t of allActive) {
       const d = daysUntil(t.deadline);
       if (d === null) continue;
       if (d < 0) overdue++;
       else if (d <= 7) week++;
     }
-    const byCat = new Map<string, number>();
-    const knownIds = new Set(areas.map((a) => a.id));
-    for (const t of active) {
-      for (const tag of t.tags) {
-        if (knownIds.has(tag)) {
-          byCat.set(tag, (byCat.get(tag) ?? 0) + 1);
-          break;
-        }
-      }
-    }
-    const byPrio: Record<"high" | "medium" | "low", number> = {
-      high: 0,
-      medium: 0,
-      low: 0,
-    };
-    for (const t of active) {
-      if (t.priority) byPrio[t.priority]++;
-    }
-    return {
-      active: active.length,
-      done: done.length,
-      overdue,
-      week,
-      byCat,
-      byPrio,
-    };
-  }, [entities, areas]);
 
-  const isAll =
-    filter.status === null && filter.cat === null && filter.prio === null;
+    return { countWith: apply, totalOverdue: overdue, totalWeek: week };
+  }, [entities]);
 
   return (
     <aside className="tasks-side">
@@ -77,11 +81,13 @@ export function TasksSidebar() {
         <h4>Статус</h4>
         <button
           type="button"
-          className={`ts-row${isAll ? " active" : ""}`}
-          onClick={clearAll}
+          className={`ts-row${filter.status === null ? " active" : ""}`}
+          onClick={() => setStatus(null)}
         >
           <span>Все</span>
-          <span className="ts-row-count">{counts.active}</span>
+          <span className="ts-row-count">
+            {countWith(null, filter.cat, filter.prio)}
+          </span>
         </button>
         <button
           type="button"
@@ -91,9 +97,11 @@ export function TasksSidebar() {
           }
         >
           <span>Выполнено</span>
-          <span className="ts-row-count urgency-ok">{counts.done}</span>
+          <span className="ts-row-count urgency-ok">
+            {countWith("done", filter.cat, filter.prio)}
+          </span>
         </button>
-        {counts.overdue > 0 && (
+        {totalOverdue > 0 && (
           <button
             type="button"
             className={`ts-row${filter.status === "overdue" ? " active" : ""}`}
@@ -102,10 +110,12 @@ export function TasksSidebar() {
             }
           >
             <span>Просрочено</span>
-            <span className="ts-row-count urgency-bad">{counts.overdue}</span>
+            <span className="ts-row-count urgency-bad">
+              {countWith("overdue", filter.cat, filter.prio)}
+            </span>
           </button>
         )}
-        {counts.week > 0 && (
+        {totalWeek > 0 && (
           <button
             type="button"
             className={`ts-row${filter.status === "week" ? " active" : ""}`}
@@ -114,7 +124,9 @@ export function TasksSidebar() {
             }
           >
             <span>На неделе</span>
-            <span className="ts-row-count urgency-warn">{counts.week}</span>
+            <span className="ts-row-count urgency-warn">
+              {countWith("week", filter.cat, filter.prio)}
+            </span>
           </button>
         )}
       </div>
@@ -135,7 +147,7 @@ export function TasksSidebar() {
             />
             <span>{a.label}</span>
             <span className="ts-row-count">
-              {counts.byCat.get(a.id) ?? 0}
+              {countWith(filter.status, a.id, filter.prio)}
             </span>
           </button>
         ))}
@@ -152,7 +164,9 @@ export function TasksSidebar() {
           >
             <span aria-hidden>{p.icon}</span>
             <span>{p.label}</span>
-            <span className="ts-row-count">{counts.byPrio[p.key]}</span>
+            <span className="ts-row-count">
+              {countWith(filter.status, filter.cat, p.key)}
+            </span>
           </button>
         ))}
       </div>

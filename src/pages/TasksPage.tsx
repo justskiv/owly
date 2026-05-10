@@ -48,8 +48,11 @@ export function TasksPage() {
     setTaskAddCat(life?.id ?? areas[0].id);
   }, [taskAddCat, areas, setTaskAddCat]);
 
-  const groups = useMemo<TaskGroups>(() => {
-    if (areas.length === 0) return EMPTY_GROUPS;
+  const { groups, visibleCount } = useMemo<{
+    groups: TaskGroups;
+    visibleCount: number;
+  }>(() => {
+    if (areas.length === 0) return { groups: EMPTY_GROUPS, visibleCount: 0 };
     const allActive = tasks.filter((t) => t.status !== "done");
     const allDone = tasks.filter((t) => t.status === "done");
     const { status, cat, prio } = taskFilter;
@@ -76,9 +79,11 @@ export function TasksPage() {
     if (cat) pool = pool.filter((t) => t.tags.includes(cat));
     if (prio) pool = pool.filter((t) => t.priority === prio);
 
-    return status === "done"
-      ? groupTasks([], pool)
-      : groupTasks(pool, allDone);
+    return {
+      groups:
+        status === "done" ? groupTasks([], pool) : groupTasks(pool, allDone),
+      visibleCount: pool.length,
+    };
   }, [tasks, taskSearch, taskFilter, areas.length]);
 
   if (areas.length === 0) {
@@ -100,7 +105,7 @@ export function TasksPage() {
   return (
     <div className="tasks-page" data-screen="tasks">
       <div className="tasks-inner">
-        <TasksHeader />
+        <TasksHeader count={visibleCount} />
         <TaskBar />
         <TaskGroupsView groups={groups} empty={empty} />
       </div>

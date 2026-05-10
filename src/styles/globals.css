@@ -191,7 +191,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--focus-ring
 
 .tasks-header{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
 .tasks-title{font:700 var(--fs-lg) var(--font);margin:0;color:var(--text-primary)}
-.tasks-count{font:var(--fs-xs)/1 var(--mono);color:var(--text-tertiary)}
+.tasks-count{font:500 var(--fs-md)/1 var(--mono);color:var(--text-secondary);font-variant-numeric:tabular-nums;letter-spacing:-0.01em;margin-left:2px}
 .tasks-clear{margin-left:auto}
 .filter-chip{background:var(--bg-tint-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px 8px;font:var(--fs-xs) var(--font);color:var(--text-secondary);cursor:pointer}
 .filter-chip:hover{background:var(--bg-tint-1);border-color:var(--border-hover);color:var(--text-primary)}
