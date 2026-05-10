@@ -12,7 +12,20 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # Each row builds its native bundle and uploads to the same draft
+    # release; tauri-action handles release de-duplication. fail-fast
+    # off so a flaky runner on one OS doesn't kill the other.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            args: ''
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
@@ -22,7 +35,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin
+          targets: ${{ matrix.target }}
 
       - run: npm ci
 
@@ -38,4 +51,4 @@ jobs:
           # latest.json. Promote to published once the artifact is
           # smoke-tested.
           releaseDraft: true
-          args: --target aarch64-apple-darwin
+          args: ${{ matrix.args }}
