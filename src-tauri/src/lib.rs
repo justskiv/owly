@@ -132,7 +132,9 @@ pub fn run() {
     app.run(|app_handle, event| {
         // macOS: clicking the dock icon while the window is hidden
         // re-shows it. Without this, the close-to-hide behavior would
-        // strand the window.
+        // strand the window. RunEvent::Reopen only exists on macOS;
+        // the cfg gate matches Tauri's own docs pattern.
+        #[cfg(target_os = "macos")]
         if let tauri::RunEvent::Reopen { has_visible_windows, .. } = event {
             if !has_visible_windows {
                 if let Some(w) = app_handle.get_webview_window("main") {
@@ -141,6 +143,8 @@ pub fn run() {
                 }
             }
         }
+        #[cfg(not(target_os = "macos"))]
+        let _ = (app_handle, event);
     });
 }
 
