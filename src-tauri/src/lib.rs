@@ -9,7 +9,7 @@ use commands::files::{
 };
 use commands::system::get_data_dir;
 use commands::{DataRoot, WatcherState};
-use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::menu::{AboutMetadata, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::utils::config::Color;
 use tauri::{Emitter, Manager, WindowEvent};
 use tauri_plugin_window_state::StateFlags;
@@ -183,7 +183,34 @@ fn build_menu(
     // Pull the app name from package_info so productName in
     // tauri.conf.json is the single source of truth — renaming the
     // app does not require touching code.
-    let app_sub = SubmenuBuilder::new(app, &app.package_info().name)
+    let pkg = app.package_info();
+
+    // About dialog metadata. Version comes from Cargo.toml, name from
+    // productName. Single source of truth, no hardcoded strings here.
+    let about = AboutMetadata {
+        name: Some(pkg.name.clone()),
+        version: Some(pkg.version.to_string()),
+        authors: Some(vec!["Nikolay Tuzov".into()]),
+        comments: Some("Personal control center".into()),
+        copyright: Some("© 2026 Nikolay Tuzov".into()),
+        license: Some("PolyForm Perimeter 1.0.0".into()),
+        website: Some("https://github.com/justskiv/owly".into()),
+        website_label: Some("GitHub".into()),
+        ..Default::default()
+    };
+
+    // Check for Updates — manual trigger that emits a menu event the
+    // frontend listens for to invoke the updater plugin's check().
+    let check_updates = MenuItemBuilder::with_id(
+        "check-updates",
+        "Check for Updates…",
+    )
+    .build(app)?;
+
+    let app_sub = SubmenuBuilder::new(app, &pkg.name)
+        .about(Some(about))
+        .item(&check_updates)
+        .separator()
         .services()
         .separator()
         .hide()

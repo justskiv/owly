@@ -20,6 +20,7 @@ import { maybeMigrateToV2 } from "./services/seed-migration";
 import { maybeBackfillCompletedAt } from "./services/archive-migration";
 import { reconcile as reconcileHorizon } from "./services/horizon-reconcile";
 import { errMsg } from "./services/format";
+import { checkForUpdatesManual } from "./services/updater-client";
 
 // Initial data loading. Exported so e2e tests can drive a real boot
 // (Level 2: installFS + <App /> + advanceTimersByTimeAsync) without
@@ -232,6 +233,9 @@ function App() {
           } else {
             ui.togglePool();
           }
+          break;
+        case "check-updates":
+          void checkForUpdatesManual();
           break;
       }
     }).then((fn) => {
