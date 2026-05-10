@@ -1,6 +1,6 @@
 [package]
 name = "owly"
-version = "0.1.0"
+version = "0.0.1"
 description = "Owly — personal control center"
 authors = ["Nikolay Tuzov <just.skiv@gmail.com>"]
 edition = "2021"
