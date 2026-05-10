@@ -30,6 +30,7 @@ function makeDirection(
     description: "",
     created_at: "2026-04-01T00:00:00",
     updated_at: "2026-04-01T00:00:00",
+    completed_at: null,
     fields: {
       target: null,
       current: null,
@@ -58,6 +59,7 @@ function makeProject(
     description: "",
     created_at: "2026-04-01T00:00:00",
     updated_at: "2026-04-01T00:00:00",
+    completed_at: null,
     fields: {
       description: "",
       pipeline_stage: "research",

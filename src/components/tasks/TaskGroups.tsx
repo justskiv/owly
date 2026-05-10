@@ -13,7 +13,6 @@ const GROUP_META: Array<{
   { key: "soon", icon: "📋", label: "Скоро", criterion: "8–30 дней" },
   { key: "notSoon", icon: "📆", label: "Не скоро", criterion: "более 30 дней" },
   { key: "someday", icon: "💤", label: "Когда-нибудь", criterion: "без дедлайна" },
-  { key: "done", icon: "✓", label: "Готово", criterion: "выполненные задачи" },
 ];
 
 export function TaskGroupsView({

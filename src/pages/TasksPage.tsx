@@ -16,7 +16,6 @@ const EMPTY_GROUPS: TaskGroups = {
   soon: [],
   notSoon: [],
   someday: [],
-  done: [],
 };
 
 export function TasksPage() {
@@ -53,13 +52,8 @@ export function TasksPage() {
     visibleCount: number;
   }>(() => {
     if (areas.length === 0) return { groups: EMPTY_GROUPS, visibleCount: 0 };
-    const allActive = tasks.filter((t) => t.status !== "done");
-    const allDone = tasks.filter((t) => t.status === "done");
+    let pool = tasks.filter((t) => t.status !== "done");
     const { status, cat, prio } = taskFilter;
-
-    // status=done switches the whole view to the done set; cat/prio
-    // narrow within it. status=overdue/week narrow the active set.
-    let pool = status === "done" ? allDone : allActive;
 
     if (taskSearch) {
       const q = taskSearch.toLowerCase();
@@ -80,8 +74,7 @@ export function TasksPage() {
     if (prio) pool = pool.filter((t) => t.priority === prio);
 
     return {
-      groups:
-        status === "done" ? groupTasks([], pool) : groupTasks(pool, allDone),
+      groups: groupTasks(pool),
       visibleCount: pool.length,
     };
   }, [tasks, taskSearch, taskFilter, areas.length]);

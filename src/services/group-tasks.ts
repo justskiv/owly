@@ -8,7 +8,6 @@ export interface TaskGroups {
   soon: TaskEntity[];
   notSoon: TaskEntity[];
   someday: TaskEntity[];
-  done: TaskEntity[];
 }
 
 const PRIO_ORDER: Record<"high" | "medium" | "low", number> = {
@@ -28,7 +27,6 @@ export function byPriorityThenDeadline(a: TaskEntity, b: TaskEntity): number {
 
 export function groupTasks(
   active: TaskEntity[],
-  done: TaskEntity[],
   today: Date = now(),
 ): TaskGroups {
   const groups: TaskGroups = {
@@ -37,7 +35,6 @@ export function groupTasks(
     soon: [],
     notSoon: [],
     someday: [],
-    done: [],
   };
   for (const t of active) {
     const d = daysUntil(t.deadline, today);
@@ -47,7 +44,6 @@ export function groupTasks(
     else if (d <= 30) groups.soon.push(t);
     else groups.notSoon.push(t);
   }
-  groups.done = [...done];
   for (const k of Object.keys(groups) as Array<keyof TaskGroups>) {
     groups[k].sort(byPriorityThenDeadline);
   }

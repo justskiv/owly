@@ -185,6 +185,13 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--focus-ring
 
 /* Tasks page (Phase 3) */
 .tasks-page{display:flex;padding:16px 20px 32px;gap:16px;justify-content:center;align-items:flex-start;overflow-y:auto;height:100%}
+/* Push sidebar's first card down to align with the search input on
+   the left column, not with the page title above it. h1 fs-lg
+   renders ~20px tall with default Outfit metrics, header
+   margin-bottom is 10px → 30px total. Refine if header layout
+   changes. */
+.tasks-side{padding-top:30px}
+.arch-side{padding-top:30px}
 .tasks-inner{max-width:420px;width:100%;flex-shrink:0}
 .tasks-side{width:220px;position:sticky;top:0;align-self:flex-start;flex-shrink:0}
 .tasks-empty-stub{margin:auto;opacity:.4;font-size:var(--fs-md);color:var(--text-tertiary);text-align:center;padding:80px 0}
@@ -251,6 +258,39 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--focus-ring
 .ts-row.active{background:var(--bg-tint-2);color:var(--text-primary)}
 .ts-row-count{margin-left:auto;font:var(--fs-2xs) var(--mono);color:var(--text-tertiary)}
 .ts-row-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+.ts-archive-link{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border:0;background:var(--bg-tint-1);border-radius:var(--radius-md);cursor:pointer;font:var(--fs-sm) var(--font);color:var(--text-secondary);text-align:left;width:100%;transition:background var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
+.ts-archive-link:hover{background:var(--bg-tint-2);color:var(--text-primary)}
+.ts-archive-link>svg{flex-shrink:0;color:var(--text-tertiary)}
+.ts-archive-link:hover>svg{color:var(--text-primary)}
+.ts-archive-link-count{margin-left:auto;font:var(--fs-2xs) var(--mono);color:var(--text-disabled)}
+
+.archive-page{display:flex;padding:16px 20px 32px;gap:16px;justify-content:center;align-items:flex-start;overflow-y:auto;height:100%;animation:archEnter var(--duration-base) var(--ease-out)}
+@keyframes archEnter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.archive-inner{max-width:560px;width:100%;flex-shrink:0}
+.arch-side{width:220px;position:sticky;top:0;align-self:flex-start;flex-shrink:0}
+.arch-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.arch-back{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;color:var(--text-tertiary);cursor:pointer;padding:0;width:24px;height:24px;border-radius:var(--radius-sm);transition:color var(--duration-fast) var(--ease-out),background var(--duration-fast) var(--ease-out)}
+.arch-back:hover{color:var(--text-primary);background:var(--bg-tint-1)}
+.arch-title{font:700 var(--fs-lg) var(--font);margin:0;color:var(--text-primary)}
+.arch-count{font:500 var(--fs-md)/1 var(--mono);color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.arch-toolbar{display:flex;gap:8px;margin-bottom:12px;align-items:center}
+.arch-search{flex:1}
+.arch-sort{height:32px;background:var(--bg-tint-1);border:1px solid var(--border);border-radius:var(--radius-md);padding:0 8px;font:var(--fs-sm) var(--font);color:var(--text-primary);outline:none;cursor:pointer}
+.arch-sort:hover{border-color:var(--border-hover)}
+.arch-group{margin-bottom:16px}
+.arch-group-head{font:600 var(--fs-xs) var(--font);text-transform:uppercase;letter-spacing:.04em;color:var(--text-tertiary);margin:0 0 6px;padding:0 4px}
+.arch-row{display:flex;align-items:center;gap:10px;padding:8px 4px;background:transparent;border:0;border-bottom:1px solid var(--border);cursor:pointer;width:100%;text-align:left;font:inherit;color:inherit}
+.arch-row:last-of-type{border-bottom:0}
+.arch-row:hover{background:var(--bg-tint-1)}
+.ar-check{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius-xs);background:var(--accent);color:var(--text-inverse);font:600 var(--fs-xs) var(--font);cursor:pointer;border:0;flex-shrink:0}
+.ar-check:hover{filter:brightness(1.1)}
+.ar-body{display:flex;align-items:baseline;gap:8px;min-width:0;flex:1}
+.ar-title{font:var(--fs-sm) var(--font);color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex-shrink:1}
+.ar-meta{font:var(--fs-xs) var(--font);color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1}
+.ar-date{font:var(--fs-xs)/1 var(--mono);color:var(--text-tertiary);font-variant-numeric:tabular-nums;flex-shrink:0}
+.ar-cat{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.arch-empty{padding:32px 12px;color:var(--text-tertiary);text-align:center;font:var(--fs-sm) var(--font)}
 
 .cat-popup{position:fixed;z-index:350;background:var(--bg-elevated);border:1px solid var(--border-hover);border-radius:var(--radius-md);padding:4px;min-width:180px;box-shadow:var(--shadow-md);animation:popIn .1s ease-out}
 .cat-popup-item{display:flex;align-items:center;gap:8px;width:100%;padding:6px 10px;background:transparent;border:0;cursor:pointer;color:var(--text-primary);border-radius:var(--radius-xs);font:var(--fs-sm) var(--font);text-align:left}

@@ -1,5 +1,6 @@
 import { __resetDataDirCacheForTests } from "../services/file-io";
 import { __resetSeedMigrationForTests } from "../services/seed-migration";
+import { __resetArchiveMigrationForTests } from "../services/archive-migration";
 import { __resetCommandProcessorForTests } from "../services/command-processor";
 import { __resetDashboardHotReloadForTests } from "../services/dashboard-hot-reload";
 import { clearWeekCache } from "../services/week-cache";
@@ -12,6 +13,7 @@ import { invalidatePoolCache } from "../services/review-aggregations";
 export async function resetServiceSingletons(): Promise<void> {
   __resetDataDirCacheForTests();
   __resetSeedMigrationForTests();
+  __resetArchiveMigrationForTests();
   await __resetCommandProcessorForTests();
   await __resetDashboardHotReloadForTests();
   clearWeekCache();

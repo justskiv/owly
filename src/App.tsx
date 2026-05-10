@@ -17,6 +17,7 @@ import { getCurrentWeekId } from "./services/time-utils";
 import { startCommandProcessor } from "./services/command-processor";
 import { installDashboardHotReload } from "./services/dashboard-hot-reload";
 import { maybeMigrateToV2 } from "./services/seed-migration";
+import { maybeBackfillCompletedAt } from "./services/archive-migration";
 import { reconcile as reconcileHorizon } from "./services/horizon-reconcile";
 import { errMsg } from "./services/format";
 
@@ -38,6 +39,11 @@ export async function loadAll(
 ): Promise<void> {
   await ensureDataDir();
   await maybeMigrateToV2();
+  if (opts?.signal?.aborted) return;
+  // Backfill `completed_at` on legacy done tasks. Strictly before
+  // loadEntities, otherwise the in-memory entities array could land
+  // stale relative to the file we just rewrote.
+  await maybeBackfillCompletedAt();
   if (opts?.signal?.aborted) return;
   await useConfigStore.getState().loadConfig();
   const areas = useConfigStore.getState().config?.areas;
@@ -126,7 +132,7 @@ function App() {
         // Fall back to a literal so the dialog still surfaces if
         // the name lookup itself fails — IPC may be the very thing
         // that broke boot.
-        const appName = await getName().catch(() => "TuzovOS");
+        const appName = await getName().catch(() => "Owly");
         await message(`Не удалось запустить ${appName}:\n\n${msg}`, {
           title: appName,
           kind: "error",

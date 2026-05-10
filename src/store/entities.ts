@@ -27,13 +27,17 @@ const POOL_TYPES = new Set<EntityType>([
   "routine",
 ]);
 
-type EntityDraft = Omit<Entity, "id" | "created_at" | "updated_at"> & {
+type EntityDraft = Omit<
+  Entity,
+  "id" | "created_at" | "updated_at" | "completed_at"
+> & {
   // Optional overrides used by the command executor — agent-supplied
   // commands carry their own id/timestamps. UI callers pass nothing
   // and the store fills them in.
   id?: string;
   created_at?: string;
   updated_at?: string;
+  completed_at?: string | null;
 };
 
 // Persist-first: see schedule.ts for the same rationale.
@@ -129,6 +133,7 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
       id: draft.id ?? generateId("ent"),
       created_at: draft.created_at ?? now,
       updated_at: draft.updated_at ?? now,
+      completed_at: draft.completed_at ?? null,
     } as Entity;
     const next = [...get().entities, entity];
     set({ entities: next });
@@ -139,11 +144,24 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
   },
 
   updateEntity: async (id, updates) => {
-    const next = get().entities.map((e) =>
-      e.id === id
-        ? ({ ...e, ...updates, updated_at: nowISO() } as Entity)
-        : e,
-    );
+    const next = get().entities.map((e) => {
+      if (e.id !== id) return e;
+      const merged = {
+        ...e,
+        ...updates,
+        updated_at: nowISO(),
+      } as Entity;
+      // Stamp/clear completed_at on status transitions only — editing
+      // title/priority of an already-done task must not bump the date,
+      // otherwise the archive month grouping would drift.
+      if ("status" in updates) {
+        const wasDone = e.status === "done";
+        const isDone = merged.status === "done";
+        if (!wasDone && isDone) merged.completed_at = nowISO();
+        else if (wasDone && !isDone) merged.completed_at = null;
+      }
+      return merged;
+    });
     set({ entities: next });
     await trackSave(() =>
       enqueueEntitiesWrite(() => persistEntities(next)),

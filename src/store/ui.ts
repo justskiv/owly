@@ -94,13 +94,29 @@ export type HorizonHighlight = { projectId: string; fixed: boolean } | null;
 // back lands on the same tab.
 export type ReviewPeriod = "week" | "month" | "year";
 
-export type TaskStatusFilter = "overdue" | "week" | "done";
+export type TaskStatusFilter = "overdue" | "week";
 export type TaskPrioFilter = "high" | "medium" | "low";
 
 // Three independent filter slots. AND across slots; each slot toggles
 // on/off as a single value (clicking the same row again clears it).
 export interface TaskFilters {
   status: TaskStatusFilter | null;
+  cat: string | null;
+  prio: TaskPrioFilter | null;
+}
+
+// Archive screen state (Phase 10). The active and archive views share
+// the Tasks tab in Top Nav but are otherwise independent — separate
+// search, sort, and filter state so switching back to active doesn't
+// reset what the user typed in archive search.
+export type TasksView = "active" | "archive";
+export type ArchiveSort =
+  | "completed_desc"
+  | "completed_asc"
+  | "title_asc"
+  | "title_desc";
+
+export interface ArchiveFilters {
   cat: string | null;
   prio: TaskPrioFilter | null;
 }
@@ -196,6 +212,14 @@ interface UIStore {
   // task is easy to spot in a long list. Cleared on hover, on page
   // change, or when a newer task is created.
   lastCreatedTaskId: string | null;
+
+  // Phase 10: which view of the Tasks tab is showing. setPage("tasks")
+  // forces this back to "active" — opening Plan and returning should
+  // not surprise the user with the archive they were last in.
+  tasksView: TasksView;
+  archiveSearch: string;
+  archiveSort: ArchiveSort;
+  archiveFilter: ArchiveFilters;
 
   // Projects page state (Phase 4). All ephemeral — no persist.
   activeBoard: BoardId;
@@ -299,6 +323,13 @@ interface UIStore {
   setTaskFilterPrio: (p: TaskPrioFilter | null) => void;
   clearTaskFilters: () => void;
   setLastCreatedTask: (id: string | null) => void;
+
+  setTasksView: (v: TasksView) => void;
+  setArchiveSearch: (q: string) => void;
+  setArchiveSort: (s: ArchiveSort) => void;
+  setArchiveFilterCat: (c: string | null) => void;
+  setArchiveFilterPrio: (p: TaskPrioFilter | null) => void;
+  clearArchiveFilters: () => void;
 
   setActiveBoard: (id: BoardId) => void;
   setCatFilter: (val: string | null) => void;
@@ -409,6 +440,11 @@ export const useUIStore = create<UIStore>((set, get) => ({
   taskFilter: { status: null, cat: null, prio: null },
   lastCreatedTaskId: null,
 
+  tasksView: "active",
+  archiveSearch: "",
+  archiveSort: "completed_desc",
+  archiveFilter: { cat: null, prio: null },
+
   activeBoard: "brd1",
   catFilter: null,
   staleFilter: false,
@@ -435,6 +471,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
       horizonHighlight:
         currentPage === "horizon" ? prev.horizonHighlight : null,
       lastCreatedTaskId: null,
+      tasksView: currentPage === "tasks" ? "active" : prev.tasksView,
     })),
   setHorizonHighlight: (horizonHighlight) => set({ horizonHighlight }),
   setRvPeriod: (rvPeriod) => set({ rvPeriod }),
@@ -671,6 +708,16 @@ export const useUIStore = create<UIStore>((set, get) => ({
   clearTaskFilters: () =>
     set({ taskFilter: { status: null, cat: null, prio: null } }),
   setLastCreatedTask: (lastCreatedTaskId) => set({ lastCreatedTaskId }),
+
+  setTasksView: (tasksView) => set({ tasksView }),
+  setArchiveSearch: (archiveSearch) => set({ archiveSearch }),
+  setArchiveSort: (archiveSort) => set({ archiveSort }),
+  setArchiveFilterCat: (cat) =>
+    set((s) => ({ archiveFilter: { ...s.archiveFilter, cat } })),
+  setArchiveFilterPrio: (prio) =>
+    set((s) => ({ archiveFilter: { ...s.archiveFilter, prio } })),
+  clearArchiveFilters: () =>
+    set({ archiveFilter: { cat: null, prio: null } }),
 
   // Switching board or category resets staleFilter; toggling stale
   // resets catFilter. The mock (renderProjects in pool-planner-demo-v2)

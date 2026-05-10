@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Archive } from "lucide-react";
 import type { TaskEntity } from "../../schemas";
 import { useEntityStore } from "../../store/entities";
 import { useConfigStore } from "../../store/config";
@@ -28,25 +29,26 @@ export function TasksSidebar() {
   const setStatus = useUIStore((s) => s.setTaskFilterStatus);
   const setCat = useUIStore((s) => s.setTaskFilterCat);
   const setPrio = useUIStore((s) => s.setTaskFilterPrio);
+  const setTasksView = useUIStore((s) => s.setTasksView);
 
   // Faceted counts: each row shows "what the visible count would be
   // if I picked this row's value for its slot, keeping the other two
   // slots at their current values". Mirrors the AND filter pipeline
   // in TasksPage so the displayed numbers always sum to what the
   // list will actually render.
-  const { countWith, totalOverdue, totalWeek } = useMemo(() => {
+  const { countWith, totalOverdue, totalWeek, totalDone } = useMemo(() => {
     const allTasks = entities.filter(
       (e): e is TaskEntity => e.type === "task",
     );
     const allActive = allTasks.filter((t) => t.status !== "done");
-    const allDone = allTasks.filter((t) => t.status === "done");
+    const doneCount = allTasks.filter((t) => t.status === "done").length;
 
     const apply = (
       statusF: TaskStatusFilter | null,
       catF: string | null,
       prioF: TaskPrioFilter | null,
     ): number => {
-      let pool = statusF === "done" ? allDone : allActive;
+      let pool = allActive;
       if (statusF === "overdue") {
         pool = pool.filter((t) => {
           const d = daysUntil(t.deadline);
@@ -72,7 +74,12 @@ export function TasksSidebar() {
       else if (d <= 7) week++;
     }
 
-    return { countWith: apply, totalOverdue: overdue, totalWeek: week };
+    return {
+      countWith: apply,
+      totalOverdue: overdue,
+      totalWeek: week,
+      totalDone: doneCount,
+    };
   }, [entities]);
 
   return (
@@ -87,18 +94,6 @@ export function TasksSidebar() {
           <span>Все</span>
           <span className="ts-row-count">
             {countWith(null, filter.cat, filter.prio)}
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`ts-row${filter.status === "done" ? " active" : ""}`}
-          onClick={() =>
-            setStatus(filter.status === "done" ? null : "done")
-          }
-        >
-          <span>Выполнено</span>
-          <span className="ts-row-count urgency-ok">
-            {countWith("done", filter.cat, filter.prio)}
           </span>
         </button>
         {totalOverdue > 0 && (
@@ -170,6 +165,16 @@ export function TasksSidebar() {
           </button>
         ))}
       </div>
+
+      <button
+        type="button"
+        className="ts-archive-link"
+        onClick={() => setTasksView("archive")}
+      >
+        <Archive size={14} aria-hidden />
+        <span>Архив выполненных</span>
+        <span className="ts-archive-link-count">{totalDone}</span>
+      </button>
     </aside>
   );
 }

@@ -166,6 +166,7 @@ const baseEntityShape = {
   // comparison code that expects the canonical shape.
   created_at: isoDateTime(),
   updated_at: isoDateTime(),
+  completed_at: isoDateTime().nullable().default(null),
 };
 
 export const EntitySchema = z.discriminatedUnion("type", [

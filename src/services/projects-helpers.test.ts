@@ -24,6 +24,7 @@ function makeProject(
     description: "",
     created_at: "2026-04-01T00:00:00",
     updated_at: "2026-04-01T00:00:00",
+    completed_at: null,
     fields: {
       description: "",
       pipeline_stage: "research",
@@ -54,6 +55,7 @@ function makeTask(id: string): TaskEntity {
     description: "",
     created_at: "2026-04-01T00:00:00",
     updated_at: "2026-04-01T00:00:00",
+    completed_at: null,
     fields: { parent_project_id: null, checklist: [] },
   };
 }

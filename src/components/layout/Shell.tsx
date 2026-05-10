@@ -5,6 +5,7 @@ import { TopNav } from "./TopNav";
 import { Toast } from "../shared/Toast";
 import { PlannerPage } from "../../pages/PlannerPage";
 import { TasksPage } from "../../pages/TasksPage";
+import { ArchivePage } from "../../pages/ArchivePage";
 import { ProjectsPage } from "../../pages/ProjectsPage";
 import { ContextPage } from "../../pages/ContextPage";
 import { HorizonPage } from "../../pages/HorizonPage";
@@ -22,6 +23,7 @@ import { useUIStore } from "../../store/ui";
 export function Shell() {
   const currentPage = useUIStore((s) => s.currentPage);
   const setPage = useUIStore((s) => s.setPage);
+  const tasksView = useUIStore((s) => s.tasksView);
   const entityEditor = useUIStore((s) => s.entityEditor);
   const settingsOpen = useUIStore((s) => s.settingsOpen);
   const commandsPanelOpen = useUIStore((s) => s.commandsPanelOpen);
@@ -96,7 +98,8 @@ export function Shell() {
       {isDebugPage && <Header />}
       <main className="main">
         {currentPage === "plan" && <PlannerPage />}
-        {currentPage === "tasks" && <TasksPage />}
+        {currentPage === "tasks" && tasksView === "active" && <TasksPage />}
+        {currentPage === "tasks" && tasksView === "archive" && <ArchivePage />}
         {currentPage === "projects" && <ProjectsPage />}
         {currentPage === "context" && <ContextPage />}
         {currentPage === "horizon" && <HorizonPage />}
