@@ -19,7 +19,10 @@ export default defineConfig({
       {
         test: {
           name: "unit",
-          include: ["src/services/**/*.test.ts"],
+          include: [
+            "src/services/**/*.test.ts",
+            "src/store/**/*.test.ts",
+          ],
           environment: "node",
         },
       },
