@@ -19,7 +19,13 @@ const { storeSpies, executorSpies } = vi.hoisted(() => ({
   },
   executorSpies: {
     executeCommand: vi.fn(async () => undefined),
-    batchPartialOf: vi.fn(() => undefined),
+    // Explicit return type so mockReturnValueOnce({...}) typechecks —
+    // an inferred `() => undefined` would lock the spy's return.
+    batchPartialOf: vi.fn<
+      (
+        e: unknown,
+      ) => { succeeded: number; failed_at_index: number } | undefined
+    >(() => undefined),
   },
 }));
 
