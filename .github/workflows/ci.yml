@@ -1,0 +1,48 @@
+name: ci
+
+# Per-push gate: runs the vitest suite and uploads coverage to
+# both Codecov and Coveralls. Builds (Tauri installer bundles)
+# remain tag-only — see release.yml.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: tests and coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Codecov needs the parent commit to compute diff coverage
+          # on PRs; depth 2 is the documented minimum.
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: install deps
+        run: npm ci
+
+      - name: install playwright chromium
+        # vitest browser-mode tests run under playwright; without
+        # --with-deps the runner is missing libnss/libatk/etc.
+        run: npx playwright install --with-deps chromium
+
+      - name: vitest + coverage
+        run: npx vitest run --coverage
+
+      - name: upload to codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: justskiv/owly
+
+      - name: upload to coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./coverage/lcov.info

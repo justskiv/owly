@@ -22,6 +22,9 @@ tmp/
 # Vitest browser-mode debug attachments (trace screenshots, etc.)
 .vitest-attachments/
 
+# Coverage reports (uploaded to codecov/coveralls from CI, not tracked)
+coverage/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

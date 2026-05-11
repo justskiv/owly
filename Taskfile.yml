@@ -74,6 +74,11 @@ tasks:
     cmds:
       - npm test
 
+  test:coverage:
+    desc: Run vitest with coverage (text + lcov + html in coverage/)
+    cmds:
+      - npx vitest run --coverage
+
   rust:test:
     desc: Run Rust unit tests in src-tauri
     dir: src-tauri

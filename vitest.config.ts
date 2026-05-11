@@ -3,6 +3,10 @@ import { playwright } from "@vitest/browser-playwright";
 
 export default defineConfig({
   test: {
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov", "html"],
+    },
     projects: [
       {
         test: {
