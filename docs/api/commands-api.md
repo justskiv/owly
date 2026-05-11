@@ -268,7 +268,7 @@ Throw'ает, если сущность не найдена или её `type !=
         "action": "create_block",
         "timestamp": "2026-04-13T14:26:40",
         "data": {
-          "title": "Утренние собаки",
+          "title": "Утренняя прогулка с собакой",
           "date": "2026-04-14",
           "start": "07:00",
           "duration": 30,
@@ -415,18 +415,6 @@ Throw'ает, если сущность не найдена или её `type !=
 `patch` — глубокий merge только верхнего уровня. Если меняется
 вложенное поле в `fields`, передавать **весь** новый `fields`
 объект, не только изменённый ключ.
-
-### Создать дашборд
-
-Не через команды — напрямую файлами:
-1. Положить `.jsx` в `data/dashboards/your-dashboard.jsx`.
-2. Добавить запись в `data/dashboards/_registry.json`:
-   `{ "id": "your-dashboard", "title": "...", "file": "your-dashboard.jsx",
-   "icon": "📊", "order": N, "description": "..." }`.
-3. Hot reload подхватит автоматически (notify-watcher на
-   `data/dashboards/`).
-
-Правила оформления `.jsx`: см. [dashboard-authoring.md](./dashboard-authoring.md).
 
 ---
 
