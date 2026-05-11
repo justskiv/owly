@@ -15,6 +15,7 @@ export default [
       "node_modules/**",
       "data/**",
       "tmp/**",
+      "coverage/**",
     ],
   },
   {
