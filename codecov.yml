@@ -1,0 +1,31 @@
+# Codecov configuration — https://docs.codecov.com/docs/codecov-yaml.
+# Coveralls is configured implicitly through the same lcov.info; the
+# exclude list lives in vitest.config.ts so both providers agree.
+
+coverage:
+  precision: 1
+  round: down
+  range: "50...90"
+
+  status:
+    project:
+      default:
+        # Informational while we grow the test base — surface the
+        # number on PRs without failing CI on a coverage dip.
+        informational: true
+        threshold: 1%
+    patch:
+      default:
+        informational: true
+
+# Mirrors the exclude list in vitest.config.ts. Defensive in case
+# a future runner produces lcov entries we didn't filter at source.
+ignore:
+  - "**/*.css"
+  - "scripts/**"
+  - "src/main.tsx"
+  - "src/schemas/index.ts"
+
+comment:
+  layout: "header, diff, files"
+  require_changes: false

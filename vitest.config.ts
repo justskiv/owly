@@ -6,6 +6,14 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "html"],
+      exclude: [
+        // Non-code or technically uncoverable. Vitest already excludes
+        // node_modules, dist, test files, *.d.ts and configs by default.
+        "**/*.css",
+        "scripts/**",
+        "src/main.tsx",
+        "src/schemas/index.ts",
+      ],
     },
     projects: [
       {
