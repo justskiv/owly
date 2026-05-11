@@ -12,13 +12,12 @@
 
 [![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Status](https://img.shields.io/badge/status-early%20active-orange)](#status)
+[![Telegram](https://img.shields.io/badge/Telegram-@ntuzov-blue?logo=telegram&logoColor=white)](https://t.me/ntuzov)
 
 [![CI](https://github.com/justskiv/owly/actions/workflows/ci.yml/badge.svg)](https://github.com/justskiv/owly/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/justskiv/owly/branch/main/graph/badge.svg)](https://app.codecov.io/gh/justskiv/owly)
 [![Coverage Status](https://coveralls.io/repos/github/justskiv/owly/badge.svg?branch=main)](https://coveralls.io/github/justskiv/owly?branch=main)
-[![Telegram](https://img.shields.io/badge/Telegram-@ntuzov-blue?logo=telegram&logoColor=white)](https://t.me/ntuzov)
 
 </div>
 
