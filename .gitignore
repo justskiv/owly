@@ -39,7 +39,6 @@ coverage/
 # Internal-only material — not for the public repo:
 # specs/design/working notes that target the author and
 # collaborating agents, not someone reading the repo.
-docs/
 design/
 spec/
 CLAUDE.md
