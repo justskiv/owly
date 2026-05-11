@@ -5,7 +5,7 @@
 <h1 align="center">Owly</h1>
 
 <p align="center">
-  Personal command center for macOS. Plan, tasks, projects, archive — all in plain JSON on your disk.
+  Personal command center. Plan, tasks, projects, archive — all in plain JSON on your disk.
 </p>
 
 <div align="center">
@@ -13,7 +13,6 @@
 [![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Platform](https://img.shields.io/badge/platform-macOS-000?logo=apple&logoColor=white)](#install)
 [![Status](https://img.shields.io/badge/status-early%20active-orange)](#status)
 
 [![CI](https://github.com/justskiv/owly/actions/workflows/ci.yml/badge.svg)](https://github.com/justskiv/owly/actions/workflows/ci.yml)
@@ -27,8 +26,8 @@
 
 ## What it is
 
-Owly is a local-first macOS desktop app for running your week — a unified planner, task list, project board, and archive
-in a single dark-themed window. All state lives in plain JSON files in the app's data directory. There is no cloud, no
+Owly is a local-first desktop app for running your week — a unified planner, task list, project board, and archive in
+a single dark-themed window. All state lives in plain JSON files in the app's data directory. There is no cloud, no
 account, no sync server.
 
 An external client — a script, an agent, or just `vim` — can read or mutate any state by dropping a command file into
@@ -38,7 +37,7 @@ mutation or moves the file to `failed/` with the error attached.
 ## Status
 
 > [!IMPORTANT]
-> **Early-active**, single maintainer. macOS verified — Linux/Windows builds are unverified.
+> **Early-active**, single maintainer.
 
 ## Features
 
@@ -66,8 +65,9 @@ task dev
 |---------------------------------|---------|-----------------------------|
 | Node.js                         | ≥ 20    | Frontend toolchain          |
 | Rust                            | stable  | Tauri native runtime        |
-| Xcode Command Line Tools        | latest  | macOS WebView, native build |
 | [go-task](https://taskfile.dev) | ≥ 3     | Task runner (`task <name>`) |
+
+Plus platform-specific build tools — see [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS.
 
 ## Data on disk
 
@@ -104,8 +104,6 @@ components (migration deferred).
 - **Validation** — Zod (schema-first)
 - **Tests** — Vitest, Testing Library, Playwright
 - **Storage** — JSON files, atomic writes
-
-Full architecture and phase specs: [`spec/tuzov-os/`](./spec/tuzov-os/).
 
 ## Command queue
 
