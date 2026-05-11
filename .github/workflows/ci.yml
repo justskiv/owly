@@ -11,7 +11,11 @@ on:
 jobs:
   test:
     name: tests and coverage
-    runs-on: ubuntu-latest
+    # macOS-latest so vitest-browser's visual-baseline tests can match
+    # their `-chromium-darwin.png` snapshots — Linux runners have no
+    # matching baseline and time out. GitHub macOS minutes are free
+    # for public repos.
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,9 +32,8 @@ jobs:
         run: npm ci
 
       - name: install playwright chromium
-        # vitest browser-mode tests run under playwright; without
-        # --with-deps the runner is missing libnss/libatk/etc.
-        run: npx playwright install --with-deps chromium
+        # vitest browser-mode tests run under playwright.
+        run: npx playwright install chromium
 
       - name: vitest + coverage
         run: npx vitest run --coverage
