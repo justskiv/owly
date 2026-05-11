@@ -239,11 +239,15 @@ fn build_menu(
         .select_all()
         .build()?;
 
+    // Week-nav accelerators moved off Cmd+[ / Cmd+] so those chords
+    // are free for history back/forward in the JS keydown handler
+    // (Safari/Finder convention). Cmd+Shift+[ / Cmd+Shift+] keep
+    // week-nav keyboard-reachable without colliding.
     let prev_week = MenuItemBuilder::with_id("prev-week", "Предыдущая неделя")
-        .accelerator("Cmd+[")
+        .accelerator("Cmd+Shift+[")
         .build(app)?;
     let next_week = MenuItemBuilder::with_id("next-week", "Следующая неделя")
-        .accelerator("Cmd+]")
+        .accelerator("Cmd+Shift+]")
         .build(app)?;
     let today = MenuItemBuilder::with_id("today", "Сегодня")
         .accelerator("Cmd+T")

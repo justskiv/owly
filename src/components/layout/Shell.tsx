@@ -18,7 +18,7 @@ import { CommandsLogPanel } from "../commands/CommandsLogPanel";
 import { QuickAdd } from "../quick-add/QuickAdd";
 import { EntityPopupHost } from "../shared/EntityPopup";
 import { BlockPopupHost } from "../planner/BlockPopup";
-import { useUIStore } from "../../store/ui";
+import { useUIStore, isAnyNavOverlayOpen } from "../../store/ui";
 
 export function Shell() {
   const currentPage = useUIStore((s) => s.currentPage);
@@ -48,6 +48,29 @@ export function Shell() {
           e.preventDefault();
           return;
         }
+      }
+
+      // Cmd+[ / Cmd+] — browser-style back / forward through the
+      // {page, tasksView, selectedDashboardId} history (Safari /
+      // Finder convention). Intentionally checked BEFORE the
+      // isEditable early-return so the chord works while focus is in
+      // a plain input (mirrors Safari address bar). contentEditable
+      // is excluded to leave room for a future rich-text editor's
+      // native indent semantic. Skipped while any overlay owns the
+      // responder chain — Esc dismisses, then Cmd+[ navigates.
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        !e.altKey &&
+        (e.code === "BracketLeft" || e.code === "BracketRight")
+      ) {
+        const ui = useUIStore.getState();
+        if (isAnyNavOverlayOpen(ui)) return;
+        if ((target as HTMLElement | null)?.isContentEditable) return;
+        e.preventDefault();
+        if (e.code === "BracketLeft") ui.goBack();
+        else ui.goForward();
+        return;
       }
 
       if (isEditable) return;

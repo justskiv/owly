@@ -97,6 +97,37 @@ export type ReviewPeriod = "week" | "month" | "year";
 export type TaskStatusFilter = "overdue" | "week";
 export type TaskPrioFilter = "high" | "medium" | "low";
 
+// History-stack entry. Captures the three pieces of UI state that
+// change what <main> renders: which page, which Tasks sub-view, and
+// which Dashboard is selected (null = grid). Anything narrower
+// (filters, search, selection, scroll) is intentionally excluded —
+// Cmd+[ should walk back through screens, not undo filter clicks.
+export interface NavSnap {
+  page: Page;
+  tasksView: TasksView;
+  selectedDashboardId: string | null;
+}
+
+// 50 entries per stack is plenty for a desktop session; the snap is
+// tiny but capping prevents an all-day session from growing it
+// unbounded. Oldest entries fall off `historyPast` first.
+const HISTORY_CAP = 50;
+
+function snapEquals(a: NavSnap, b: NavSnap): boolean {
+  return (
+    a.page === b.page &&
+    a.tasksView === b.tasksView &&
+    a.selectedDashboardId === b.selectedDashboardId
+  );
+}
+
+function pushCapped(stack: NavSnap[], snap: NavSnap): NavSnap[] {
+  const next = [...stack, snap];
+  return next.length > HISTORY_CAP
+    ? next.slice(next.length - HISTORY_CAP)
+    : next;
+}
+
 // Three independent filter slots. AND across slots; each slot toggles
 // on/off as a single value (clicking the same row again clears it).
 export interface TaskFilters {
@@ -240,6 +271,15 @@ interface UIStore {
   // Phase 8: active period tab on the Review screen.
   rvPeriod: ReviewPeriod;
 
+  // Cmd+[ / Cmd+] history. Volatile; resets on app boot. Captures
+  // snapshots of {page, tasksView, selectedDashboardId} only. Driven
+  // through `navigate()`; the public `setPage`/`setTasksView`/
+  // `setSelectedDashboard` setters delegate to it so every call site
+  // (TopNav, debug shortcuts, EntityEditor post-save jump, etc.) feeds
+  // history automatically.
+  historyPast: NavSnap[];
+  historyFuture: NavSnap[];
+
   // Boot gate: subscriptions that mirror one store into another
   // (entity → horizon, schedule → pool) suspend their callbacks
   // until the initial Promise.all of loadConfig/loadEntities/
@@ -252,6 +292,9 @@ interface UIStore {
   // boot effect (R3 ловушка in spec/.../r1/phases/01-easy-critical.md).
   bootReady: boolean;
 
+  navigate: (snap: NavSnap, opts?: { fromHistory?: boolean }) => void;
+  goBack: () => void;
+  goForward: () => void;
   setPage: (page: Page) => void;
   setHorizonHighlight: (h: HorizonHighlight) => void;
   setRvPeriod: (p: ReviewPeriod) => void;
@@ -461,18 +504,95 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   bootReady: false,
 
-  // When we navigate away from the Horizon page, the cross-highlight
-  // becomes orphan UI state that lights up nothing visible — clear it
-  // here rather than via a useEffect cleanup, which would run after
-  // the next page mounts (causing a brief flicker).
-  setPage: (currentPage) =>
+  historyPast: [],
+  historyFuture: [],
+
+  // Single nav primitive. Three rules:
+  //  - dedup: navigating to the current view is a no-op (no push,
+  //    no side-effect reset);
+  //  - user nav pushes current onto past and clears future;
+  //  - history restore (opts.fromHistory) skips both.
+  // Side effects preserved from the old setPage: horizonHighlight is
+  // cleared on leaving Horizon; lastCreatedTaskId is cleared only on
+  // page changes (not view-only changes within the same page), so a
+  // freshly-created task that highlighted in /tasks doesn't get
+  // un-highlighted by a stray archive→active toggle.
+  navigate: (snap, opts) => {
+    const state = get();
+    const cur: NavSnap = {
+      page: state.currentPage,
+      tasksView: state.tasksView,
+      selectedDashboardId: state.selectedDashboardId,
+    };
+    if (snapEquals(cur, snap)) return;
+    const fromHistory = opts?.fromHistory === true;
+    const pageChanged = cur.page !== snap.page;
     set((prev) => ({
-      currentPage,
+      currentPage: snap.page,
+      tasksView: snap.tasksView,
+      selectedDashboardId: snap.selectedDashboardId,
       horizonHighlight:
-        currentPage === "horizon" ? prev.horizonHighlight : null,
-      lastCreatedTaskId: null,
-      tasksView: currentPage === "tasks" ? "active" : prev.tasksView,
-    })),
+        snap.page === "horizon" ? prev.horizonHighlight : null,
+      lastCreatedTaskId: pageChanged ? null : prev.lastCreatedTaskId,
+      historyPast: fromHistory ? prev.historyPast : pushCapped(prev.historyPast, cur),
+      historyFuture: fromHistory ? prev.historyFuture : [],
+    }));
+  },
+  goBack: () => {
+    const state = get();
+    if (state.historyPast.length === 0) return;
+    const target = state.historyPast[state.historyPast.length - 1];
+    const cur: NavSnap = {
+      page: state.currentPage,
+      tasksView: state.tasksView,
+      selectedDashboardId: state.selectedDashboardId,
+    };
+    const pageChanged = cur.page !== target.page;
+    set((prev) => ({
+      currentPage: target.page,
+      tasksView: target.tasksView,
+      selectedDashboardId: target.selectedDashboardId,
+      horizonHighlight:
+        target.page === "horizon" ? prev.horizonHighlight : null,
+      lastCreatedTaskId: pageChanged ? null : prev.lastCreatedTaskId,
+      historyPast: prev.historyPast.slice(0, -1),
+      historyFuture: pushCapped(prev.historyFuture, cur),
+    }));
+  },
+  goForward: () => {
+    const state = get();
+    if (state.historyFuture.length === 0) return;
+    const target = state.historyFuture[state.historyFuture.length - 1];
+    const cur: NavSnap = {
+      page: state.currentPage,
+      tasksView: state.tasksView,
+      selectedDashboardId: state.selectedDashboardId,
+    };
+    const pageChanged = cur.page !== target.page;
+    set((prev) => ({
+      currentPage: target.page,
+      tasksView: target.tasksView,
+      selectedDashboardId: target.selectedDashboardId,
+      horizonHighlight:
+        target.page === "horizon" ? prev.horizonHighlight : null,
+      lastCreatedTaskId: pageChanged ? null : prev.lastCreatedTaskId,
+      historyFuture: prev.historyFuture.slice(0, -1),
+      historyPast: pushCapped(prev.historyPast, cur),
+    }));
+  },
+
+  // setPage carries the existing tasksView reset (navigating to Tasks
+  // lands on the active sub-view, never archive — confirmed by users
+  // re-entering Tasks expecting their previous active context). The
+  // reset is baked into the snap so history records the reset state.
+  setPage: (page) => {
+    const state = get();
+    get().navigate({
+      page,
+      tasksView: page === "tasks" ? "active" : state.tasksView,
+      selectedDashboardId: state.selectedDashboardId,
+    });
+  },
   setHorizonHighlight: (horizonHighlight) => set({ horizonHighlight }),
   setRvPeriod: (rvPeriod) => set({ rvPeriod }),
   setSelectedEntity: (selectedEntityId) => set({ selectedEntityId }),
@@ -531,8 +651,14 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   setWeekPrompt: (weekPromptId) => set({ weekPromptId }),
 
-  setSelectedDashboard: (selectedDashboardId) =>
-    set({ selectedDashboardId }),
+  setSelectedDashboard: (selectedDashboardId) => {
+    const state = get();
+    get().navigate({
+      page: state.currentPage,
+      tasksView: state.tasksView,
+      selectedDashboardId,
+    });
+  },
   openDashboardEditorAdd: () =>
     set({ dashboardEditor: { open: true, mode: "add" } }),
   openDashboardEditorRename: (id) =>
@@ -709,7 +835,14 @@ export const useUIStore = create<UIStore>((set, get) => ({
     set({ taskFilter: { status: null, cat: null, prio: null } }),
   setLastCreatedTask: (lastCreatedTaskId) => set({ lastCreatedTaskId }),
 
-  setTasksView: (tasksView) => set({ tasksView }),
+  setTasksView: (tasksView) => {
+    const state = get();
+    get().navigate({
+      page: state.currentPage,
+      tasksView,
+      selectedDashboardId: state.selectedDashboardId,
+    });
+  },
   setArchiveSearch: (archiveSearch) => set({ archiveSearch }),
   setArchiveSort: (archiveSort) => set({ archiveSort }),
   setArchiveFilterCat: (cat) =>
@@ -742,3 +875,25 @@ export const useUIStore = create<UIStore>((set, get) => ({
     set({ blockPopup: { open: true, blockId, anchor, position } }),
   closeBlockPopup: () => set({ blockPopup: { open: false } }),
 }));
+
+// Returns true if any blocking overlay owns the responder chain —
+// modals, popups, and Quick Add. Used by Cmd+[/] to suspend history
+// navigation while the user is mid-interaction (Esc closes the
+// overlay first, then the next Cmd+[ navigates). When adding a new
+// modal/popup state to UIStore, add it here too.
+export function isAnyNavOverlayOpen(
+  state: ReturnType<typeof useUIStore.getState>,
+): boolean {
+  return (
+    state.entityEditor.open ||
+    state.settingsOpen ||
+    state.commandsPanelOpen ||
+    state.quickAdd.open ||
+    state.entityPopup.open ||
+    state.blockPopup.open ||
+    state.dashboardEditor.open ||
+    state.poolModalOpen !== null ||
+    state.weekPromptId !== null ||
+    state.createDropdownOpen
+  );
+}
